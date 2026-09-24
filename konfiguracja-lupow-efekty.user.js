@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Konfiguracja łupów – nowe efekty animacji
 // @namespace    majcin.margonem.lnfx
-// @version      1.3.1
+// @version      1.4.0
 // @description  Nowe efekty animacji i losowy dźwięk (z własnych) w dodatku "Konfiguracja łupów" (Margonem NI)
 // @author       Majcin
 // @match        https://*.margonem.pl/*
@@ -153,14 +153,28 @@
     ctx.bezierCurveTo(x + s * 0.6, y - s * 0.95, x + s * 1.2, y - s * 0.05, x, y + s * 0.7);
     ctx.closePath();
   }
+  // jakość renderowania: skala rozdzielczości canvasa i rozmycia (auto – obniżana, gdy klatki są za wolne)
+  const RENDER = { blur: 1, autoScale: 1 };
+  function renderScaleFor(q) {
+    const dpr = window.devicePixelRatio || 1;
+    if (q === 'high') return Math.min(dpr, 2);
+    if (q === 'medium') return 1;
+    if (q === 'low') return 0.6;
+    return Math.min(dpr, 1) * RENDER.autoScale; // auto
+  }
+  // poświata ramki: kilka obrysów zamiast shadowBlur (rozmycie na dużym prostokącie jest bardzo kosztowne)
   function glowFrame(ctx, b, rgb, alpha, lw = 3, pad = 2, blur = 16) {
     if (alpha <= 0.003) return;
     ctx.save();
-    ctx.globalAlpha = Math.min(1, alpha);
-    ctx.strokeStyle = `rgb(${rgb})`; ctx.lineWidth = lw;
-    ctx.shadowColor = `rgb(${rgb})`; ctx.shadowBlur = blur;
+    const prev = ctx.globalCompositeOperation;
+    ctx.strokeStyle = `rgb(${rgb})`;
     rrect(ctx, b.x - pad, b.y - pad, b.w + pad * 2, b.h + pad * 2, 6);
-    ctx.stroke();
+    if (blur > 0) {
+      ctx.globalCompositeOperation = 'lighter';
+      for (const [k, al] of [[1, 0.06], [0.6, 0.1], [0.3, 0.18]]) { ctx.globalAlpha = Math.min(1, alpha * al); ctx.lineWidth = lw + blur * 1.6 * k; ctx.stroke(); }
+      ctx.globalCompositeOperation = prev;
+    }
+    ctx.globalAlpha = Math.min(1, alpha); ctx.lineWidth = lw; ctx.stroke();
     ctx.restore();
   }
   // trzęsienie ekranu gry (sam kontener gry, nasz canvas i panel stoją w miejscu)
@@ -408,7 +422,7 @@
     ctx.translate(x, y); ctx.rotate(rot || 0); ctx.scale(sx == null ? 1 : sx, 1);
     ctx.globalAlpha = Math.min(1, alpha);
     ctx.imageSmoothingEnabled = false; // piksel-art bez rozmycia
-    if (glow) { ctx.shadowColor = 'rgba(255,175,40,1)'; ctx.shadowBlur = size * 0.25; }
+    if (glow && RENDER.blur) { ctx.shadowColor = 'rgba(255,175,40,1)'; ctx.shadowBlur = size * 0.25; }
     if (filter) ctx.filter = filter;
     ctx.drawImage(img, -size / 2, -size / 2, size, size);
     ctx.restore();
@@ -453,9 +467,11 @@
         ctx.globalCompositeOperation = 'lighter';
         glowFrame(ctx, b, '255,110,20', a * (0.6 + 0.25 * Math.sin(t * 11)), 3, 2, 20);
         if (t < this.dur - 1.2) {
-          s.acc += dt * 480 * sc;
+          s.acc += dt * 480 * Math.pow(sc, 0.75);
+          const cap = 420 * Math.sqrt(sc); // limit cząsteczek (wydajność)
           while (s.acc >= 1) {
             s.acc--;
+            if (s.fl.length > cap) continue;
             const p = perim(b, Math.random(), 2);
             s.fl.push({ x: p.x + rand(-3, 3), y: p.y + rand(-3, 3), vx: p.nx * rand(10, 45) + rand(-12, 12), vy: p.ny * rand(10, 35) - rand(50, 140),
               l: 0, m: rand(0.45, 0.95) * (p.ny > 0 ? 0.4 : 1), r: rand(8, 19), sd: rand(0, TAU) }); // dolna krawędź krócej – nie zasłania łupów
@@ -611,9 +627,10 @@
         const sc = o.scale || 1;
         if (!o.second) vignette(ctx, W, H, '15,0,25', 0.5 * a, 0.25);
         if (t < this.dur - 1.3) {
-          s.acc += dt * 110 * sc;
+          s.acc += dt * 110 * Math.pow(sc, 0.75);
           while (s.acc >= 1) {
             s.acc--;
+            if (s.sm.length > 160 * Math.sqrt(sc)) continue;
             const p = perim(b, Math.random(), 4);
             s.sm.push({ x: p.x, y: p.y, vx: p.nx * rand(15, 45), vy: p.ny * rand(15, 45) - rand(15, 45), l: 0, m: rand(1.2, 2.1), r: rand(14, 30) });
           }
@@ -3134,6 +3151,7 @@
     layers: { loot: '', map: '', around: '', item: '', screen: '', win: '', lose: '' },
     hue: { loot: 0, map: 0, around: 0, item: 0, screen: 0, win: 0, lose: 0 },
     outcomeSec: 4,
+    quality: 'auto',
     durationSec: 0, strength: 100, density: 100, itemSize: 100, // durationSec: 0 = do zamknięcia okna łupów
   });
 
@@ -3151,12 +3169,8 @@
   }
 
   function mapCenter() {
-    let best = null, area = 0;
-    document.querySelectorAll('canvas').forEach(c => {
-      if (c.classList.contains('lnfx-canvas')) return;
-      const r = c.getBoundingClientRect(), ar = r.width * r.height;
-      if (ar > area) { area = ar; best = r; }
-    });
+    const el = mapCanvas();
+    const best = el ? el.getBoundingClientRect() : null;
     if (best && best.width > 200 && best.height > 200) return { x: best.left + best.width / 2, y: best.top + best.height / 2 };
     return { x: innerWidth / 2, y: innerHeight / 2 };
   }
@@ -3169,13 +3183,23 @@
     return null;
   }
   // obramowanie okna gry = największy canvas (mapa)
-  function mapBox() {
-    let best = null, area = 0;
-    document.querySelectorAll('canvas').forEach(c => {
-      if (c.classList.contains('lnfx-canvas')) return;
+  // canvas mapy wyszukujemy rzadko (na stronie są setki małych canvasów ikon – pomijamy je bez liczenia layoutu)
+  let MAPEL = null, MAPEL_T = 0;
+  function mapCanvas() {
+    const now = performance.now();
+    if (MAPEL && MAPEL.isConnected && now - MAPEL_T < 5000) return MAPEL;
+    let el = null, area = 0;
+    for (const c of document.querySelectorAll('canvas')) {
+      if (c.width < 200 || c.height < 150 || c.classList.contains('lnfx-canvas')) continue;
       const r = c.getBoundingClientRect(), ar = r.width * r.height;
-      if (ar > area) { area = ar; best = r; }
-    });
+      if (ar > area) { area = ar; el = c; }
+    }
+    MAPEL = el; MAPEL_T = now;
+    return el;
+  }
+  function mapBox() {
+    const el = mapCanvas();
+    const best = el ? el.getBoundingClientRect() : null;
     if (!best || best.width < 200) return { x: 20, y: 20, w: innerWidth - 40, h: innerHeight - 40, cx: innerWidth / 2, cy: innerHeight / 2 };
     return { x: best.left, y: best.top, w: best.width, h: best.height, cx: best.left + best.width / 2, cy: best.top + best.height / 2 };
   }
@@ -3217,7 +3241,8 @@
         const c = findLegendIcon();
         if (c) tr.src = c;
       }
-      if (tr.src && tr.src.isConnected) {
+      tr.n = (tr.n || 0) + 1;
+      if (tr.src && tr.src.isConnected && (tr.n % 4 === 1 || !tr.found)) {
         const r = tr.src.getBoundingClientRect();
         if (r.width > 0) tr.rect = { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width };
         const w = tr.src.width || 32, h = tr.src.height || 32;
@@ -3234,6 +3259,14 @@
     return { x: c.x - 106, y: c.y - 115, w: 212, h: 230, cx: c.x, cy: c.y };
   }
 
+  // shadowBlur jest drogi – na naszych kontekstach skalujemy go jakością (RENDER.blur)
+  const SB = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, 'shadowBlur');
+  function tameBlur(c) {
+    if (!SB || c.__lnfxBlur) return c;
+    Object.defineProperty(c, 'shadowBlur', { configurable: true, get() { return SB.get.call(this); }, set(v) { SB.set.call(this, v * RENDER.blur); } });
+    c.__lnfxBlur = true;
+    return c;
+  }
   function newCanvas() {
     const cv = document.createElement('canvas');
     cv.className = 'lnfx-canvas';
@@ -3282,10 +3315,13 @@
     for (const it of inst) it.n = perKey[it.Ly.key] + 1;
     stopFx();
     if (!inst.length) return;
-    const cv = newCanvas(), ctx = cv.getContext('2d');
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const cv = newCanvas(), ctx = tameBlur(cv.getContext('2d'));
+    const quality = cfg.quality || 'auto';
+    let dpr = renderScaleFor(quality);
+    RENDER.blur = quality === 'low' || dpr < 0.8 ? 0 : quality === 'high' ? 1 : 0.5;
     const resize = () => { cv.width = Math.round(innerWidth * dpr); cv.height = Math.round(innerHeight * dpr); };
     resize();
+    let frameNo = 0, ema = 0.016, lastAdapt = 0, real = null;
     let box = lootBox() || fallbackBox();
     let map = mapBox();
     const shared = makeItemTracker(icons[0] || null);
@@ -3310,14 +3346,23 @@
       // znacznik czasu rAF bywa wcześniejszy niż performance.now() z chwili startu
       const t = Math.max(0, (now - t0) / 1000), dt = Math.max(0, Math.min(0.05, (now - last) / 1000));
       last = now;
+      frameNo++;
+      // tryb auto: gdy średni czas klatki > ~24 ms, zmniejszamy rozdzielczość efektów (do 55%)
+      ema = ema * 0.92 + dt * 0.08;
+      if (quality === 'auto' && frameNo > 20 && frameNo - lastAdapt > 30 && ema > 0.024 && RENDER.autoScale > 0.56) {
+        RENDER.autoScale = Math.max(0.55, RENDER.autoScale * 0.8);
+        dpr = renderScaleFor(quality); RENDER.blur = dpr < 0.8 ? 0 : 0.5; lastAdapt = frameNo;
+        for (const l of layers) if (l.lc) { l.lc.width = 1; }
+      }
       if (cv.width !== Math.round(innerWidth * dpr)) resize();
-      const real = isOut ? null : lootBox();
+      // odczyty z DOM (layout) co kilka klatek, a nie w każdej
+      if (!isOut && (frameNo % 4 === 1)) real = lootBox();
       if (real) { box = real; seenWindow = true; } // okno zamknięte w trakcie efektu → zostaje ostatnia pozycja
       // gracz zamknął okno łupów → animacja szybko wygasa
       if (seenWindow && !real && total > t + 0.45) endAt(t + 0.45);
       // tryb "do zamknięcia okna", a okna w ogóle nie ma (np. podgląd) → 8 s
       if (untilClose && !seenWindow && t > 1.5 && total > 8) endAt(Math.max(8, t));
-      map = mapBox();
+      if (frameNo % 10 === 1) map = mapBox();
       let holed = false;
       const hide = new Set();
       // okno łupów musi być zawsze widoczne: wycinamy jego prostokąt z naszego canvasa
@@ -3340,13 +3385,17 @@
         const item = out ? { el: out.el && out.el.isConnected ? out.el : null, img: out.img, x: out.to.x, y: out.to.y, base: out.base }
           : l.sp.tracker ? l.sp.tracker(box) : sharedItem;
         let c = ctx;
+        // warstwa z przesunięciem koloru: osobny canvas (w niższej rozdzielczości, chyba że jakość wysoka) + filtr hue-rotate
+        const ls = quality === 'high' ? 1 : 0.5;
         if (l.lc) {
-          if (l.lc.width !== cv.width || l.lc.height !== cv.height) { l.lc.width = cv.width; l.lc.height = cv.height; }
-          c = l.lc.getContext('2d');
+          const lw = Math.round(cv.width * ls), lh = Math.round(cv.height * ls);
+          if (l.lc.width !== lw || l.lc.height !== lh) { l.lc.width = lw; l.lc.height = lh; }
+          c = tameBlur(l.lc.getContext('2d'));
           c.setTransform(1, 0, 0, 1, 0, 0);
           c.clearRect(0, 0, l.lc.width, l.lc.height);
         }
-        c.setTransform(dpr, 0, 0, dpr, 0, 0);
+        const cs = l.lc ? dpr * ls : dpr;
+        c.setTransform(cs, 0, 0, cs, 0, 0);
         c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; c.shadowBlur = 0; c.filter = 'none';
         const a = clamp01(tl / 0.35) * clamp01((l.dur - tl) / Math.min(0.9, Math.max(0.3, l.dur * 0.2))) * P.strength;
         const o = { map, item, scale: l.scale, second: l.second, density: P.density, itemScale: P.itemScale, hideItem: () => { if (item && item.el) hide.add(item.el); }, out, index: l.sp.idx || 0, count: l.sp.n || 1 };
@@ -3356,7 +3405,7 @@
           ctx.setTransform(1, 0, 0, 1, 0, 0);
           ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.shadowBlur = 0;
           ctx.filter = `hue-rotate(${l.sp.hue}deg)`;
-          ctx.drawImage(l.lc, 0, 0);
+          ctx.drawImage(l.lc, 0, 0, cv.width, cv.height);
           ctx.filter = 'none';
         }
       }
@@ -3811,6 +3860,7 @@
 
   /* ------------------------------- KONFIGURATOR ------------------------------- */
   let panel = null, panelPreset = null;
+  const QUALITY_OPTS = [['auto', 'Automatyczna (zalecana)'], ['high', 'Wysoka'], ['medium', 'Średnia'], ['low', 'Niska (najszybsza)']];
   const SLIDERS = [
     { key: 'durationSec', label: 'Czas trwania', min: 1, max: 31, step: 0.5, unit: ' s',
       toSlider: v => (v > 0 ? v : 31), fromSlider: v => (v >= 31 ? 0 : v), fmt: v => (v >= 31 || v === 0 ? 'do zamknięcia okna' : v + ' s') },
@@ -4102,6 +4152,7 @@
       body.append(ctl);
     }
 
+    body.append(K.stack('Jakość animacji', null, K.select(QUALITY_OPTS, cfg.quality || 'auto', v => { const c = getCfg(); c.quality = v; saveCfg(c); })));
     lnc.append(K.line());
     const btns = el('div', 'ln-buttons-container lnfx-gbtns');
     btns.append(
