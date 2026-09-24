@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Konfiguracja łupów – nowe efekty animacji
 // @namespace    majcin.margonem.lnfx
-// @version      1.0.0
+// @version      1.3.1
 // @description  Nowe efekty animacji i losowy dźwięk (z własnych) w dodatku "Konfiguracja łupów" (Margonem NI)
 // @author       Majcin
 // @match        https://*.margonem.pl/*
@@ -343,6 +343,54 @@
     ctx.fillRect(-s * 0.52, s * 0.08, s * 1.04, s * 0.14); ctx.strokeRect(-s * 0.52, s * 0.08, s * 1.04, s * 0.14);
     for (const [px, c] of [[-0.3, '#e0115f'], [0, '#2266ff'], [0.3, '#12b865']]) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(px * s, s * 0.15, s * 0.05, 0, TAU); ctx.fill(); }
     for (const [px, py] of [[-0.5, -0.35], [-0.15, -0.45], [0.15, -0.45], [0.5, -0.35]]) { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(px * s, py * s, s * 0.04, 0, TAU); ctx.fill(); }
+    ctx.restore();
+  }
+
+
+  // wiedźma-mimik (sprite 96×96, 60 klatek)
+  const WITCH = new Image();
+  WITCH.src = 'data:image/png;base64,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';
+  function drawWitchSprite(ctx, x, y, size, frame, flip, a) {
+    if (!WITCH.complete || !WITCH.naturalWidth || a <= 0.01 || size < 2) return;
+    ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a);
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(x, y); if (flip) ctx.scale(-1, 1);
+    ctx.drawImage(WITCH, (frame | 0) * 96, 0, 96, 96, -size / 2, -size, size, size);
+    ctx.restore();
+  }
+  // strój gracza z silnika gry (arkusz: 4 kolumny kroków × 4 kierunki; animowane stroje mają kolejne klatki pod spodem)
+  function drawCharSprite(ctx, ch, x, feetY, sc, dir, step, t, a) {
+    const img = ch && ch.sprite;
+    if (!img || !img.complete || !img.naturalWidth || a <= 0.01) return false;
+    const fw = ch.fw || 32, fh = ch.fh || 48;
+    const row = { S: 0, W: 1, E: 2, N: 3 }[dir] || 0;
+    const frames = Math.max(1, Math.floor(img.naturalHeight / (fh * 4)));
+    const af = frames > 1 ? Math.floor(t * 10) % frames : 0;
+    ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, (step % Math.max(1, Math.floor(img.naturalWidth / fw))) * fw, af * fh * 4 + row * fh, fw, fh, x - fw * sc / 2, feetY - fh * sc, fw * sc, fh * sc);
+    ctx.restore();
+    return true;
+  }
+  function drawHeroSprite(ctx, x, feetY, sc, dir, step, t, a) {
+    let h = null;
+    try { h = window.Engine && Engine.hero; } catch (e) { /* ignore */ }
+    return drawCharSprite(ctx, h, x, feetY, sc, dir, step, t, a);
+  }
+  function drawBat(ctx, x, y, len, dir, ang, a) {
+    if (a <= 0.01) return;
+    ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a);
+    ctx.translate(x, y); ctx.scale(dir < 0 ? -1 : 1, 1); ctx.rotate(ang);
+    const g = ctx.createLinearGradient(-8, 0, 8, 0);
+    g.addColorStop(0, '#8a5a2b'); g.addColorStop(0.5, '#d9a765'); g.addColorStop(1, '#7a4a1f');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(-2.5, 0); ctx.lineTo(-3, -len * 0.35); ctx.quadraticCurveTo(-7, -len * 0.7, -6.5, -len * 0.95);
+    ctx.arc(0, -len * 0.95, 6.5, Math.PI, 0);
+    ctx.quadraticCurveTo(7, -len * 0.7, 3, -len * 0.35); ctx.lineTo(2.5, 0); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#4a2a0e'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = '#222'; ctx.fillRect(-3, -len * 0.22, 6, len * 0.22);
+    ctx.beginPath(); ctx.ellipse(0, 0, 4.5, 2.2, 0, 0, TAU); ctx.fill();
     ctx.restore();
   }
 
@@ -1104,7 +1152,7 @@
       init: () => ({ sp: [] }),
       frame(ctx, s, t, dt, a, W, H, b, o = {}) {
         const it = o.item, big = 128 * (o.itemScale || 1);
-        const hx = b.cx, hy = Math.max(big * 0.7, b.y - big * 0.75);
+        const hx = b.cx + ((o.index || 0) - ((o.count || 1) - 1) / 2) * big * 1.3, hy = Math.max(big * 0.7, b.y - big * 0.75);
         const back = clamp01((t - (this.dur - 1)) / 0.8);
         const k = easeOutBack(clamp01(t / 0.5)) * (1 - back) + back * (it.base / big);
         const x = hx + (it.x - hx) * easeOut(back), y = hy + (it.y - hy) * easeOut(back) + Math.sin(t * 2.2) * 5 * (1 - back);
@@ -1135,7 +1183,7 @@
       id: 'item_reveal', group: G_ITEM, name: 'Objawienie przedmiotu', dur: 4.8,
       init: () => ({ sp: [] }),
       frame(ctx, s, t, dt, a, W, H, b, o = {}) {
-        const it = o.item, big = 180 * (o.itemScale || 1), cx = W / 2, cy = H * 0.42;
+        const it = o.item, big = 180 * (o.itemScale || 1), cx = W / 2 + ((o.index || 0) - ((o.count || 1) - 1) / 2) * big * 1.2, cy = H * 0.42;
         const inF = easeOut(clamp01(t / 0.7)), outF = easeOut(clamp01((t - (this.dur - 1.1)) / 0.9));
         const x = it.x + (cx - it.x) * inF + (it.x - cx) * outF;
         const y = it.y + (cy - it.y) * inF + (it.y - cy) * outF + Math.sin(t * 2) * 6 * inF * (1 - outF);
@@ -1166,7 +1214,7 @@
         const grow = easeOutBack(clamp01(t / 0.6)), shrink = easeOut(clamp01((t - (this.dur - 1.2)) / 1));
         const rr = Math.max(0.01, grow * (1 - shrink));
         for (let i = 0; i < n; i++) {
-          const an = t * 1.6 + (i / n) * TAU;
+          const an = t * 1.6 + (i / n) * TAU + (o.index || 0) * (TAU / n / Math.max(1, o.count || 1));
           const x = b.cx + Math.cos(an) * rx * rr + (it.x - b.cx) * shrink;
           const y = b.cy + Math.sin(an) * ry * rr + (it.y - b.cy) * shrink;
           const depth = 0.75 + 0.25 * Math.sin(an), size = 44 * (o.itemScale || 1) * depth * (1 - shrink * 0.5);
@@ -1260,7 +1308,7 @@
       init: () => ({ coins: [], popped: false, sp: [] }),
       frame(ctx, s, t, dt, a, W, H, b, o = {}) {
         const it = o.item, sz = 74 * (o.itemScale || 1);
-        const cx = b.cx, bodyTop = Math.max(sz * 1.3, b.y - sz * 0.62);
+        const cx = b.cx + ((o.index || 0) - ((o.count || 1) - 1) / 2) * sz * 1.4, bodyTop = Math.max(sz * 1.3, b.y - sz * 0.62);
         const k = Math.max(0.01, easeOutBack(clamp01(t / 0.45)));
         const open = easeOut(clamp01((t - 0.7) / 0.5));
         if (t < this.dur - 0.35) o.hideItem();
@@ -2917,6 +2965,151 @@
         sadFace(ctx, u.from.x, u.from.y, 44 * easeOutBack(clamp01((t - 3) / 0.4)), a, t, { look: side });
       }
     },
+
+    {
+      id: 'win_hero', group: G_WIN, name: 'Bohater niesie łup', dur: 5,
+      init: () => ({ sp: [], hit: -9 }),
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const u = o.out, sc = 3 * (o.itemScale || 1), fw = 32 * sc, fh = 48 * sc;
+        const dist = Math.hypot(u.to.x - u.from.x, u.to.y - u.from.y);
+        const T0 = 0.35, T = T0 + Math.max(1.1, Math.min(2.8, dist / 320)); // pojawienie się + marsz
+        const f = clamp01((t - T0) / (T - T0));
+        const x = u.from.x + (u.to.x - u.from.x) * f, y = u.from.y + (u.to.y - u.from.y) * f;
+        const walking = t > T0 && t < T;
+        const dir = !walking ? 'S' : Math.abs(u.to.x - u.from.x) > Math.abs(u.to.y - u.from.y) ? (u.to.x > u.from.x ? 'E' : 'W') : (u.to.y > u.from.y ? 'S' : 'N');
+        const step = walking ? Math.floor(t * 8) % 4 : 0;
+        const bob = walking ? Math.abs(Math.sin(t * 16)) * 3 : 0;
+        const appear = clamp01(t / T0), leave = clamp01((t - T - 0.9) / 0.5);
+        const ha = a * appear * (1 - leave);
+        const feetY = y + fh * 0.12;
+        // cień
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = ha * 0.35; ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.ellipse(x, feetY, fw * 0.35, fw * 0.12, 0, 0, TAU); ctx.fill();
+        // postać gracza
+        const drawn = drawHeroSprite(ctx, x, feetY - bob, sc, dir, step, t, ha);
+        if (!drawn) sadFace(ctx, x, feetY - fh * 0.5, fw * 0.4, ha, t, {}); // awaryjnie
+        // przedmiot niesiony nad głową
+        if (t < T + 0.05) {
+          o.hideItem();
+          ctx.globalCompositeOperation = 'lighter';
+          const ix = x, iy = feetY - fh - 14 - bob + Math.sin(t * 5) * 3;
+          dot(ctx, '255,190,70', ix, iy, u.base * 1.4, a * 0.7);
+          drawItem(ctx, u.img, ix, iy, u.base * 1.6, Math.sin(t * 4) * 0.15, 1, a, true);
+          if (Math.random() < 0.5) s.sp.push({ x: ix + rand(-16, 16), y: iy + rand(-16, 16), vx: rand(-20, 20), vy: rand(-60, -20), l: 0, m: 0.6, c: '255,220,140' });
+        } else if (s.hit < 0) {
+          s.hit = t;
+          burst(s.sp, u.to, 70, 120, 420, ['255,220,120', '255,180,60', '255,255,220']);
+        }
+        if (s.hit > 0) {
+          const tt = t - s.hit;
+          ringFx(ctx, u.to, tt, 0.8, 140, '255,210,120', a);
+          dot(ctx, '255,230,160', u.to.x, u.to.y, 90 * clamp01(1 - tt / 0.6), a * clamp01(1 - tt / 0.6), true);
+          if (tt < 0.9) caption(ctx, 'Moje!', x, feetY - fh - 30, a * clamp01(tt / 0.2) * clamp01((0.9 - tt) / 0.3), 22);
+        }
+        sparksDraw(ctx, s.sp, dt, a, 200);
+      }
+    },
+
+    {
+      id: 'lose_witch', group: G_LOSE, name: 'Wiedźma-pożeraczka', dur: 5.2,
+      init: () => ({ crumbs: [], chomp: -1 }),
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const u = o.out, size = 260 * (o.itemScale || 1);
+        const side = u.from.x < W / 2 ? 1 : -1;
+        const wx = clampX(u.from.x + side * 110, W, size), wy = Math.min(H - 10, u.from.y + size * 0.55);
+        // oś czasu klatek: 0–33 spokój, 34–37 przemiana, 38–53 kłapanie, 54–59 powrót
+        const T1 = 0.6, T2 = T1 + 0.4, T3 = T2 + 1.4, T4 = T3 + 0.45;
+        let fr;
+        if (t < T1) fr = Math.floor(t * 8) % 34;
+        else if (t < T2) fr = 34 + Math.min(3, Math.floor((t - T1) / (T2 - T1) * 4));
+        else if (t < T3) fr = 38 + Math.floor((t - T2) * 12) % 16;
+        else if (t < T4) fr = 54 + Math.min(5, Math.floor((t - T3) / (T4 - T3) * 6));
+        else fr = Math.floor(t * 8) % 34;
+        const appear = clamp01(t / 0.35), leave = clamp01((t - this.dur + 0.6) / 0.5);
+        // „paszcza” (tył postaci) – mniej więcej lewa dolna część klatki
+        const flip = side < 0; // w oryginale tył (paszcza) jest po lewej – odwracamy tak, by był od strony przedmiotu
+        const mx = wx + (flip ? 1 : -1) * size * 0.2, my = wy - size * 0.36;
+        // przedmiot podlatuje i zostaje pożarty
+        if (t < T2 + 0.6) {
+          const k = clamp01((t - 0.25) / (T2 - 0.25));
+          const ix = u.from.x + (mx - u.from.x) * easeInOut(k), iy = u.from.y + (my - u.from.y) * easeInOut(k) - Math.sin(k * Math.PI) * 60;
+          const eat = clamp01((t - T2) / 0.6);
+          const shake = eat > 0 ? rand(-3, 3) * (1 - eat) : 0;
+          drawItem(ctx, u.img, ix + shake, iy + shake, u.base * 2.2 * (1 - eat * 0.85), eat * 2, 1 - eat * 0.4, a * (1 - eat), false, eat > 0 ? `brightness(${1 - eat * 0.5})` : null);
+        }
+        // kłapnięcia: okruchy, drgania
+        if (t > T2 && t < T3) {
+          const c = Math.floor((t - T2) * 3);
+          if (c !== s.chomp) {
+            s.chomp = c;
+            for (let i = 0; i < 16; i++) s.crumbs.push({ x: mx + rand(-20, 20), y: my + rand(-10, 10), vx: rand(-220, 220), vy: rand(-320, -80), l: 0, m: rand(0.6, 1.1), c: pick(['#c9a24a', '#8a6a2a', '#e8d9a0', '#9a9a9a']), z: rand(2, 5) });
+          }
+          shakeScreen(3 * Math.abs(Math.sin((t - T2) * Math.PI * 3)) * a);
+        }
+        drawWitchSprite(ctx, wx, wy, size, fr, flip, a * appear * (1 - leave));
+        ctx.globalCompositeOperation = 'source-over';
+        for (let i = s.crumbs.length - 1; i >= 0; i--) {
+          const q = s.crumbs[i]; q.l += dt; if (q.l > q.m) { s.crumbs.splice(i, 1); continue; }
+          q.vy += 900 * dt; q.x += q.vx * dt; q.y += q.vy * dt;
+          ctx.globalAlpha = a * (1 - q.l / q.m); ctx.fillStyle = q.c; ctx.fillRect(q.x, q.y, q.z, q.z);
+        }
+        if (t > T2 + 0.3 && t < T3 + 0.2) caption(ctx, ['CHRUP!', 'MLASK!', 'CHRUP!'][Math.max(0, s.chomp) % 3], mx + rand(-3, 3), my - size * 0.55, a * 0.9, 30);
+        if (t > T4) caption(ctx, 'Mniam!', wx, wy - size - 10, a * clamp01((t - T4) / 0.3) * (1 - leave), 26);
+        caption(ctx, u.reason, wx, Math.min(H - 20, wy + 26), a * clamp01((t - T2) / 0.4), 24);
+      }
+    },
+
+    {
+      id: 'lose_chase', group: G_LOSE, name: 'Pościg z kijem bejsbolowym', dur: 4.5,
+      init: () => ({ puffs: [], bonk: -9, stars: 0 }),
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const u = o.out, sc = 2.6;
+        const dir = u.from.x < W / 2 ? 1 : -1;
+        const T0 = 0.35, run = Math.max(0, t - T0), dur = Math.max(1.5, this.dur - T0 - 0.6);
+        const k = clamp01(run / dur);
+        const baseY = Math.min(H - 20, u.from.y + 90);
+        const tx = u.from.x + dir * (40 + k * k * W * 0.85);           // uciekający
+        const gap = 110 - 70 * clamp01(run / 1.4) + (s.bonk > 0 ? 60 * clamp01((t - s.bonk) / 0.6) : 0);
+        const hx = tx - dir * gap;                                       // gracz z kijem
+        const appear = clamp01(t / T0);
+        const rdir = dir > 0 ? 'E' : 'W';
+        const step = run > 0 ? Math.floor(t * 10) % 4 : 0;
+        const bobT = run > 0 ? Math.abs(Math.sin(t * 18)) * 5 : 0, bobH = run > 0 ? Math.abs(Math.sin(t * 18 + 1)) * 5 : 0;
+        // kurz spod nóg
+        if (run > 0 && Math.random() < dt * 20) { s.puffs.push({ x: tx - dir * 10, y: baseY, l: 0 }); s.puffs.push({ x: hx - dir * 10, y: baseY, l: 0 }); }
+        ctx.globalCompositeOperation = 'source-over';
+        for (let i = s.puffs.length - 1; i >= 0; i--) {
+          const q = s.puffs[i]; q.l += dt; if (q.l > 0.6) { s.puffs.splice(i, 1); continue; }
+          dot(ctx, '190,180,160', q.x, q.y - q.l * 10, 12 + q.l * 26, a * 0.45 * (1 - q.l / 0.6));
+        }
+        // uciekający z łupem (strój gracza, który zgarnął; gdy go nie widać – złodziej)
+        const stagger = s.bonk > 0 ? Math.max(0, 1 - (t - s.bonk) / 0.4) : 0;
+        const drawnThief = drawCharSprite(ctx, u.whoChar, tx, baseY - bobT + stagger * 6, sc, rdir, step, t, a * appear);
+        if (!drawnThief) drawThiefSprite(ctx, tx, baseY - bobT, 150, thiefIdle(t), dir > 0, a * appear);
+        const headY = baseY - (drawnThief ? 48 * sc : 150) - bobT;
+        drawItem(ctx, u.img, tx, headY - 16 + Math.sin(t * 9) * 3, u.base * 1.7, Math.sin(t * 7) * 0.25, 1, a * appear, true);
+        if (u.who) caption(ctx, u.who, tx, baseY + 22, a * appear, 17);
+        // gracz z kijem bejsbolowym
+        const drawnHero = drawHeroSprite(ctx, hx, baseY - bobH, sc, rdir, step, t, a * appear);
+        const hh = drawnHero ? 48 * sc : 120;
+        const swingPh = (run * 2.6) % 1;                                 // zamach co ~0.4 s
+        const swing = swingPh < 0.35 ? -2.2 + (swingPh / 0.35) * 3.0 : 0.8 - ((swingPh - 0.35) / 0.65) * 3.0;
+        drawBat(ctx, hx + dir * 10, baseY - hh * 0.55 - bobH, 70 * sc / 2.6, dir, swing, a * appear);
+        // BONK!
+        if (s.bonk < 0 && run > 1.3) { s.bonk = t; }
+        if (s.bonk > 0) {
+          const tt = t - s.bonk;
+          shakeScreen(6 * clamp01(1 - tt / 0.25) * a);
+          if (tt < 0.9) caption(ctx, 'BONK!', tx - dir * 10, headY - 50 - tt * 20, a * clamp01(1 - tt / 0.9), 34);
+          for (let i = 0; i < 5; i++) {
+            const an = t * 5 + (i / 5) * TAU;
+            sparkleStar(ctx, tx + Math.cos(an) * 26, headY - 28 + Math.sin(an) * 8, 9, a * clamp01(1.8 - tt));
+          }
+        }
+        if (run > 0.2 && run < 1.3) caption(ctx, 'Oddawaj!', hx, baseY - hh - 26, a * clamp01((run - 0.2) / 0.2), 22);
+        caption(ctx, u.who ? `${u.who} ucieka z Twoim łupem!` : u.reason, W / 2, Math.max(50, u.from.y - 240), a * clamp01((t - 0.4) / 0.4), 26);
+      }
+    },
   ];
 
   // skalowanie gęstości efektów ramki do obwodu (ramka mapy jest dużo dłuższa niż okno łupów)
@@ -2987,6 +3180,15 @@
     return { x: best.left, y: best.top, w: best.width, h: best.height, cx: best.left + best.width / 2, cy: best.top + best.height / 2 };
   }
   // grafika legendy: najpierw w oknie łupów, potem (np. łup prosto do torby) najnowsza legenda w ekwipunku
+  // wszystkie legendy w oknie łupów (kilka legend w jednym łupie)
+  function findLegendIcons() {
+    const out = [];
+    for (const hl of document.querySelectorAll('.loot-wnd .item .highlight.t-leg')) {
+      const c = hl.parentElement.querySelector('canvas.icon');
+      if (c && !out.includes(c)) out.push(c);
+    }
+    return out;
+  }
   function findLegendIcon() {
     for (const hl of document.querySelectorAll('.loot-wnd .item .highlight.t-leg')) {
       const c = hl.parentElement.querySelector('canvas.icon');
@@ -3001,16 +3203,18 @@
     return best;
   }
   // chowanie oryginalnej ikonki w slocie (gdy animacja "zabiera" przedmiot)
-  let hiddenIcon = null;
-  function setItemHidden(el, flag) {
-    if (hiddenIcon && (!flag || hiddenIcon !== el)) { hiddenIcon.style.visibility = ''; hiddenIcon = null; }
-    if (flag && el && el.isConnected) { el.style.visibility = 'hidden'; hiddenIcon = el; }
+  const hiddenIcons = new Set();
+  function setItemsHidden(set) {
+    for (const el of [...hiddenIcons]) if (!set.has(el)) { el.style.visibility = ''; hiddenIcons.delete(el); }
+    for (const el of set) if (el && el.isConnected) { el.style.visibility = 'hidden'; hiddenIcons.add(el); }
   }
-  function makeItemTracker() {
-    const tr = { src: null, snap: document.createElement('canvas'), found: false, rect: null };
+  function setItemHidden(el, flag) { setItemsHidden(flag && el ? new Set([el]) : new Set()); }
+  // fixedSrc: konkretna ikonka (przy kilku legendach); bez niej – pierwsza znaleziona legenda
+  function makeItemTracker(fixedSrc) {
+    const tr = { src: fixedSrc || null, snap: document.createElement('canvas'), found: false, rect: null };
     return function update(b) {
-      if (!tr.found || (tr.src && !tr.src.isConnected)) {
-        const c = !tr.found ? findLegendIcon() : null;
+      if (!fixedSrc && !tr.found) {
+        const c = findLegendIcon();
         if (c) tr.src = c;
       }
       if (tr.src && tr.src.isConnected) {
@@ -3039,42 +3243,65 @@
 
   // Odtwarza kompozycję warstw (każda z własnym efektem, odcieniem i czasem).
   function playComposition(cfg, onlyKey, extra) {
-    const out = extra && extra.out; // efekt po łupie (zdobyty / utracony)
-    const untilClose = !out && !(cfg.durationSec > 0);
-    const P = { dur: out ? Math.max(1, Math.min(30, cfg.outcomeSec || 4)) : untilClose ? 600 : Math.min(120, cfg.durationSec), strength: cfg.strength / 100, density: cfg.density / 100, itemScale: cfg.itemSize / 100 };
-    const specs = [];
+    // efekty po łupie: extra.outcome = { win: [out, …], lose: [out, …] } (kilka legend naraz → kilka animacji)
+    let outcome = extra && extra.outcome;
+    if (!outcome && extra && extra.out && onlyKey) outcome = { [onlyKey]: [extra.out] };
+    const isOut = !!outcome;
+    const untilClose = !isOut && !(cfg.durationSec > 0);
+    const P = { dur: isOut ? Math.max(1, Math.min(30, cfg.outcomeSec || 4)) : untilClose ? 600 : Math.min(120, cfg.durationSec), strength: cfg.strength / 100, density: cfg.density / 100, itemScale: cfg.itemSize / 100 };
+    const resolveId = (Ly, out) => {
+      let id = cfg.layers[Ly.key];
+      if (id === 'auto') id = !out ? 'lose_thief' : out.reasonKey === 'full' ? 'lose_trash' : out.reasonKey === 'declined' ? 'lose_stamp' : pick(['lose_thief', 'lose_runner', 'lose_sack', 'lose_vanish', 'lose_chase']);
+      if (id === 'random') id = pick(EFFECTS.filter(e => e.group === Ly.group)).id;
+      return EFFECTS.find(e => e.id === id) || null;
+    };
+    // lista instancji: [{ Ly, eff, hue, delay, out, tracker }]
+    const inst = [];
+    const icons = isOut ? [] : findLegendIcons();
     for (const Ly of LAYERS) {
       if (onlyKey && Ly.key !== onlyKey) continue;
-      if (Ly.outcome && !onlyKey) continue; // efekty po łupie odpalają się osobno
-      let id = cfg.layers[Ly.key];
-      if (!id) continue;
-      if (id === 'auto') id = !out ? 'lose_thief' : out.reasonKey === 'full' ? 'lose_trash' : out.reasonKey === 'declined' ? 'lose_stamp' : pick(['lose_thief', 'lose_runner', 'lose_sack', 'lose_vanish']);
-      if (id === 'random') id = pick(EFFECTS.filter(e => e.group === Ly.group)).id;
-      const eff = EFFECTS.find(e => e.id === id);
-      if (eff) specs.push({ Ly, eff, hue: +cfg.hue[Ly.key] || 0 });
+      if (!cfg.layers[Ly.key]) continue;
+      const hue = +cfg.hue[Ly.key] || 0;
+      if (isOut) {
+        if (!Ly.outcome || !(outcome[Ly.key] && outcome[Ly.key].length)) continue;
+        outcome[Ly.key].forEach((out, i) => { const eff = resolveId(Ly, out); if (eff) inst.push({ Ly, eff, hue, delay: i * 0.4, out }); });
+      } else {
+        if (Ly.outcome) continue; // efekty po łupie odpalają się osobno
+        if (Ly.key === 'item' && icons.length > 1) {
+          const eff = resolveId(Ly, null);
+          if (eff) icons.forEach((ic, i) => inst.push({ Ly, eff, hue, delay: i * 0.3, tracker: makeItemTracker(ic) }));
+        } else {
+          const eff = resolveId(Ly, null);
+          if (eff) inst.push({ Ly, eff, hue, delay: 0, tracker: Ly.key === 'item' ? makeItemTracker(icons[0] || null) : null });
+        }
+      }
     }
+    // numer instancji w obrębie warstwy (żeby kilka przedmiotów nie nakładało się w jednym miejscu)
+    const perKey = {};
+    for (const it of inst) { it.idx = perKey[it.Ly.key] = (perKey[it.Ly.key] ?? -1) + 1; }
+    for (const it of inst) it.n = perKey[it.Ly.key] + 1;
     stopFx();
-    if (!specs.length) return;
+    if (!inst.length) return;
     const cv = newCanvas(), ctx = cv.getContext('2d');
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const resize = () => { cv.width = Math.round(innerWidth * dpr); cv.height = Math.round(innerHeight * dpr); };
     resize();
     let box = lootBox() || fallbackBox();
     let map = mapBox();
-    const trackItem = makeItemTracker();
-    const layers = specs.map(sp => {
+    const shared = makeItemTracker(icons[0] || null);
+    const layers = inst.map(sp => {
       const dur = P.dur; // każda warstwa trwa dokładnie tyle, ile ustawiono
       const self = Object.assign(Object.create(sp.eff), { dur }); // efekty czytają this.dur
       const isMap = sp.Ly.target === 'map';
       const scale = (sp.Ly.group === G_FRAME ? (isMap ? perimScale(map) : 1) : 1) * P.density;
       // gdy ten sam efekt jest na obu ramkach, tło (winieta, śnieg) rysuje tylko jedna z nich
-      const second = sp.Ly.key === 'loot' && specs.some(o => o.Ly.key === 'map' && o.eff.id === sp.eff.id);
+      const second = sp.Ly.key === 'loot' && inst.some(o => o.Ly.key === 'map' && o.eff.id === sp.eff.id);
       const env = { W: innerWidth, H: innerHeight, box: isMap ? map : box, map, scale, density: P.density, itemScale: P.itemScale };
-      return { sp, self, dur, isMap, scale, second, state: sp.eff.init.call(self, env), lc: sp.hue ? document.createElement('canvas') : null };
+      return { sp, self, dur, delay: sp.delay, isMap, scale, second, state: sp.eff.init.call(self, env), lc: sp.hue ? document.createElement('canvas') : null };
     });
-    let total = Math.max(...layers.map(l => l.dur));
+    let total = Math.max(...layers.map(l => l.dur + l.delay));
     let seenWindow = false;
-    const endAt = te => { for (const l of layers) if (l.dur > te) { l.dur = te; l.self.dur = te; } total = Math.min(total, te); };
+    const endAt = te => { for (const l of layers) if (l.dur + l.delay > te) { l.dur = Math.max(0, te - l.delay); l.self.dur = l.dur; } total = Math.min(total, te); };
     const t0 = performance.now();
     let last = t0;
     FX.canvas = cv;
@@ -3084,14 +3311,15 @@
       const t = Math.max(0, (now - t0) / 1000), dt = Math.max(0, Math.min(0.05, (now - last) / 1000));
       last = now;
       if (cv.width !== Math.round(innerWidth * dpr)) resize();
-      const real = out ? null : lootBox();
+      const real = isOut ? null : lootBox();
       if (real) { box = real; seenWindow = true; } // okno zamknięte w trakcie efektu → zostaje ostatnia pozycja
       // gracz zamknął okno łupów → animacja szybko wygasa
       if (seenWindow && !real && total > t + 0.45) endAt(t + 0.45);
       // tryb "do zamknięcia okna", a okna w ogóle nie ma (np. podgląd) → 8 s
       if (untilClose && !seenWindow && t > 1.5 && total > 8) endAt(Math.max(8, t));
       map = mapBox();
-      let holed = false, hideReq = false;
+      let holed = false;
+      const hide = new Set();
       // okno łupów musi być zawsze widoczne: wycinamy jego prostokąt z naszego canvasa
       const hole = () => {
         if (holed || !real) return;
@@ -3102,11 +3330,15 @@
       const W = innerWidth, H = innerHeight;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, cv.width, cv.height);
-      const item = out ? { el: out.el && out.el.isConnected ? out.el : null, img: out.img, x: out.to.x, y: out.to.y, base: out.base } : trackItem(box);
+      const sharedItem = isOut ? null : shared(box);
       SHAKE.active = false; GREY.active = false;
       for (const l of layers) {
-        if (t > l.dur) continue;
+        const tl = t - l.delay;
+        if (tl < 0 || tl > l.dur) continue;
         if (l.sp.Ly.key === 'item') hole(); // animacja przedmiotu może być nad oknem
+        const out = l.sp.out || null;
+        const item = out ? { el: out.el && out.el.isConnected ? out.el : null, img: out.img, x: out.to.x, y: out.to.y, base: out.base }
+          : l.sp.tracker ? l.sp.tracker(box) : sharedItem;
         let c = ctx;
         if (l.lc) {
           if (l.lc.width !== cv.width || l.lc.height !== cv.height) { l.lc.width = cv.width; l.lc.height = cv.height; }
@@ -3116,9 +3348,9 @@
         }
         c.setTransform(dpr, 0, 0, dpr, 0, 0);
         c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; c.shadowBlur = 0; c.filter = 'none';
-        const a = clamp01(t / 0.35) * clamp01((l.dur - t) / Math.min(0.9, Math.max(0.3, l.dur * 0.2))) * P.strength;
-        const o = { map, item, scale: l.scale, second: l.second, density: P.density, itemScale: P.itemScale, hideItem: () => { hideReq = true; }, out };
-        try { l.sp.eff.frame.call(l.self, c, l.state, t, dt, a, W, H, l.isMap ? map : box, o); }
+        const a = clamp01(tl / 0.35) * clamp01((l.dur - tl) / Math.min(0.9, Math.max(0.3, l.dur * 0.2))) * P.strength;
+        const o = { map, item, scale: l.scale, second: l.second, density: P.density, itemScale: P.itemScale, hideItem: () => { if (item && item.el) hide.add(item.el); }, out, index: l.sp.idx || 0, count: l.sp.n || 1 };
+        try { l.sp.eff.frame.call(l.self, c, l.state, tl, dt, a, W, H, l.isMap ? map : box, o); }
         catch (e) { console.error('[LNFX]', l.sp.eff.id, e); l.dur = -1; continue; }
         if (l.lc) {
           ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -3128,8 +3360,13 @@
           ctx.filter = 'none';
         }
       }
+      // ikonki czekające na swoją (opóźnioną) animację też są schowane, jeśli animacja je "zabiera"
+      for (const l of layers) {
+        const tl = t - l.delay;
+        if (tl < 0 && l.sp.out && l.sp.out.el && l.sp.Ly.key === 'win') hide.add(l.sp.out.el);
+      }
       hole();
-      setItemHidden(item.el, hideReq);
+      setItemsHidden(hide);
       if (!SHAKE.active) resetShake();
       if (!GREY.active) resetGrey();
       if (t < total) FX.raf = requestAnimationFrame(frame); else stopFx();
@@ -3150,20 +3387,47 @@
 
 
   /* --------------------------- zapis ustawień (per preset) --------------------------- */
+  // Aktywny preset bierzemy z danych dodatku w silniku gry (Engine.serverStorage "LN_SETTINGS"),
+  // a nie z okna ustawień – ono nie zawsze jest otwarte (na dev siedzi w Ustawieniach gry).
   let lastPreset = 'default';
-  function presetName() {
-    const el = document.querySelector('.ln_presets .menu-option');
-    if (el && el.textContent.trim()) lastPreset = el.textContent.trim();
-    return lastPreset;
+  function presetNameDom() {
+    let el = document.querySelector('.ln_presets .menu-option');
+    if (!el) {
+      const d = [...document.querySelectorAll('.opt_LEGENDARY_NOTIFICATOR_CHECKBOX .option-description')].find(e => e.textContent.trim() === 'Preset');
+      el = d && d.closest('.option-container').querySelector('.menu-option');
+    }
+    return el && el.textContent.trim() ? el.textContent.trim() : null;
   }
+  function presetInfo() {
+    let d = null;
+    try { d = window.Engine && Engine.serverStorage && Engine.serverStorage.get('LN_SETTINGS'); } catch (e) { /* ignore */ }
+    const dom = presetNameDom();
+    if (d && d.active_preset != null) {
+      const id = d.active_preset;
+      const c = (d.preset_custom_list || []).find(x => x && x.id === id);
+      const name = dom || (c && (c.text || c.name)) || 'Domyślny ' + (id + 1);
+      lastPreset = name;
+      return { key: 'p' + id, name };
+    }
+    if (dom) lastPreset = dom;
+    return { key: lastPreset, name: lastPreset };
+  }
+  function presetName() { return presetInfo().name; }
   function makeStore(key) {
     const loadAll = () => { try { return JSON.parse(localStorage.getItem(key)) || {}; } catch (e) { return {}; } };
     const saveAll = o => { try { localStorage.setItem(key, JSON.stringify(o)); } catch (e) { /* ignore */ } };
     return {
-      get: () => loadAll()[presetName()] || null,
+      get() {
+        const all = loadAll(), p = presetInfo();
+        if (all[p.key] != null) return all[p.key];
+        if (all[p.name] != null) return all[p.name]; // zapis ze starszych wersji (po nazwie presetu)
+        const vals = Object.values(all);
+        return vals.length === 1 ? vals[0] : null;  // jeden zapisany preset → używamy go
+      },
       set(v) {
-        const o = loadAll(), p = presetName();
-        if (v) o[p] = v; else delete o[p];
+        const o = loadAll(), p = presetInfo();
+        if (p.name !== p.key) delete o[p.name];
+        if (v) o[p.key] = v; else delete o[p.key];
         saveAll(o);
       },
     };
@@ -3237,15 +3501,24 @@
       return c;
     } catch (e) { return null; }
   }
+  const knownIds = new Set();        // przedmioty już widziane (np. ekwipunek po zalogowaniu)
+  let legendNotifyAt = 0;             // kiedy dodatek ostatnio zgłosił legendę (confetti.reset)
   function onItems(items) {
     for (const [id, it] of Object.entries(items || {})) {
       if (!it || +id < 1000) continue; // pomijamy przedmiot z przycisku "Test"
+      const known = knownIds.has(id);
+      knownIds.add(id);
       if (it.loc === 'l' && isLegend(it)) {
         if (!pending.has(id)) pending.set(id, { name: it.name, hid: it.hid, who: null, state: 0, snap: null, from: null, goneAt: 0, reason: null, t: Date.now() });
       } else if (it.loc === 'g' && pending.has(id) && (it.own == null || it.own === heroId())) {
         const p = pending.get(id);
         pending.delete(id);
         setTimeout(() => resolveOutcome('win', id, p), 80);
+      } else if (it.loc === 'g' && !known && isLegend(it) && (it.own == null || it.own === heroId())) {
+        // legenda wpadła prosto do torby (łup osobisty, bez okna łupów) – dodatek zgłasza ją tuż przed/po
+        setTimeout(() => {
+          if (Date.now() - legendNotifyAt < 3000) resolveOutcome('win', id, { name: it.name, hid: it.hid, state: 1, snap: null, from: null, t: Date.now() });
+        }, 150);
       }
     }
   }
@@ -3278,6 +3551,34 @@
         for (const p of pending.values()) if (p.hid && who[p.hid]) p.who = who[p.hid];
       }
     }
+  }
+  // gracze na mapie wg nicku (żeby pobrać strój gracza, który zgarnął łup)
+  const OTHERS = new Map();
+  function hookOthers() {
+    const o = window.Engine && Engine.others;
+    if (!o || o.__lnfx || typeof o.updateData !== 'function' || typeof o.getById !== 'function') return;
+    const orig = o.updateData;
+    o.updateData = function (data) {
+      const r = orig.apply(this, arguments);
+      try {
+        for (const id of Object.keys(data || {})) {
+          const ch = o.getById(id);
+          const nick = (data[id] && data[id].nick) || (ch && ch.d && ch.d.nick);
+          if (nick && ch && !(data[id] && data[id].del)) OTHERS.set(nick, ch);
+        }
+      } catch (e) { /* ignore */ }
+      return r;
+    };
+    o.__lnfx = true;
+  }
+  function findOther(nick) {
+    if (!nick) return null;
+    let ch = OTHERS.get(nick) || null;
+    if (!ch) {
+      try { for (const x of Engine.others.getDrawableList() || []) if (x && x.d && x.d.nick === nick) ch = x; } catch (e) { /* ignore */ }
+    }
+    if (!ch || !ch.sprite) return null;
+    return { sprite: ch.sprite, fw: ch.fw, fh: ch.fh };
   }
   function hookOutcome() {
     const d = window.Engine && Engine.communication && Engine.communication.dispatcher;
@@ -3328,14 +3629,23 @@
     const to = kind === 'win' ? bagTarget(id) : { x: from.x, y: from.y, base: from.base || 32, el: null };
     const img = (p && p.snap) || (to.el && copyCanvas(to.el)) || FALLBACK_ICON;
     const why = (p && p.reason) || (p && (p.who || p.state) ? 'other' : 'declined');
-    return { img, el: kind === 'win' ? to.el : null, from, to, base: to.base || 32, reason: kind === 'lose' ? (why === 'other' && p && p.who ? `Łup zgarnął: ${p.who}` : REASONS[why]) : '', reasonKey: kind === 'lose' ? why : '', who: (p && p.who) || '', name: p ? p.name : '' };
+    return { img, el: kind === 'win' ? to.el : null, from, to, base: to.base || 32, reason: kind === 'lose' ? (why === 'other' && p && p.who ? `Łup zgarnął: ${p.who}` : REASONS[why]) : '', reasonKey: kind === 'lose' ? why : '', who: (p && p.who) || '', whoChar: kind === 'lose' && p ? findOther(p.who) : null, name: p ? p.name : '' };
   }
+  // kilka legend w jednym łupie: zbieramy wyniki przez chwilę i odpalamy jedną kompozycję
+  // (osobna animacja dla każdego przedmiotu, lekko przesunięte w czasie)
+  const outQueue = { win: [], lose: [] };
+  let outTimer = 0;
   function resolveOutcome(kind, id, p) {
     const cfg = getCfg();
     if (!cfg.enabled || !cfg.layers[kind]) return;
-    if (Date.now() - lastOutcomeAt < 1200) return; // kilka legend naraz → jeden efekt
-    lastOutcomeAt = Date.now();
-    playComposition(cfg, kind, { out: buildOut(kind, id, p) });
+    outQueue[kind].push(buildOut(kind, id, p));
+    if (outTimer) return;
+    outTimer = setTimeout(() => {
+      outTimer = 0;
+      const outcome = { win: outQueue.win.splice(0), lose: outQueue.lose.splice(0) };
+      lastOutcomeAt = Date.now();
+      playComposition(getCfg(), null, { outcome });
+    }, 450);
   }
   // podgląd bez prawdziwego łupu
   function demoOutcome(kind) {
@@ -3360,6 +3670,7 @@
     if (typeof c !== 'function' || c.__lnfx) return;
     const orig = c.reset;
     c.reset = function () {
+      legendNotifyAt = Date.now();
       const r = orig ? orig.apply(this, arguments) : undefined;
       stopFx();
       const cfg = getCfg();
@@ -3400,9 +3711,10 @@
 
   let internalClick = false;
 
+  // obsługa obu miejsc: stare okno dodatku (.ln-control/.ln-label) i nowe w Ustawieniach (.option-container/.option-description)
   function findControl(text) {
-    const lab = [...document.querySelectorAll('.ln-label')].find(e => e.textContent.trim() === text);
-    return lab ? lab.closest('.ln-control') : null;
+    const lab = [...document.querySelectorAll('.ln-label, .option-description')].find(e => e.textContent.trim() === text);
+    return lab ? lab.closest('.ln-control, .option-container') : null;
   }
 
   function clickNativeNone(list) {
@@ -3525,7 +3837,7 @@
 
   function buildPanel() {
     const cfg = getCfg();
-    panelPreset = presetName();
+    panelPreset = presetInfo().key;
     const p = el('div', 'lnfx-panel');
     const head = el('div', 'lnfx-head');
     head.append(el('span', 'lnfx-title', PREFIX + 'Konfigurator efektów łupów'));
@@ -3537,7 +3849,7 @@
 
     const body = el('div', 'lnfx-body');
     const info = el('div', 'lnfx-info');
-    info.append(el('span', null, 'Preset: '), el('b', null, panelPreset));
+    info.append(el('span', null, 'Preset: '), el('b', null, presetName()));
     const onL = el('label', 'lnfx-switch');
     const on = document.createElement('input'); on.type = 'checkbox'; on.checked = cfg.enabled;
     on.addEventListener('change', () => {
@@ -3634,7 +3946,9 @@
   /* ------------- konfigurator w stylu gry (klony elementów okna "Konfiguracja łupów") ------------- */
   function templateWindow() {
     const t = [...document.querySelectorAll('.header-label .text')].find(e => e.textContent.trim() === 'Konfiguracja łupów');
-    return t ? t.closest('.c-window') : null;
+    if (t) return t.closest('.c-window');
+    const o = document.querySelector('.opt_LEGENDARY_NOTIFICATOR_CHECKBOX'); // nowe miejsce: okno Ustawień gry
+    return o ? o.closest('.c-window') : null;
   }
   const stripTips = e => { if (e.removeAttribute) e.removeAttribute('tip-id'); e.querySelectorAll && e.querySelectorAll('[tip-id]').forEach(x => x.removeAttribute('tip-id')); return e; };
 
@@ -3648,12 +3962,12 @@
     let uid = 0;
     return {
       heading(text) {
-        const h = cl('.tw-heading') || el('div', 'tw-heading');
+        const h = cl('.tw-heading') || el('div', 'tw-heading lnfx-heading');
         h.textContent = text;
         h.className = h.className.split(' ').filter(c => !/^m[tb]-\d$/.test(c)).concat(['mt-3', 'mb-2']).join(' ');
         return h;
       },
-      line() { return cl('.c-line') || el('div', 'c-line'); },
+      line() { return cl('.c-line') || el('div', 'c-line lnfx-line'); },
       // etykieta (i wartość) w osobnej linii nad kontrolką – długie nazwy nie nachodzą na siebie
       stack(label, value, child) {
         const c = el('div', 'lnfx-stack');
@@ -3672,7 +3986,7 @@
         return c;
       },
       select(options, value, onChange) {
-        const menu = cl('.ln-control .menu-list');
+        const menu = cl('.ln-control .menu-list') || cl('.option-control .menu-list');
         const wrap = el('div', 'lnfx-selwrap');
         let span;
         if (menu) {
@@ -3717,7 +4031,7 @@
         return c;
       },
       button(text, onClick, title) {
-        const b = cl('.ln-buttons-container .button') || el('div', 'button small green');
+        const b = cl('.ln-buttons-container .button') || cl('.option-control .button.small.green:not(.bck)') || el('div', 'button small green');
         const l = b.querySelector('.label');
         if (l) l.textContent = text; else b.textContent = text;
         if (title) b.title = title;
@@ -3729,12 +4043,12 @@
 
   function buildGamePanel(tw) {
     const cfg = getCfg();
-    panelPreset = presetName();
+    panelPreset = presetInfo().key;
     const K = uiKit(tw);
     const w = stripTips(tw.cloneNode(false));
     w.classList.remove('window-on-peak');
     w.classList.add('lnfx-gwin');
-    w.style.width = tw.offsetWidth + 'px';
+    w.style.width = Math.min(tw.offsetWidth, 270) + 'px';
     const head = stripTips(tw.querySelector('.header-label-positioner').cloneNode(true));
     const ht = head.querySelector('.header-label .text');
     if (ht) ht.textContent = 'Własne efekty';
@@ -3756,7 +4070,7 @@
 
     // --- zawartość ---
     const top = el('div', 'lnfx-gtop');
-    top.append(K.checkbox('Włącz (preset: ' + panelPreset + ')', cfg.enabled, v => {
+    top.append(K.checkbox('Włącz (preset: ' + presetName() + ')', cfg.enabled, v => {
       const c = getCfg(); c.enabled = v; saveCfg(c);
       if (v) nativeAnimationToNone();
     }));
@@ -3836,7 +4150,7 @@
     sw.style.height = Math.round(Math.max(200, Math.min(innerHeight * 0.55, 430))) + 'px';
     try {
       window.$(sw).addScrollBar({ track: true });
-      const main = tw && tw.querySelector('.ln-content > .scroll-wrapper');
+      const main = tw && (tw.querySelector('.ln-content > .scroll-wrapper') || tw.querySelector('.right-scroll.scroll-wrapper'));
       if (main) {
         const pairs = [[main, sw], [main.querySelector(':scope > .scroll-pane'), sw.querySelector(':scope > .scroll-pane')],
           [main.querySelector('.scrollbar-wrapper'), sw.querySelector('.scrollbar-wrapper')], [main.querySelector('.track'), sw.querySelector('.track')],
@@ -3858,8 +4172,9 @@
       try { pos = JSON.parse(localStorage.getItem('lnfx_panel_pos2')); } catch (e) { /* ignore */ }
       if (pos && pos.l) { panel.style.left = pos.l; panel.style.top = pos.t; }
       else {
+        const pw = panel.offsetWidth || 270;
         let l = tw.offsetLeft + tw.offsetWidth + 6;
-        if (l + tw.offsetWidth > innerWidth) l = Math.max(0, tw.offsetLeft - tw.offsetWidth - 6);
+        if (l + pw > innerWidth) l = Math.max(0, tw.offsetLeft - pw - 6);
         panel.style.left = l + 'px'; panel.style.top = tw.offsetTop + 'px';
       }
       panel.style.zIndex = (parseInt(getComputedStyle(tw).zIndex, 10) || 20) + 1;
@@ -3876,7 +4191,7 @@
   function closePanel() { if (panel) panel.remove(); panel = null; }
   function refreshPanel(force) {
     if (!panel) return;
-    if (!force && panelPreset === presetName()) {
+    if (!force && panelPreset === presetInfo().key) {
       const on = panel.querySelector('.lnfx-switch input, .lnfx-gtop input');
       if (on) on.checked = getCfg().enabled;
       return;
@@ -3893,8 +4208,9 @@
   function sync() {
     hookConfetti();
     hookOutcome();
+    hookOthers();
     CONTROLS.forEach(syncControl);
-    if (panel && panelPreset !== presetName()) refreshPanel(true);
+    if (panel && panelPreset !== presetInfo().key) refreshPanel(true);
   }
 
   const css = document.createElement('style');
@@ -3940,6 +4256,8 @@
     .lnfx-btn:hover{filter:brightness(1.25)}
     .lnfx-note{margin-top:8px;color:#888;font-size:10.5px}
     .lnfx-gwin .lnfx-sw{position:relative}
+    .lnfx-gwin .lnfx-heading{text-align:center;font-weight:bold;color:#e9c47a;margin:10px 0 6px}
+    .lnfx-gwin .lnfx-line{border-top:1px solid rgba(217,179,106,.35);margin:6px 0}
     .lnfx-gwin .lnfx-sw > .scroll-pane{padding-right:12px;box-sizing:border-box}
     .lnfx-gwin .lnfx-stack{margin:9px 0 6px}
     .lnfx-gwin .lnfx-stack-head{display:flex;justify-content:space-between;align-items:baseline;gap:6px;margin-bottom:7px;line-height:16px}
@@ -3969,6 +4287,7 @@
   // do testów z konsoli: lnfx.play('aurora'), lnfx.config(), lnfx.list()
   window.lnfx = {
     play: playFx, stop: stopFx, randomSound: playRandomSound, config: openPanel, lootLog,
+    debug: () => ({ preset: presetInfo(), enabled: getCfg().enabled, layers: getCfg().layers, pending: [...pending.entries()].map(([id, p]) => ({ id, name: p.name, state: p.state, reason: p.reason, who: p.who, goneAt: p.goneAt })), hooked: !!(window.Engine && Engine.communication && Engine.communication.dispatcher && Engine.communication.dispatcher.__lnfxOut) }),
     compose: cfg => playComposition(Object.assign(DEFAULT_CFG(), cfg)),
     list: () => EFFECTS.map(e => `${e.id} – ${e.name}`),
   };
