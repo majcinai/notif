@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Konfiguracja łupów – nowe efekty animacji
 // @namespace    majcin.margonem.lnfx
-// @version      2.0.1
+// @version      2.1.1
 // @description  Nowe efekty animacji i losowy dźwięk (z własnych) w dodatku "Konfiguracja łupów" (Margonem NI)
 // @author       Majcin
 // @match        https://*.margonem.pl/*
@@ -10620,7 +10620,7 @@
 
     /* ------------------------------ KASYNO ------------------------------ */
     {
-      id: 'i3_slot', group: G_ITEM, name: 'Jednoręki bandyta (777)', dur: 6.5,
+      id: 'i3_slot', group: G_ITEM, name: 'Jednoręki bandyta (777)', dur: 6.5, occupy: 4.0,
       init: () => ({ n: -1, sp: [], coins: [] }),
       frame(ctx, s, t, dt, a, W, H, b, o = {}) {
         const it = o.item, img = it.img || FALLBACK_ICON, isc = o.itemScale || 1;
@@ -10724,7 +10724,7 @@
       id: 'f3_slot', group: G_FRAME, name: 'Maszyna do gry', dur: 6,
       init: () => ({ coins: [], sp: [], pullN: -1 }),
       frame(ctx, s, t, dt, a, W, H, b, o = {}) {
-        const k = Math.max(0.8, Math.min(2.6, Math.min(b.w, b.h) / 260)), big = k > 1.4;
+        const k = Math.max(0.8, Math.min(2, Math.min(b.w, b.h) / 260)), big = k > 1.4;
         const pad = 14 + 4 * k, th = 13 * k;
         const fx = b.x - pad - th, fy = b.y - pad - th, fw = b.w + 2 * (pad + th), fh = b.h + 2 * (pad + th);
         const PER = 4.2, n = Math.floor((t - 0.8) / PER), lt = t - 0.8 - n * PER;
@@ -10750,7 +10750,7 @@
           if (on) { ctx.globalCompositeOperation = 'lighter'; dot(ctx, col, p.x, p.y, 11 * k, a * 0.85); }
         }
         // szyld na górze
-        const mw = Math.min(W - 16, Math.max(fw * 0.8, 200 * k)), mh = 46 * k, mcx = b.cx, mby = fy + 2;
+        const mw = Math.min(W - 16, Math.max(fw * 0.8, 200 * k)), mh = 46 * k, mcx = b.cx, mby = Math.max(fy + 2, mh + 6);
         const mty = Math.max(4, mby - mh);
         ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = a;
         const mg = ctx.createLinearGradient(0, mty, 0, mby); mg.addColorStop(0, '#d61a22'); mg.addColorStop(1, '#7a0a10');
@@ -10766,7 +10766,7 @@
         const wi = Math.floor(t / 2) % 3;
         casinoText(ctx, words[wi], mcx, mty + mh * 0.62, mh * 0.5, wi === 1 ? PAL.red : PAL.gold, a, jack ? 1 + 0.07 * Math.sin(t * 16) : 1, mw * 0.86);
         // dźwignia z prawej
-        const lvx = fx + fw + 4, lvy = b.cy, L = Math.min(110 * k, b.h * 0.45), ang = -0.2 + pullA * 2.2;
+        const lvx = Math.min(fx + fw + 4, W - 34 * k), lvy = b.cy, L = Math.min(110 * k, b.h * 0.45), ang = -0.2 + pullA * 2.2;
         ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = a;
         ctx.fillStyle = '#8a8a8a'; rrect(ctx, lvx - 4, lvy - 16 * k, 16 * k, 32 * k, 4 * k); ctx.fill();
         ctx.strokeStyle = '#e0e0e0'; ctx.lineWidth = 6 * k; ctx.lineCap = 'round';
@@ -10775,7 +10775,7 @@
         ctx.fillStyle = '#e0141c'; ctx.beginPath(); ctx.arc(ex, ey, 11 * k, 0, TAU); ctx.fill();
         ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.arc(ex - 3 * k, ey - 3 * k, 3.5 * k, 0, TAU); ctx.fill();
         // tacka na monety na dole
-        const tw = Math.max(120 * k, b.w * 0.5), tyy = fy + fh - 2, tH = 22 * k;
+        const tw = Math.max(120 * k, b.w * 0.5), tH = 22 * k, tyy = Math.min(fy + fh - 2, H - tH - 4);
         ctx.fillStyle = '#3a3a3a'; ctx.beginPath(); ctx.moveTo(b.cx - tw / 2, tyy); ctx.lineTo(b.cx + tw / 2, tyy); ctx.lineTo(b.cx + tw / 2 - 12 * k, tyy + tH); ctx.lineTo(b.cx - tw / 2 + 12 * k, tyy + tH); ctx.closePath(); ctx.fill();
         ctx.strokeStyle = '#ffd35a'; ctx.lineWidth = 2 * k; ctx.stroke();
         for (let i = 0; i < 9; i++) drawCoin(ctx, b.cx - tw * 0.36 + i * tw * 0.09, tyy + tH * 0.55, 6 * k, 0.4 + i, a);
@@ -10806,7 +10806,11 @@
         const targets = [250000, 2475000, 9999999];
         const fs1 = Math.max(54, Math.min(100, b.w * 0.42)), fsW = fs1 * 1.08;
         const maxW = Math.min(W * 0.94, Math.max(b.w * 2.6, 560));
-        const wy = Math.max(fs1 * 0.55 + fsW + 16, b.y - fsW * 0.62 - 8), y1 = wy - fsW * 0.55 - fs1 * 0.52;
+        // napisy nad oknem; gdy nad oknem jest za mało miejsca (niskie ekrany), a pod nim więcej – pod oknem
+        const need = fs1 * 1.1 + fsW * 1.15 + 24, below = H - (b.y + b.h), flipDown = b.y < need + 90 && below >= need;
+        let y1, wy;
+        if (flipDown) { y1 = b.y + b.h + fs1 * 0.62 + 10; wy = y1 + fs1 * 0.52 + fsW * 0.55; }
+        else { wy = Math.max(fs1 * 0.55 + fsW + 16, b.y - fsW * 0.62 - 8); y1 = wy - fsW * 0.55 - fs1 * 0.52; }
         const cx = Math.max(maxW / 2, Math.min(W - maxW / 2, b.cx)), mid = (y1 + wy) / 2;
         if (idx !== s.ph) {
           s.ph = idx; s.from = s.cnt || 0;
@@ -10855,7 +10859,7 @@
         const k2 = clamp01(lt / 1.6);
         s.cnt = Math.round(s.from + (targets[ph] - s.from) * easeOut(k2));
         const txt = s.cnt.toLocaleString('pl-PL').replace(/ /g, ' ');
-        const cy2 = Math.min(H - fs1 * 0.4, b.y + b.h + fs1 * 0.55 + 10);
+        const cy2 = flipDown ? (wy + fsW * 0.62 + fs1 * 0.5 < H - 6 ? wy + fsW * 0.62 + fs1 * 0.42 : Math.max(fs1 * 0.4, b.y - fs1 * 0.45)) : Math.min(H - fs1 * 0.4, b.y + b.h + fs1 * 0.55 + 10);
         casinoText(ctx, txt, cx, cy2, fs1 * 0.72, PAL.white, a, k2 >= 1 ? 1 + 0.06 * Math.abs(Math.sin(t * 8)) : 1, maxW * 0.8);
         sparksDraw(ctx, s.sp, dt, a, 200);
         void s1;
@@ -10931,7 +10935,7 @@
     /* case_roll trzyma wspólne narzędzia zestawu (rzadkości, kafle, ikony, skrzynia, klucz, napisy) */
 
     {
-      id: 'case_roll', group: G_ITEM, name: 'Ruletka skrzynki', dur: 6.5,
+      id: 'case_roll', group: G_ITEM, name: 'Ruletka skrzynki', dur: 6.5, occupy: 4.4,
       RAR: [
         { rgb: '176,186,200', hex: '#b0bac8', n: 'TANDETA' },
         { rgb: '75,120,255', hex: '#4b78ff', n: 'POSPOLITY' },
@@ -12794,7 +12798,7 @@
 
     /* ---------------------- ZESTAW: ARENA LEGEND (MOBA / Hextech) ---------------------- */
     {
-      id: 'moba_scratch', group: G_ITEM, name: 'Arena: Zdrapka Legend', dur: 6,
+      id: 'moba_scratch', group: G_ITEM, name: 'Arena: Zdrapka Legend', dur: 6, occupy: 3.9,
       init(env) {
         const isc = (env && env.itemScale) || 1, SW = Math.round(176 * isc), SH = Math.round(120 * isc), R = 2;
         const c = document.createElement('canvas'); c.width = SW * R; c.height = SH * R;
@@ -13838,11 +13842,22 @@
     MAPEL = el; MAPEL_T = now;
     return el;
   }
+  // mniejsze ekrany (laptopy): duże elementy wokół okna łupów i sceny po łupie są proporcjonalnie pomniejszane
+  const COMPACT_KEYS = new Set(['item', 'around', 'win', 'lose']);
+  const compactScale = () => Math.max(0.72, Math.min(1, innerHeight / 900, innerWidth / 1500));
+  const scaleBox = (r, k) => r && { x: r.x * k, y: r.y * k, w: r.w * k, h: r.h * k, cx: r.cx * k, cy: r.cy * k };
+  const scalePt = (q, k) => q && Object.assign({}, q, { x: q.x * k, y: q.y * k, base: q.base != null ? q.base * k : q.base });
   function mapBox() {
     const el = mapCanvas();
     const best = el ? el.getBoundingClientRect() : null;
     if (!best || best.width < 200) return { x: 20, y: 20, w: innerWidth - 40, h: innerHeight - 40, cx: innerWidth / 2, cy: innerHeight / 2 };
-    return { x: best.left, y: best.top, w: best.width, h: best.height, cx: best.left + best.width / 2, cy: best.top + best.height / 2 };
+    // tryb pełnoekranowy: mapa dotyka krawędzi ekranu – zwężamy ramkę tak, by ozdoby (szyldy, dźwignie, tacki)
+    // mieściły się na ekranie; w trybie okienkowym (dużo miejsca dookoła) nic się nie zmienia
+    const M = { t: 110, b: 64, l: 56, r: 84 };
+    let x0 = Math.max(best.left, M.l), y0 = Math.max(best.top, M.t);
+    let x1 = Math.min(best.right, innerWidth - M.r), y1 = Math.min(best.bottom, innerHeight - M.b);
+    if (x1 - x0 < 300 || y1 - y0 < 240) { x0 = best.left; y0 = best.top; x1 = best.right; y1 = best.bottom; }
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 };
   }
   // grafika legendy: najpierw w oknie łupów, potem (np. łup prosto do torby) najnowsza legenda w ekwipunku
   // wszystkie legendy w oknie łupów (kilka legend w jednym łupie)
@@ -13876,13 +13891,18 @@
   function setItemHidden(el, flag) { setItemsHidden(flag && el ? new Set([el]) : new Set()); }
   // fixedSrc: konkretna ikonka (przy kilku legendach); bez niej – pierwsza znaleziona legenda
   function makeItemTracker(fixedSrc) {
-    const tr = { src: fixedSrc || null, snap: document.createElement('canvas'), found: false, rect: null };
+    const tr = { src: fixedSrc || null, snap: document.createElement('canvas'), found: false, rect: null, key: null };
+    // klasa item-id-XXX slotu – gra po doczytaniu grafiki potrafi podmienić canvas ikony na nowy
+    const keyOf = c => { const it = c && c.closest && c.closest('[class*="item-id-"]'); const m = it && /item-id-(\d+)/.exec(it.className); return m ? m[1] : null; };
+    tr.key = keyOf(fixedSrc);
     return function update(b) {
-      if (!fixedSrc && !tr.found) {
-        const c = findLegendIcon();
-        if (c) tr.src = c;
-      }
       tr.n = (tr.n || 0) + 1;
+      if (!tr.src || !tr.src.isConnected ? tr.n % 2 === 1 : (!tr.found && !fixedSrc)) {
+        let c = null;
+        if (tr.key) c = document.querySelector(`.loot-wnd .item-id-${tr.key} canvas.icon`);
+        if (!c && !fixedSrc) c = findLegendIcon();
+        if (c && c !== tr.src) { tr.src = c; tr.key = keyOf(c) || tr.key; }
+      }
       if (tr.src && tr.src.isConnected && (tr.n % 4 === 1 || !tr.found)) {
         const r = tr.src.getBoundingClientRect();
         if (r.width > 0) tr.rect = { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width };
@@ -13890,6 +13910,7 @@
         if (tr.snap.width !== w || tr.snap.height !== h) { tr.snap.width = w; tr.snap.height = h; }
         const g = tr.snap.getContext('2d');
         g.clearRect(0, 0, w, h);
+        // zawsze kopiujemy aktualną zawartość (grafika mogła się dopiero doczytać – wcześniej gra rysuje „?”)
         try { g.drawImage(tr.src, 0, 0); tr.found = true; } catch (e) { /* ignore */ }
       }
       return { el: tr.src && tr.src.isConnected ? tr.src : null, img: tr.found ? tr.snap : FALLBACK_ICON, x: tr.rect ? tr.rect.x : b.cx, y: tr.rect ? tr.rect.y : b.cy, base: tr.rect ? tr.rect.w : 32 };
@@ -13966,6 +13987,7 @@
     let box = lootBox() || fallbackBox();
     let map = mapBox();
     const shared = makeItemTracker(icons[0] || null);
+    const occItem = inst.find(i => i.Ly.key === 'item' && i.eff.occupy);
     const layers = inst.map(sp => {
       const dur = isOut ? Math.max(P.dur, sp.eff.minDur || 0) : P.dur; // tyle, ile ustawiono (sceny fabularne mają swoje minimum)
       const self = Object.assign(Object.create(sp.eff), { dur }); // efekty czytają this.dur
@@ -13973,8 +13995,11 @@
       const scale = (sp.Ly.group === G_FRAME ? (isMap ? perimScale(map) : 1) : 1) * P.density;
       // gdy ten sam efekt jest na obu ramkach, tło (winieta, śnieg) rysuje tylko jedna z nich
       const second = sp.Ly.key === 'loot' && inst.some(o => o.Ly.key === 'map' && o.eff.id === sp.eff.id);
-      const env = { W: innerWidth, H: innerHeight, box: isMap ? map : box, map, scale, density: P.density, itemScale: P.itemScale };
-      return { sp, self, dur, delay: sp.delay, isMap, scale, second, state: sp.eff.init.call(self, env), lc: sp.hue ? document.createElement('canvas') : null };
+      const f = COMPACT_KEYS.has(sp.Ly.key) ? compactScale() : 1, k = 1 / f;
+      const env = { W: innerWidth * k, H: innerHeight * k, box: scaleBox(isMap ? map : box, k), map: scaleBox(map, k), scale, density: P.density, itemScale: P.itemScale };
+      // efekt przedmiotu zajmujący miejsce nad oknem (losowanie, zdrapka) → efekt „wokół okna” czeka, aż skończy
+      const occ = sp.Ly.key === 'around' && occItem ? Math.min(occItem.eff.occupy, P.dur * 0.6) : 0;
+      return { sp, self, dur, delay: sp.delay + occ, f, isMap, scale, second, state: sp.eff.init.call(self, env), lc: sp.hue ? document.createElement('canvas') : null };
     });
     let total = Math.max(...layers.map(l => l.dur + l.delay));
     let seenWindow = false;
@@ -14035,12 +14060,16 @@
           c.setTransform(1, 0, 0, 1, 0, 0);
           c.clearRect(0, 0, l.lc.width, l.lc.height);
         }
-        const cs = l.lc ? dpr * ls : dpr;
+        const cs = (l.lc ? dpr * ls : dpr) * l.f, kk = 1 / l.f;
         c.setTransform(cs, 0, 0, cs, 0, 0);
         c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; c.shadowBlur = 0; c.filter = 'none';
         const a = clamp01(tl / 0.35) * clamp01((l.dur - tl) / Math.min(0.9, Math.max(0.3, l.dur * 0.2))) * P.strength;
         const o = { map, item, scale: l.scale, second: l.second, density: P.density, itemScale: P.itemScale, hideItem: () => { if (item && item.el) hide.add(item.el); }, out, index: l.sp.idx || 0, count: l.sp.n || 1 };
-        try { l.sp.eff.frame.call(l.self, c, l.state, tl, dt, a, W, H, l.isMap ? map : box, o); }
+        if (l.f !== 1) {
+          o.map = scaleBox(map, kk); o.item = scalePt(item, kk);
+          if (out) o.out = Object.assign({}, out, { from: scalePt(out.from, kk), to: scalePt(out.to, kk), base: out.base * kk });
+        }
+        try { l.sp.eff.frame.call(l.self, c, l.state, tl, dt, a, W * kk, H * kk, scaleBox(l.isMap ? map : box, kk), o); }
         catch (e) { console.error('[LNFX]', l.sp.eff.id, e); l.dur = -1; continue; }
         if (l.lc) {
           ctx.setTransform(1, 0, 0, 1, 0, 0);
