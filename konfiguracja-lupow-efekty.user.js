@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Konfiguracja łupów – nowe efekty animacji
 // @namespace    majcin.margonem.lnfx
-// @version      2.1.1
+// @version      2.2.0
 // @description  Nowe efekty animacji i losowy dźwięk (z własnych) w dodatku "Konfiguracja łupów" (Margonem NI)
 // @author       Majcin
 // @match        https://*.margonem.pl/*
@@ -6604,7 +6604,7 @@
     /* ------------------- PRZEDMIOT LEGENDARNY – nowe efekty (i2_) ------------------- */
 
     {
-      id: 'i2_rocket', group: G_ITEM, name: 'Start rakiety', dur: 5,
+      id: 'i2_rocket', group: G_ITEM, name: 'Start rakiety', dur: 5.5,
       init: () => ({ k: -1, fire: [], smoke: [], sp: [], f1: false, f2: false, hit: -99 }),
       cyc(t, L, P) {
         const d = this.dur, sp = d < L + 0.4 ? (L + 0.4) / Math.max(1, d) : 1;
@@ -6706,7 +6706,7 @@
     },
 
     {
-      id: 'i2_pixels', group: G_ITEM, name: 'Rozsypka pikseli', dur: 5,
+      id: 'i2_pixels', group: G_ITEM, name: 'Rozsypka pikseli', dur: 5.7,
       init: () => ({ k: -1, bl: null, f1: false, f2: false, f3: false, land: -99, sp: [] }),
       cyc(t, L, P) {
         const d = this.dur, sp = d < L + 0.4 ? (L + 0.4) / Math.max(1, d) : 1;
@@ -6825,7 +6825,7 @@
     },
 
     {
-      id: 'i2_titan', group: G_ITEM, name: 'Tytan z niebios', dur: 5.5,
+      id: 'i2_titan', group: G_ITEM, name: 'Tytan z niebios', dur: 5.9,
       init: () => ({ k: -1, f1: false, f2: false, slam: -99, land: -99, sp: [], em: [], gh: [] }),
       cyc(t, L, P) {
         const d = this.dur, sp = d < L + 0.4 ? (L + 0.4) / Math.max(1, d) : 1;
@@ -6910,7 +6910,7 @@
     },
 
     {
-      id: 'i2_kaleido', group: G_ITEM, name: 'Kalejdoskop', dur: 5.5,
+      id: 'i2_kaleido', group: G_ITEM, name: 'Kalejdoskop', dur: 5.7,
       init: () => ({ k: -1, f1: false, end: -99, sp: [] }),
       cyc(t, L, P) {
         const d = this.dur, sp = d < L + 0.4 ? (L + 0.4) / Math.max(1, d) : 1;
@@ -6986,7 +6986,7 @@
     },
 
     {
-      id: 'i2_anvil', group: G_ITEM, name: 'Kuźnia legend', dur: 5.5,
+      id: 'i2_anvil', group: G_ITEM, name: 'Kuźnia legend', dur: 6.0,
       init: () => ({ k: -1, hits: 0, sp: [], last: -99, lastP: 0, land: -99 }),
       cyc(t, L, P) {
         const d = this.dur, sp = d < L + 0.4 ? (L + 0.4) / Math.max(1, d) : 1;
@@ -7085,7 +7085,7 @@
     },
 
     {
-      id: 'i2_portal', group: G_ITEM, name: 'Wrota otchłani', dur: 5.5,
+      id: 'i2_portal', group: G_ITEM, name: 'Wrota otchłani', dur: 5.8,
       init: () => ({ k: -1, sp: [], bolts: [], bt: 0, f1: false, f2: false, land: -99, emerge: -99 }),
       cyc(t, L, P) {
         const d = this.dur, sp = d < L + 0.4 ? (L + 0.4) / Math.max(1, d) : 1;
@@ -7172,7 +7172,7 @@
     },
 
     {
-      id: 'i2_card', group: G_ITEM, name: 'Karta holograficzna', dur: 5.5,
+      id: 'i2_card', group: G_ITEM, name: 'Karta holograficzna', dur: 5.8,
       init: () => ({ k: -1, sp: [], tw: [], f1: false, f2: false, land: -99, pop: -99 }),
       cyc(t, L, P) {
         const d = this.dur, sp = d < L + 0.4 ? (L + 0.4) / Math.max(1, d) : 1;
@@ -7262,7 +7262,7 @@
     },
 
     {
-      id: 'i2_runes', group: G_ITEM, name: 'Krąg lewitacji', dur: 5.5,
+      id: 'i2_runes', group: G_ITEM, name: 'Krąg lewitacji', dur: 6.0,
       init: () => ({ k: -1, mo: [], fly: [], f1: false, f2: false, fl: -99, land: -99 }),
       cyc(t, L, P) {
         const d = this.dur, sp = d < L + 0.4 ? (L + 0.4) / Math.max(1, d) : 1;
@@ -7364,7 +7364,7 @@
     },
 
     {
-      id: 'i2_glass', group: G_ITEM, name: 'Rozbita szyba', dur: 5,
+      id: 'i2_glass', group: G_ITEM, name: 'Rozbita szyba', dur: 5.5,
       init: () => ({ k: -1, sh: [], cr: null, f1: false, f2: false, hit: -99, land: -99, sp: [], gh: [] }),
       cyc(t, L, P) {
         const d = this.dur, sp = d < L + 0.4 ? (L + 0.4) / Math.max(1, d) : 1;
@@ -7462,7 +7462,7 @@
     },
 
     {
-      id: 'i2_crystal', group: G_ITEM, name: 'Kryształowe więzienie', dur: 5.5,
+      id: 'i2_crystal', group: G_ITEM, name: 'Kryształowe więzienie', dur: 5.9,
       init: () => ({ k: -1, cr: [], fr: [], sp: [], f1: false, f2: false, brk: -99, land: -99 }),
       cyc(t, L, P) {
         const d = this.dur, sp = d < L + 0.4 ? (L + 0.4) / Math.max(1, d) : 1;
@@ -11735,7 +11735,7 @@
 
     /* ------------------------------ ZESTAW: PIŁKARSKI (fb_) ------------------------------ */
     {
-      id: 'fb_item', group: G_ITEM, name: 'Żonglerka i przewrotka', dur: 6,
+      id: 'fb_item', group: G_ITEM, name: 'Żonglerka i przewrotka', dur: 5,
       /* ===== wspólne helpery zestawu piłkarskiego (pozostałe efekty fb_ biorą je przez fbLib()) ===== */
       fbLib() { return EFFECTS.find(e => e.id === 'fb_item'); },
       FB_PAL: {
@@ -11987,7 +11987,7 @@
       frame(ctx, s, t, dt, a, W, H, b, o = {}) {
         const L = this.fbLib(), it = o.item || {}, img = it.img || FALLBACK_ICON, isc = o.itemScale || 1, base = it.base || 32, dn = o.density || 1;
         const X0 = it.x != null ? it.x : b.cx, Y0 = it.y != null ? it.y : b.cy;
-        const CYC = 4.8, lt0 = t + (o.index || 0) * 0.37, n = Math.floor(lt0 / CYC), lt = lt0 - n * CYC;
+        const CYC = 4.8, lt0 = t + (o.index || 0) * 0.37, n = 0, lt = Math.min(lt0, CYC - 0.01); // tylko jeden przebieg
         if (n !== s.n) { s.n = n; s.goal = false; s.touch = -1; s.kick = false; s.side = Math.random() < 0.5 ? -1 : 1; }
         o.hideItem();
         const bz = base * isc, z = bz * 1.55, yc = Y0 - bz * 1.2, apexY = Math.max(40, yc - 175 * isc);
@@ -13989,7 +13989,9 @@
     const shared = makeItemTracker(icons[0] || null);
     const occItem = inst.find(i => i.Ly.key === 'item' && i.eff.occupy);
     const layers = inst.map(sp => {
-      const dur = isOut ? Math.max(P.dur, sp.eff.minDur || 0) : P.dur; // tyle, ile ustawiono (sceny fabularne mają swoje minimum)
+      // efekty po łupie: tyle, ile ustawiono (sceny fabularne mają swoje minimum);
+      // animacja przedmiotu: zawsze dokładnie jeden przebieg (własny czas efektu), niezależnie od ustawienia czasu
+      const dur = isOut ? Math.max(P.dur, sp.eff.minDur || 0) : sp.Ly.key === 'item' ? (sp.eff.dur || 5) : P.dur;
       const self = Object.assign(Object.create(sp.eff), { dur }); // efekty czytają this.dur
       const isMap = sp.Ly.target === 'map';
       const scale = (sp.Ly.group === G_FRAME ? (isMap ? perimScale(map) : 1) : 1) * P.density;
@@ -13998,7 +14000,7 @@
       const f = COMPACT_KEYS.has(sp.Ly.key) ? compactScale() : 1, k = 1 / f;
       const env = { W: innerWidth * k, H: innerHeight * k, box: scaleBox(isMap ? map : box, k), map: scaleBox(map, k), scale, density: P.density, itemScale: P.itemScale };
       // efekt przedmiotu zajmujący miejsce nad oknem (losowanie, zdrapka) → efekt „wokół okna” czeka, aż skończy
-      const occ = sp.Ly.key === 'around' && occItem ? Math.min(occItem.eff.occupy, P.dur * 0.6) : 0;
+      const occ = sp.Ly.key === 'around' && occItem ? Math.min(occItem.eff.occupy, (occItem.eff.dur || 5), P.dur * 0.6) : 0;
       return { sp, self, dur, delay: sp.delay + occ, f, isMap, scale, second, state: sp.eff.init.call(self, env), lc: sp.hue ? document.createElement('canvas') : null };
     });
     let total = Math.max(...layers.map(l => l.dur + l.delay));
@@ -14602,11 +14604,25 @@
   function addConfigButton(ctl) {
     const host = ctl.parentElement;
     if (!host || host.querySelector('.lnfx-cfg-btn')) return;
-    const b = document.createElement('div');
-    b.className = 'lnfx-cfg-btn';
-    b.textContent = PREFIX + 'Konfigurator efektów';
-    b.addEventListener('click', ev => { ev.stopPropagation(); openPanel(); });
+    // przycisk w stylu gry: kopia prawdziwego przycisku z okna (zielony, „small”), z własnym napisem
+    const win = ctl.closest('.window, [class*="window"]') || document;
+    const tpl = win.querySelector('.ln-buttons-container .button.small.green, .option-control .button.small.green:not(.bck)')
+      || document.querySelector('.ln-buttons-container .button.small.green, .button.small.green');
+    let b;
+    if (tpl) { b = stripTips(tpl.cloneNode(true)); b.classList.remove('disabled', 'active'); b.classList.add('lnfx-cfg-btn', 'lnfx-cfg-game'); }
+    else { b = document.createElement('div'); b.className = 'lnfx-cfg-btn'; }
+    b.addEventListener('click', ev => { ev.stopPropagation(); ev.preventDefault(); if (panel) closePanel(); else openPanel(); });
     ctl.after(b);
+    updateCfgBtn();
+  }
+  // napis przycisku zależy od tego, czy konfigurator jest otwarty
+  function updateCfgBtn() {
+    for (const b of document.querySelectorAll('.lnfx-cfg-btn')) {
+      const txt = panel ? '✕ Zamknij konfigurator' : PREFIX + 'Konfigurator efektów';
+      const l = b.querySelector('.label');
+      if (l) { if (l.textContent !== txt) l.textContent = txt; } else if (b.textContent !== txt) b.textContent = txt;
+      b.title = panel ? 'Zamknij okno konfiguracji efektów' : 'Otwórz okno konfiguracji efektów';
+    }
   }
 
   /* ------------------------------- KONFIGURATOR ------------------------------- */
@@ -14990,7 +15006,8 @@
     } catch (e) { sw.style.overflowY = 'auto'; }
   }
 
-  function openPanel() {
+  function openPanel() { openPanel0(); updateCfgBtn(); }
+  function openPanel0() {
     if (panel) { refreshPanel(true); return; }
     const tw = templateWindow();
     if (tw) {
@@ -15016,7 +15033,7 @@
     panel.style.top = (pos && pos.t) || '80px';
     document.body.append(panel);
   }
-  function closePanel() { if (panel) panel.remove(); panel = null; }
+  function closePanel() { if (panel) panel.remove(); panel = null; updateCfgBtn(); }
   function refreshPanel(force) {
     if (!panel) return;
     if (!force && panelPreset === presetInfo().key) {
@@ -15038,6 +15055,7 @@
     hookOutcome();
     hookOthers();
     CONTROLS.forEach(syncControl);
+    updateCfgBtn();
     if (panel && panelPreset !== presetInfo().key) refreshPanel(true);
   }
 
@@ -15050,6 +15068,8 @@
     .lnfx-cfg-btn{margin:4px auto 2px;width:max-content;padding:3px 10px;border:1px solid #8a6d3b;border-radius:4px;
       background:linear-gradient(#3a2c14,#241a0b);color:#ffd57a;font-size:11px;cursor:pointer;user-select:none}
     .lnfx-cfg-btn:hover{filter:brightness(1.25)}
+    .lnfx-cfg-btn.lnfx-cfg-game{display:flex;margin:6px auto 2px;width:max-content;min-width:150px;padding:0;border:0;background:none;filter:none}
+    .lnfx-cfg-btn.lnfx-cfg-game .label{padding:0 10px;white-space:nowrap}
     .lnfx-panel{position:fixed;z-index:2147482000;width:380px;max-height:90vh;display:flex;flex-direction:column;
       background:rgba(18,19,28,.97);border:1px solid #8a6d3b;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.6),0 0 0 1px #000;
       color:#ddd;font:12px/1.35 Arial,sans-serif;user-select:none}
