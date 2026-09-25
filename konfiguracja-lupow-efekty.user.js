@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Konfiguracja łupów – nowe efekty animacji
-// @namespace    majcinai
+// @namespace    majcin.margonem.lnfx
 // @version      2.0.1
 // @description  Nowe efekty animacji i losowy dźwięk (z własnych) w dodatku "Konfiguracja łupów" (Margonem NI)
 // @author       Majcin
