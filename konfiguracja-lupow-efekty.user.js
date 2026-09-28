@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Konfiguracja łupów – nowe efekty animacji
 // @namespace    majcin.margonem.lnfx
-// @version      2.3.0
+// @version      2.3.3
 // @description  Nowe efekty animacji i losowy dźwięk (z własnych) w dodatku "Konfiguracja łupów" (Margonem NI)
 // @author       Majcin
 // @match        https://*.margonem.pl/*
@@ -18827,6 +18827,19 @@
     const o = document.querySelector('.opt_LEGENDARY_NOTIFICATOR_CHECKBOX'); // nowe miejsce: okno Ustawień gry
     return o ? o.closest('.c-window') : null;
   }
+  // wzór okna zapamiętujemy – gdy gracz zamknie okno konfiguracji dodatku, konfigurator dalej ma z czego się budować
+  let TPL = null;
+  function tplWindow() {
+    const tw = templateWindow();
+    if (tw && tw.offsetWidth > 0) {
+      if (!TPL || TPL.live !== tw || !TPL.el.querySelector('.inner-content')) {
+        TPL = { live: tw, el: tw.cloneNode(true), parent: tw.parentElement, w: tw.offsetWidth, z: parseInt(getComputedStyle(tw).zIndex, 10) || 20 };
+      } else { TPL.w = tw.offsetWidth; TPL.parent = tw.parentElement || TPL.parent; }
+      return tw;
+    }
+    return TPL ? TPL.el : (tw && tw.querySelector('.inner-content') ? tw : null);
+  }
+  const tplWidth = tw => tw.offsetWidth || (TPL && TPL.w) || 270;
   const stripTips = e => { if (e.removeAttribute) e.removeAttribute('tip-id'); e.querySelectorAll && e.querySelectorAll('[tip-id]').forEach(x => x.removeAttribute('tip-id')); return e; };
 
   function uiKit(tw) {
@@ -18945,7 +18958,11 @@
     const w = stripTips(tw.cloneNode(false));
     w.classList.remove('window-on-peak');
     w.classList.add('lnfx-gwin');
-    w.style.width = Math.min(tw.offsetWidth, 270) + 'px';
+    // szerokość jak w innych oknach przezroczystych (najczęstsza, zwykle 242 px)
+    const widths = {};
+    for (const x of document.querySelectorAll('.c-window.transparent:not(.lnfx-gwin)')) { const v = parseInt(getComputedStyle(x).width, 10); if (v >= 180 && v <= 400) widths[v] = (widths[v] || 0) + 1; }
+    const stdW = +(Object.entries(widths).sort((a, b) => b[1] - a[1])[0] || [242])[0] || 242;
+    w.style.width = stdW + 'px';
     const head = stripTips(tw.querySelector('.header-label-positioner').cloneNode(true));
     const ht = head.querySelector('.header-label .text');
     if (ht) ht.textContent = 'Własne efekty';
@@ -18958,9 +18975,20 @@
     sw.append(body); lnc.append(sw);
     inner.append(lnc); content.append(inner);
     w.append(head, content);
+    // „skorupa” okna (pasek, X w rogu, tło/ramka) z prawdziwego przezroczystego okna gry – wtedy X ma ikonę,
+    // a wygląd zgadza się z innymi oknami przezroczystymi; gdy takiego nie ma – z okna-wzoru
+    const trans = [...document.querySelectorAll('.c-window.transparent')].filter(x => !x.classList.contains('lnfx-gwin'));
+    const shell = trans.find(x => x.querySelector(':scope > .close-button-corner-decor .close-button > *') && x.querySelector(':scope > .border-image')) || null;
     for (const sel of ['.c-window__bottom-bar', '.close-button-corner-decor', '.border-image']) {
-      const x = tw.querySelector(sel);
+      const x = (shell && shell.querySelector(':scope > ' + sel)) || tw.querySelector(':scope > ' + sel) || tw.querySelector(sel);
       if (x) w.append(stripTips(x.cloneNode(true)));
+    }
+    // zawsze okno przezroczyste (jak dawne okno „Konfiguracja łupów”), także gdy wzorem jest zwykłe okno
+    // (na dev konfiguracja siedzi w nieprzezroczystym oknie „Konfiguracja”) – tło/ramkę daje .border-image
+    w.classList.add('transparent');
+    if (!w.querySelector(':scope > .border-image')) {
+      const src = [...document.querySelectorAll('.c-window.transparent')].find(x => x !== w && x.querySelector(':scope > .border-image'));
+      if (src) w.append(stripTips(src.querySelector(':scope > .border-image').cloneNode(true)));
     }
     const cb = w.querySelector('.close-button');
     if (cb) cb.addEventListener('click', ev => { ev.stopPropagation(); closePanel(); });
@@ -19009,7 +19037,8 @@
       K.button('Test', () => {
         const c = getCfg();
         if (!c.enabled && hasLayers(c)) { c.enabled = true; saveCfg(c); nativeAnimationToNone(); refreshPanel(); }
-        const t = [...tw.querySelectorAll('.button')].find(e => e.textContent.trim() === 'Test');
+        const lw = templateWindow();
+        const t = lw && lw.offsetWidth > 0 ? [...lw.querySelectorAll('.button')].find(e => e.textContent.trim() === 'Test') : null;
         if (t) t.click(); else playComposition(getCfg());
       }, 'Test dodatku – prawdziwe okno łupów z legendą'),
       K.button('Zdobyty', () => { const c = getCfg(); if (c.layers.win) previewLayer(c, 'win'); }, 'Podgląd efektu: łup trafił do torby'),
@@ -19065,20 +19094,21 @@
   function openPanel() { openPanel0(); updateCfgBtn(); }
   function openPanel0() {
     if (panel) { refreshPanel(true); return; }
-    const tw = templateWindow();
+    const tw = tplWindow();
     if (tw) {
+      const live = tw.isConnected && tw.offsetWidth > 0;
       panel = buildGamePanel(tw);
-      tw.parentElement.append(panel);
+      (live ? tw.parentElement : (TPL && TPL.parent && TPL.parent.isConnected ? TPL.parent : document.body)).append(panel);
       let pos = null;
       try { pos = JSON.parse(localStorage.getItem('lnfx_panel_pos2')); } catch (e) { /* ignore */ }
       if (pos && pos.l) { panel.style.left = pos.l; panel.style.top = pos.t; }
       else {
-        const pw = panel.offsetWidth || 270;
-        let l = tw.offsetLeft + tw.offsetWidth + 6;
+        const pw = panel.offsetWidth || 242;
+        let l = live ? tw.offsetLeft + tw.offsetWidth + 6 : innerWidth / 2 - pw / 2;
         if (l + pw > innerWidth) l = Math.max(0, tw.offsetLeft - pw - 6);
-        panel.style.left = l + 'px'; panel.style.top = tw.offsetTop + 'px';
+        panel.style.left = l + 'px'; panel.style.top = (live ? tw.offsetTop : 80) + 'px';
       }
-      panel.style.zIndex = (parseInt(getComputedStyle(tw).zIndex, 10) || 20) + 1;
+      panel.style.zIndex = (live ? (parseInt(getComputedStyle(tw).zIndex, 10) || 20) : ((TPL && TPL.z) || 20)) + 1;
       initScroll(panel, tw);
       return;
     }
@@ -19098,7 +19128,7 @@
       return;
     }
     const l = panel.style.left, t = panel.style.top, z = panel.style.zIndex;
-    const tw = templateWindow();
+    const tw = tplWindow();
     const np = tw && panel.classList.contains('lnfx-gwin') ? buildGamePanel(tw) : buildPanel();
     np.style.left = l; np.style.top = t; if (z) np.style.zIndex = z;
     panel.replaceWith(np);
@@ -19111,6 +19141,7 @@
     hookOutcome();
     hookOthers();
     CONTROLS.forEach(syncControl);
+    tplWindow(); // odśwież zapamiętany wzór okna, póki jest otwarte
     updateCfgBtn();
     if (panel && panelPreset !== presetInfo().key) refreshPanel(true);
   }
