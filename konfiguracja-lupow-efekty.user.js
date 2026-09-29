@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Konfiguracja łupów – nowe efekty animacji
 // @namespace    majcin.margonem.lnfx
-// @version      2.6.2
+// @version      2.7.1
 // @description  Nowe efekty animacji i losowy dźwięk (z własnych) w dodatku "Konfiguracja łupów" (Margonem NI)
 // @author       Majcin
 // @match        https://*.margonem.pl/*
@@ -23420,6 +23420,1016 @@
     },
 
 
+    /* ------------------------- ZESTAW „GRZYBY Z GRY” (mg_) – kopia Grzybobrania z grafikami grzybów z gry ------------------------- */
+    /* mu_item trzyma wspólne narzędzia zestawu (pikselowe grzyby, liście, koszyk, grzybiarz, napisy) */
+    {
+      id: 'mg_item', group: G_ITEM, name: 'Grzyby z gry: Prawdziwek z mchu', dur: 6.2, occupy: 4.6,
+      muLib() { return EFFECTS.find(e => e.id === 'mg_item'); },
+      MU_PAL: {
+        k: '#2a160a', B: '#8a4a1e', b: '#c47c3c', d: '#5a2c10', w: '#f2e6c6', v: '#c4aa7a',
+        R: '#d8261c', r: '#ff6a4a', q: '#861008', W: '#ffffff',
+        O: '#f2a21e', o: '#ffd65a', p: '#b0620c',
+        K: '#dcc8a0', n: '#7a5634', N: '#a88660',
+        P: '#5e3418', h: '#8a542c', y: '#d8c060', Y: '#a8903a',
+        G: '#4f8a2a', g: '#8cc83e', m: '#2c5418', C: '#8a5a2a', c: '#573412',
+      },
+      MU_ROWS: {
+        borowik: ['....kkkk....', '..kkbbbbkk..', '.kbbBBBBBBk.', 'kbBBBBBBBBdk', 'kBBBBBBBBBdk', 'kdBBBBBBBddk', '.kkddddddkk.',
+          '...kwwwwk...', '..kwwwwwvk..', '..kwwwwwvk..', '.kwwwwwwwvk.', '.kvwwwwwwvk.', '..kkkkkkkk..'],
+        bcap: ['....kkkk....', '..kkbbbbkk..', '.kbbBBBBBBk.', 'kbBBBBBBBBdk', 'kBBBBBBBBBdk', 'kdBBBBBBBddk', '.kkddddddkk.'],
+        podgrzybek: ['...kkkkkk...', '.kkhhhPPPkk.', 'khhPPPPPPPPk', 'kPPPPPPPPPPk', 'kPPPPPPPPPdk', '.kyyyyyyyyk.', '..kkYyyYkk..',
+          '....kyyk....', '....kyyYk...', '...kyyyyk...', '...kyyyYk...', '...kkkkkk...'],
+        muchomor: ['....kkkk....', '..kkrRRRkk..', '.krWRRRWRRk.', 'kRRRRWRRRRRk', 'kRWRRRRRWRqk', 'kqRRRWRRRqqk', '.kkqqqqqqkk.',
+          '....kwwk....', '...kWWWWk...', '..kWWWWWWk..', '....kwvk....', '....kwvk....', '...kwwwvk...', '...kkkkkk...'],
+        kurka: ['.kkkkkkkk.', 'kooooOOOok', 'kOOOOOOOpk', '.kOOOOOOk.', '..kpOOpk..', '...kOOk...', '...kOOk...', '...kOpk...', '..kOOOpk..', '..kkkkkk..'],
+        kania: ['....kkkkk....', '..kkNKKKNkk..', '.kKKnKKKnKKk.', 'kKnKKKnKKKnKk', 'kKKKKKKKKKKKk', '.kkNNNNNNNkk.', '.....kwk.....',
+          '....kwwwk....', '.....kwk.....', '.....kwk.....', '.....kwvk....', '.....kwvk....', '.....kwvk....', '....kwwwvk...', '....kkkkkk...'],
+        cone: ['...k...', '..kCk..', '.kCcCk.', 'kcCcCck', 'kCcCcCk', 'kcCcCck', 'kCcCcCk', '.kcCck.', '..kCk..', '...k...'],
+        moss: ['....g..g......', '..gGg.gGg.g...', '.gGGGgGGGgGg..', 'gGGmGGGGmGGGg.', 'GGmGGmGGGmGGGg', 'mmmmmmmmmmmmmm'],
+        maple: ['....k....', '.k.kLk.k.', 'kLkkLkkLk', 'kLLLlLLLk', '.kLLlLLk.', 'kLLLlLLLk', '.kkLlLkk.', '...klk...', '....k....'],
+        oak: ['...k...', '..kLk..', '.kLlLk.', 'kLLlLLk', '.kLlLk.', 'kLLlLLk', '.kLlLk.', 'kLLlLLk', '.kLlLk.', '..klk..', '...k...'],
+      },
+      MU_LEAF: [['#d8361c', '#9a1e10', '#4a0e06'], ['#f08a1c', '#b0520e', '#4d2206'], ['#f2c230', '#b88a14', '#4e3606'], ['#b8742a', '#7a4818', '#3a200a']],
+      MU_KINDS: ['borowik', 'podgrzybek', 'kurka', 'kania', 'muchomor', 'zielonka', 'fiolet', 'niebieski'],
+      muHash(i) { const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); },
+      // sprite pikselowy z tablicy wierszy (1 komórka = 1 px), rysowany z imageSmoothing=false
+      // grafiki grzybów z gry (pixel-art, przycięte do zawartości; warianty kolorystyczne przygotowane wcześniej)
+      MG_GFX: {
+        borowik: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAARCAYAAADtyJ2fAAABEUlEQVR4nIWSPU4DMRBGn1cLibNaZbuIJlfYbTkATSQOkQqRjioFBaKghiqUHAEBEg0HoHVKWiroEiETRQSZhlj+i3Yqe8bvG3s+C2MMqRjXpS3czb9EWBchuAWaprE5pVQk4IHjujQuEIZSysIWTEGjemjXz/N3DxbGmFYoBWdt0KAvGfRllM9C1RDaFfmu64zqIZ/LVbIG/8NxPQPfCjdcWzw7ri8n5vjokKvTSRJ0fYyuCnB+O/P2Ty+vnF3MvN9jO267AezJgk5RAbDWC35WOoKTHTtFRa86IMsl3VKz/HiLziRBgCyX5Ps9BMJ2bwXXekG31AgEv5vvpHByquE7H+4fOZnepIfjwqF6OFGAP6c/hP1HPIbfAAAAAElFTkSuQmCC',
+        bcap: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAJCAYAAAACTR1pAAAAgElEQVR4nGP8//8/AzaQqM8Ll5h/8TMjujwjukaYBgMDA7jYhQsXMAxA0Zioz/sfWQM6uHDhAlwzXCM2TV76cnD2touPUDQz/v//n6AmbJqZCGkS5+dkEOfnxBBnQjcVXRMuwILLOV76cgwvP37HKsfAAA0c5DhjYECNCmSAHC0Arc9JUZWmj0AAAAAASUVORK5CYII=',
+        podgrzybek: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAARCAYAAADtyJ2fAAABE0lEQVR4nIWSsU7DMBRFz2tShwwdUilTN7qwMVX8QSX+oH/AxsCHMHRjZunOgMQHUCEmNpZULEhISDBUKCmhmIW4ju0qd3L8fN6174torQlpmkemcPe+Fbce7wMOx2Nvz24gtuM0j7QNuFoVhYENGIImo6FZP75+tGDRWndCIbjXBWWpIkuVt99zu7rQPnmpNteZjIZ8lt/BGvyHY88M2qOwtSoKgF04jc5mp/rk+IjF5TwI2nP0rgowuzhvfT88PXO1uG39PcaxcQOIkwP66QCAulzzs6k8OOjYTwckWY5EClVXfL29eGeCIIBEiihOEMS4d4J1uUbVFYLwu92EG4dSdd+5vF8yv74Jh2PDbnc3UYA/2WKBqmCoABEAAAAASUVORK5CYII=',
+        kurka: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAAOCAYAAAD5YeaVAAABLElEQVR4nG1SMUtCURT+zlXpOYazmxS8zcmGpkLDoTFEfK5CU0t7vB8gjkKjkhLR6gO3htbGQGiL1vDxkBR992sIb/eKB+5wz/nOd873cYQk7Bi2xSTaQ4pTJGneIADTJGSahJx1fQ4C0K4rm7HVD6HUlSGqlH1nknKA+SK0fsLH/aNpaPVD0yCDAKyUfeyLUqfxR/DziYfru/81AODo5halTsP8Vb4IrE5cgVthXLyTyy8jcNb1mSahESpb62whAKAFUNyx0LZmMqpy8x1Sxz3quMfJqLrfumhc4/nZMSQHiFeAeAVcXJ4iGtfMxKwzep1ADnJAdg4tHhQzjjsuWC9ACrQcQuABkjhgs0a9OZWX1xibJEVmvYRarhA9v6HenJr7kN1Dsne0gQDwC1ffuJyQKNmfAAAAAElFTkSuQmCC',
+        kania: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAAOCAYAAAD5YeaVAAABPElEQVR4nG2Sv0tCURTHP/c9nyIJuhmNbhkN8baE4EV/gBhKi7S4tDi5Nolbk4Mt4h9gBI1BRltgQ05vjaClkIYIfT38cZq83ScduMO953u+5/v9cpWIYNbl8Y5+OLv2VaQpIvp0SnkZ+z0Z+z0ZtqrSKeXF7FsmY7nZYGNzTxO5rhvZZJnARDrL5H3Ey82DHig3G3pAdUp5cV2X/ypX9Eiks4RfH1ydX/zJANg+PSFX9PQ9kc4SS25FDa6MTT9HEn6/aoPDVlXGfk8bVavoTCMAgqBQkQiVmXO/XRPPK2DFkgDc3w2o1Ls6a8sEHuzvomxwUhmcVIbDowL9dk2zxczVy1mAsh0sOwDLwY5H2mvgRYgsJohMUMs4sgwiYC2jUu+qx+c35sGC2fSH+TRkcPsU0azWP5Kp0QQC/AIMPKXBumRZLgAAAABJRU5ErkJggg==',
+        zielonka: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAANCAYAAAB/9ZQ7AAABEklEQVR4nG1QIU/DUBi81/axBvIQiMr+gwkkswiCoYSEBc9+xggCw49AkoygOoGYwCBIlmWZwKNIFhpeKl6adoIdAl5pu37qXu7effedIAk7/UH0//ibx7uxsFhYcX8Qcb/XBQAEQQAASJIEi9e38oPTFEopoZSCUgpSShydHpYbxfnlSc0xDEP4vg8AKIoCWZZBa41J/AyvmTFN05rYGFNygmTrYW2Himob44cr9g66cL1f5+l0geOz67KNjRjeloLs7AEAdtV2nSQJkohHQ36+39PoOVf5kqt8SaPnjEdDWs2Gs+vtwHE6Ja5tbYq/1wXcdV7i1hg2ytfHE42e0egZXya3rPK1NmwjFkcXN6LK/QA3V5eqjGXAfAAAAABJRU5ErkJggg==',
+        muchomor: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAaCAYAAABCfffNAAACd0lEQVR4nK2VP2hTURSHv7R2iIMZnEoGAzapVPtMCAkkuxDIYAY7FMFBHd0EsVPbQSqCuDha6VaCUrq0BNxTSAjRBBWTCkF4dBIhQ5YSrkNyLvf9yWsi/iAQ3jvnfPf8zslNSCnFRVpbyap7z556nn989RqAD99qoaD8S0EvXyzfUMs3h2zdv8qfaBQA27b1++Swr+MGxQKdStUXGPLrpLxXVgC37DcAfG/85sfXeZY2tnXM6c4mAJ/nrwAgnbZaJx6Yp5PyXllFo1Fs29bFYd5R2E+t1gkAlpUDRhYLaM5tj1hyurM5Boy0tLGtP6bEMjcsOezz8E5RgWHX2kpWuRNMQNQ1E7MrsSxRyAPQqVRJFPKctbs0uwsju9wAOW2QPWbsYDyHTqWquxgYMXOpWEm5k/y+27bt2CyR2CNKDvsMigXdRbN3GJqTF9Kyn9wdmZslHSSHfRKFvD6YAABCyWt3VSp+zvVfPx3eWlYu0C6JlZPLVrVaJxwf9DQAxoNPxUoqFT9ncTXO5aOKo4Bf4UnFTYvMPL1dJghwJJuS5yKzOOABOCAiWQQBWlaObCbtiKnVGxo+6fSBED+gQE3JAQBebu0HQgIvSDMxFSup51vrZDNp3u2+1TFuO2eGuIEjEDx+9IRavTFtqvPumkZycpnTWbt7YU7gTPxkbqEA3n86CvzTmrmTZu8w1OwuYFk5FlfjenX/K0SUzaQ9v5lJmnrwptzrnL+97vG8+mVfW/hPncitECQTPDMkFSupSVfOJM0OiZ+TzaSp1RuctbuEI2HfONOumWYy+jE+AEZdNLsLhCPeom7NBhkPvFZvcHzQIxwJBxYX/QV+gF7XXakuAAAAAABJRU5ErkJggg==',
+        fiolet: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAaCAYAAABCfffNAAACbElEQVR4nK2VPWvbUBSGX5kSbFcZMhihwYNxKcTCCAlcDB66V9BA2im0S9J/0DV/oWO3empTyNBAC4Zk7BAqapAQQRlKRQYPQnhwB9cJWW4H+9xefcYqfSdxdc55zpeuJMYY7tKOabGnB7up8y/DEwDAZ2ckFflLRZDDwT57UL3BQ6WOX8+XkDAM+furj+f8eaFvILAnmcBMyPDtkAHA9vk3AMCPaIGfN1W09gYpwMV1BACgSn1/nILdywKoqoowDHlwoJrKPCnfHwMANK0HYNliAsUqORzsM8o2GTCrCtLFdYR2vxk7q3u3uJJ/4+jsWOKQHdNi3ZqSmWVrbwBVVQH8nYkIopYRKLAnaPebiIIZ3Ol82a4kIK+avAQWqzkE9gQA0K0pWAg2lY5psaRT1nMYhrHNItEsSN2agoW+wau4dEZShV5QyVlKViRuFlXQrSlo95s8MQIAgLRtPGFGQ0Zrfj/WW03rFbaLbClz2irfH+PUnnAAsNqujmkxoyFDaW+h7t3GAmQFzgsutkj049slggDEnEXROUkMDiAFiEFItAgE1LQeTEOP2Tiux+F52RdCsoAEFUUJAMCb4UkhJHWtiBIdO6bFXh/swjR0vP/wjtsk21kakgQuQcDLF6/guN66rqisbbkSZU5zioLZnT6FM8mSuIUEODo7Lvxpla7k0hlJ7nQOTetBaW/x1f2vEJJp6KlvJk9rD15Ucp0fPX6W6vn3r594C/+pEroViiSCS0M6psXyrpw8lYYYDRmmocNxPUTBDPJmNdNObFepmdBXDyyrcKdzDhGDJlUKQgN3XA+n9gTyZrUwOOkPxzpdQ+7ETbEAAAAASUVORK5CYII=',
+        niebieski: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAANCAYAAAB/9ZQ7AAABGklEQVR4nG1QMUvDUBi81+RhqFRBMFNX3QIOThUEu+mis604WP+Bk0jF3dHRQRAHt7g4ODgIClIzdRSchGJqyBBCUtCeg75n0uSme9y977vvBEkoNFud/8cf7q/OheJCmZutDheWGwAA27YBAL7v4/XlSX+oTBqllHDqQzj1IaSUWNnY0hvF2vZebuKq8wXLsgAAaZoijmN4b7N4vHVhTmYMwzBn7r/Pa02QLD2s7FCRbWPn5piLjSVUjd/J/WcPF+tHuo1CjDmzhl3WAAAHM9W8SBIk0Xa7PPy4ZhR4HCUDjpIBo8Bj2+1SeQqTDXMalcqU5lkUzN/jFMY40bw0hopy9nnHKOgxCnrcfzhlVs+1oRpR/HLzRGS1HwWimICYaYbgAAAAAElFTkSuQmCC'
+      },
+      // liście, koszyk i wiewiórka z gry
+      MG_GFX2: {
+        leaf0: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAOCAYAAAAbvf3sAAAAv0lEQVR4nI2Suw2DMBRFr61sgNJR0INp06SLYImU2SAwRWQpA0RZxGOAB6CgZQVeqhcesiG5kiX/js61ZEVEaOuCIGKdV9iIaqqcUqMBAGM/rw5joOaLYz+DQQBIjQ7MAKCIlr22Lig1+mviuTRpSVvnlTTxXJpWgITO12O0XgDIyDdtGjhDNyErk8ASBbhWLLuVACArk5VpE7DOq6GbcDnd/jdwLYas8+rwq9L79UBWJsu3IaLd0VQ5Pe+GeP0BDP1xvMiFIKcAAAAASUVORK5CYII=',
+        leaf1: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAKCAYAAACJxx+AAAAApElEQVR4nG2QMQ6CQBBF3268gaHbgl6gtaEzcAlKjyCFnb2hsjWWXmJrTwAcgGI7wxUYC7Kb1firmXl/ZjKjRASvts5C0tlRAegYlk3C5XbG5DqYlYjQ1pmYXJMWWwAO+yOP+xU3LKhTtROAskn41dTP6woPp35m6ucv08YHr+c7FNNiNbthWSfEXSbXAXZ2VDoGXh4C6M6Oyg3LXxjOjJ8UQ4APyfVLWkILCEMAAAAASUVORK5CYII=',
+        leaf2: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAAMCAYAAAC0qUeeAAAAnklEQVR4nG2RIRICMQxFf2pwa5lBVSOXG2yZno8DcA7EDjgsd6jFdjCoINhk0rRfNZn/0vyWmBkAkE7n/2HT43UnOBEzq/G7jwCA3bsMIVrm1EwUYATRMif2Ey1g+2FkkjrXiFyj9nVnP82voWYADZBrxDoVNUvIYAPYSfZ6UbCFAOtUGkCetjFb4HjoIvRm0eVTup4G9LK/+rxdCQB+gElcfcGh68AAAAAASUVORK5CYII=',
+        leaf3: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAICAYAAADA+m62AAAAiUlEQVR4nG2QMQrDMAxFn0MhFELXrL6DD9CCTc+T84UU2gNkzeypkLVLyaQMwUKGfBCIz5OQvhMRAGJIsvUegHbNvObJYdRY6Pk7aus9MSSpwAINnVfzDG4Ahs6zfA9jvGU+/zdABV8AhazaNWsfQxInItWNQLWxDDn7NcD9+tATbAIKWtiqxLQDgSZHquJjurYAAAAASUVORK5CYII=',
+        leaf4: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAICAYAAAArzdW1AAAAi0lEQVR4nGXOMQrCQBCF4X/ShICkTbvgDcwBEkzwLnbexruEXfAC29oJWwlp7VKNRdh1cV85fO8xoqpM/axbZ8hTrwHnrQDI+TTp1hnqNSQQCxFWAJePIV+KhaEZmfpZK+etLG0oYB6JPw3NmI5LG0oEpOdvh33t+f7hhCIEuB731fvrUaJ/DOC8lS/cNECUHNSD7QAAAABJRU5ErkJggg==',
+        leaf5: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAMCAYAAABSgIzaAAAApklEQVR4nJWQPwvCMBDF74oQXLoKnZw72g+gmOKHLgnoB8jqnEnI6iJO5xBeTE2L5C35c/fj3T0WEVqTHsZZ0TrDuPMSCOC92xc1FTxZZ7gA9TDKL3B5xnffEd0fRFPrqfkHQX0Xz6n1pIL/jgpIBU8YE045gF1ZRArouD0tNucTbPKl4XQL1/j3KgGIzwed0oHrWnOuFE4NlMBaaOZYq8Y6wwimRh8+OF7lc1QwTQAAAABJRU5ErkJggg==',
+        leaf6: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAKCAYAAACJxx+AAAAAiUlEQVR4nG2QPQrDMAyFn0TGTKGDhkByiFypp/Ileox0K72BIYMG48m7OxgJFaLpwff096j3jljP+dEBILVCAMB3cFvENUe4LeJmM/EdzFVds0FZ5Q/IOhomgzY2QgCY4pERvL+fsSJXhV6K/dgd6jVWpVaIUyuUq+J8nW7KVT0HsqDs7xgSAPwA/D06psBp0f8AAAAASUVORK5CYII=',
+        leaf7: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAAOCAYAAAAbvf3sAAAAtElEQVR4nIWQMQ7CMBAEN2lxFVJcYZT0tBR5Bo8gL+EZeRFSCsQLjJTCRUSVfinQBRNi5yRLd5Znd88gCZK4Ho687PbUOXZyAGhNSbGCqhC0piQSlQNAVQjqU43m3KTefgBVdL2DwpsOWq53EJuONQN+8PCD3460dplaPu+mMXu+vsp+8BAb3+PPIYSjwNLl9rhHY80OCum3ar+EMvJXpDUlq0LmaGG/CigUzqHrKhADu2nM3p7xbZ0pC5nwAAAAAElFTkSuQmCC',
+        leaf8: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAJCAYAAAAPU20uAAAAiUlEQVR4nFWPMQ6DMBAExxZdqBIKF5HiF0QpkPIheBUSPZ2fwTeQKK5AVPRHdZa97e6MtE5VARjbTgE+zwDAdgrTdTinqoxtp//vDwDZJQ8A3PB4qVGW8A7EPrLMCV8qjYp9zGNf6owGWObEdB3Ol2qzrWmtDVYabQ8Amu2UXMouVQmQbwJVYbkBflxBMrAi4AQAAAAASUVORK5CYII=',
+        leaf9: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAwAAAALCAYAAABLcGxfAAAAoElEQVR4nI2ROw6DMBBEx4gOKodiCyRziBwpnIoT0SFuYMnFFsgVvVNEu7KdWMp0Xr2Z/diklCBax0kf230Z/FBfw84SfORmiJEO6zglZwk0E/bzUIOz9N0hT8klAaL9PNDVSRwYzlIBL88FHD5jmtfwSLnBRy5gDqw7bfdl+hoWSaKPXFxMRxI4X7KG1fAvDABdXfSRmzAAFP8gxRYMAG9nnlyY5Pd2rAAAAABJRU5ErkJggg==',
+        basket: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB0AAAAdCAYAAABWk2cPAAACh0lEQVR4nK2Wu47aQBSGv4mpIyFjoEJQcBGh2jobCW2DRLHKc2yxDxPlUSKlQ0ryCBECtgBRmZgVUnprUgzHHt+wvcppEPb4fPOfy5xRWmvqmFIq9wOttarqo1EXuJy1WQy96Nnm7HO4OCildFVwZahSSk87Louhx+bsAzBpdXm8g+3Ro98MK4NrKZ2PYmX7IGS18xm8ODw/+ECXp3sqgStBRSXAagfr05/o3foE0Ob5wWfcg68/y/1VVjrwHA4XA0wrUUrpftPl8Q6e7t1Ste/KYLbKfRAWrlvtzO+k1S0VUAoFoxJgfXqt1RpFVquQbCvqV4Bpx828tzdbC2o7m3bcKAKQDf1y1k68s/N8E2rnE0yYB147sUZg69Mr4Gaey3cQF1guNK2m3zQOpD+LbHvML6J9ECbACajAlrO2BYorE4qBYnJa5dnAc1ifrPBKKOej+qA85+mI9Jshh4upgYYARV1ZCG9ZkUoT2thn438B7YKLQVzTZHx/+21OswbAYujx/SWg3wzZB/WBceuETFpdJi3zT5SnxShAf/n8IbEozmc5rN8MM0efTCJItlSiTzdnP5qNYM7PzdkvhM9HZs24Jzn02R67hcrSpoCoasXR+4+fMgv//vpR6ESAok7MBttKldY6ql4guoqICnsDAs6D2AdIZaiohex4ssOWNoGJpXOZBsI1p1prpZTS85GbUCmqZBNSlfZGbJgBlbdc4hg8XJxreGOH456fOFPjDWVDnDd18mZwBBW1i6EXQWzFom5zlg0GgHMzl0VDX9mXbTu3Va4ddojtXJoxV3wBT4RX1ILL4RKwGHqRWjvEb4XlKo0epuaptFG6im1QFdhNaBp+y95yUfsHjNi0TSp8q38AAAAASUVORK5CYII=',
+        basketF: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB0AAAANCAYAAABVRWWUAAABY0lEQVR4nJ2TwUrDQBRFzxDXQklisyrtom2orlyL0F3Bhfht/kx3gvgNpeqixVVKWgruw7hI3/gySUr07maYeefdd2cMYJ+frll+5gx7BS8f/FmjOABg2CtIo8Ttr/cZANtjwCYvWO0OWGuNEag+1BU8ioMaSOpsj2Ujm7wAcECACzmURgmPt+WlNEpY77NW+HxSnpkOstNOxvtXUnPWJgPYWT+sFLq8u68d/H57bS0iQHEn0mDt1FhrMcbYh5srABbjGMC50A0IuAky7BXOZWeouAUaM/IL+jCRn6UPhFOm1lpjjLHzSVhxKa6kiTSqN6JhJag9ywpUXyzH+1twOigfiV6Xqo9Yvo526rusQMXtYhw7iHYs7tZ7aTAHgrNZNgHhlKlbqGz9XJukR6yzXO0OzkjTvcp4xS2EbI85i3Hs3OoR/xfW6NRtGmMBZv2QURy4b+S/Yg3qAjsL9eHn1BWk9QO6mwVpy2xDTAAAAABJRU5ErkJggg==',
+        squirrel: 'data:image/png;base64,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'
+      },
+      MG_K: { muchomor: 0.5, fiolet: 0.5, basket: 1.5, basketF: 1.5, squirrel: 0.7 },
+      // wczytany obraz z gry jako canvas (albo null, gdy jeszcze się nie wczytał)
+      mgImg(key, crop) {
+        const src = this.MG_GFX[key] || this.MG_GFX2[key];
+        if (!src) return null;
+        this._gimg = this._gimg || {};
+        let im = this._gimg[key];
+        if (!im) { im = this._gimg[key] = new Image(); im.src = src; }
+        if (!im.complete || !im.naturalWidth) return null;
+        this._spr = this._spr || {};
+        const ck = 'g|' + key + (crop ? '|' + crop.join(',') : '');
+        if (this._spr[ck]) return this._spr[ck];
+        const c = document.createElement('canvas');
+        const [sx, sy, sw, sh] = crop || [0, 0, im.naturalWidth, im.naturalHeight];
+        c.width = sw; c.height = sh;
+        c.getContext('2d').drawImage(im, sx, sy, sw, sh, 0, 0, sw, sh);
+        c.__game = true; c.__k = this.MG_K[key] || 1;
+        return (this._spr[ck] = c);
+      }, // duże grafiki (25 px) rysowane w połowie skali – ta sama wielkość co reszta
+      muSpr(key, tint) {
+        if (tint != null && (key === 'maple' || key === 'oak')) {
+          const lf = this.mgImg('leaf' + ((tint * 2 + (key === 'maple' ? 0 : 1) + (this._leafSalt || 0)) % 10));
+          if (lf) return lf;
+        }
+        const src = tint == null && this.MG_GFX[key];
+        if (src) {
+          this._gimg = this._gimg || {};
+          let im = this._gimg[key];
+          if (!im) { im = this._gimg[key] = new Image(); im.src = src; }
+          if (im.complete && im.naturalWidth) {
+            this._spr = this._spr || {};
+            const ck = 'g|' + key;
+            if (this._spr[ck]) return this._spr[ck];
+            const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+            c.getContext('2d').drawImage(im, 0, 0);
+            c.__game = true; c.__k = this.MG_K[key] || 1;
+            return (this._spr[ck] = c);
+          }
+          if (!this.MU_ROWS[key]) return this.muSprPix(key === 'zielonka' || key === 'niebieski' ? 'kania' : key === 'fiolet' ? 'muchomor' : 'borowik', tint);
+        }
+        return this.muSprPix(key, tint);
+      },
+      muSprPix(key, tint) {
+        this._spr = this._spr || {};
+        const ck = key + (tint ? '|' + tint : '');
+        if (this._spr[ck]) return this._spr[ck];
+        const rows = this.MU_ROWS[key], wd = Math.max(...rows.map(r => r.length));
+        const c = document.createElement('canvas'); c.width = wd; c.height = rows.length;
+        const g = c.getContext('2d'), lp = tint != null ? this.MU_LEAF[tint] : null;
+        rows.forEach((row, y) => {
+          for (let x = 0; x < row.length; x++) {
+            const ch = row[x]; if (ch === '.') continue;
+            let col = this.MU_PAL[ch];
+            if (lp) { if (ch === 'L') col = lp[0]; else if (ch === 'l') col = lp[1]; else if (ch === 'k') col = lp[2]; }
+            if (!col) continue;
+            g.fillStyle = col; g.fillRect(x, y, 1, 1);
+          }
+        });
+        return (this._spr[ck] = c);
+      },
+      // sprite z wektorów narysowany w niskiej rozdzielczości i „spikselowany” (progowanie alfy – raz)
+      muLow(key, w, h, fn) {
+        this._spr = this._spr || {};
+        if (this._spr[key]) return this._spr[key];
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        const g = c.getContext('2d'); g.lineJoin = 'round'; g.lineCap = 'round';
+        fn(g);
+        try {
+          const id = g.getImageData(0, 0, w, h), d = id.data;
+          for (let i = 3; i < d.length; i += 4) d[i] = d[i] >= 110 ? 255 : 0;
+          g.putImageData(id, 0, 0);
+        } catch (e) { /* ignore */ }
+        return (this._spr[key] = c);
+      },
+      // rysuj sprite zakotwiczony w punkcie (ax,ay – ułamki szerokości/wysokości), piksel = px
+      muBlit(ctx, spr, x, y, px, rot, a, ax = 0.5, ay = 1, sx = 1, sy = 1) {
+        if (a <= 0.01 || px <= 0.05) return;
+        // grafiki z gry: powiększenie tylko o całkowitą wielokrotność (ostre piksele, bez rozmycia)
+        if (spr.__game) px = Math.max(1, Math.round(px * spr.__k));
+        ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a);
+        ctx.imageSmoothingEnabled = false;
+        ctx.translate(x, y); if (rot) ctx.rotate(rot); ctx.scale(sx, sy);
+        const w = spr.width * px, h = spr.height * px;
+        ctx.drawImage(spr, -w * ax, -h * ay, w, h);
+        ctx.restore();
+      },
+      muMush(ctx, kind, x, y, px, rot, a, sx = 1, sy = 1) { this.muBlit(ctx, this.muSpr(kind), x, y, px, rot, a, 0.5, 1, sx, sy); },
+      // liście: tablica cząsteczek {x,y,vx,vy,r,vr,ph,fs,z,c,sh,l,m}
+      muLeafAdd(arr, x, y, vx, vy, z, life = 3) {
+        arr.push({ x, y, vx, vy, r: rand(0, TAU), vr: rand(-3, 3), ph: rand(0, TAU), fs: rand(1.5, 3.2), z, c: (Math.random() * 4) | 0, sh: Math.random() < 0.6 ? 'maple' : 'oak', l: 0, m: life * rand(0.8, 1.2) });
+      },
+      muLeaves(ctx, arr, dt, a, grav = 60, maxN = 260) {
+        if (arr.length > maxN) arr.splice(0, arr.length - maxN);
+        if (!arr.length) return;
+        const M = ctx.getTransform();
+        ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.imageSmoothingEnabled = false;
+        for (let i = arr.length - 1; i >= 0; i--) {
+          const q = arr[i]; q.l += dt; if (q.l > q.m) { arr.splice(i, 1); continue; }
+          const dr = Math.pow(0.35, dt); q.vx *= dr; q.vy = q.vy * dr + grav * dt * 2.2;
+          q.x += (q.vx + Math.sin(q.ph + q.l * q.fs) * 40 * q.z / 3) * dt; q.y += q.vy * dt; q.r += q.vr * dt;
+          const spr = this.muSpr(q.sh, q.c), fl = Math.cos(q.ph * 1.7 + q.l * q.fs * 1.3), c = Math.cos(q.r), s = Math.sin(q.r);
+          const A = c * fl, B = s * fl, C = -s, D = c;
+          ctx.setTransform(M.a * A + M.c * B, M.b * A + M.d * B, M.a * C + M.c * D, M.b * C + M.d * D, M.a * q.x + M.c * q.y + M.e, M.b * q.x + M.d * q.y + M.f);
+          ctx.globalAlpha = Math.min(1, a * Math.min(1, (q.m - q.l) / 0.6, q.l / 0.15));
+          const w = spr.width * q.z, h = spr.height * q.z;
+          ctx.drawImage(spr, -w / 2, -h / 2, w, h);
+        }
+        ctx.setTransform(M); ctx.restore();
+      },
+      // zarodniki / świetliki
+      muSpores(ctx, arr, dt, a, maxN = 220) {
+        if (arr.length > maxN) arr.splice(0, arr.length - maxN);
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = arr.length - 1; i >= 0; i--) {
+          const q = arr[i]; q.l += dt; if (q.l > q.m) { arr.splice(i, 1); continue; }
+          q.vx *= Math.pow(0.5, dt); q.vy = q.vy * Math.pow(0.5, dt) - (q.up || 12) * dt;
+          q.x += (q.vx + Math.sin(q.l * 3 + q.ph) * 14) * dt; q.y += q.vy * dt;
+          const f = q.l / q.m, tw = 0.6 + 0.4 * Math.sin(q.l * 9 + q.ph);
+          dot(ctx, q.c, q.x, q.y, q.r * (1 - f * 0.4), a * tw * Math.min(1, q.l / 0.12) * (1 - f), true);
+        }
+      },
+      muSporeAdd(arr, x, y, n, smin, smax, cols, r = 5, life = 1.6) {
+        for (let i = 0; i < n; i++) { const an = rand(0, TAU), sp = rand(smin, smax); arr.push({ x, y, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp, l: 0, m: life * rand(0.6, 1.2), c: pick(cols), r: r * rand(0.6, 1.3), ph: rand(0, TAU), up: rand(6, 30) }); }
+      },
+      // okruchy ziemi
+      muDirt(ctx, arr, dt, a) {
+        if (arr.length > 200) arr.splice(0, arr.length - 200);
+        ctx.save(); ctx.globalCompositeOperation = 'source-over';
+        for (let i = arr.length - 1; i >= 0; i--) {
+          const q = arr[i]; q.l += dt; if (q.l > q.m) { arr.splice(i, 1); continue; }
+          q.vy += 900 * dt; q.x += q.vx * dt; q.y += q.vy * dt;
+          ctx.globalAlpha = a * (1 - q.l / q.m); ctx.fillStyle = q.c; ctx.fillRect(Math.round(q.x), Math.round(q.y), q.z, q.z);
+        }
+        ctx.restore();
+      },
+      muDirtAdd(arr, x, y, n, sp = 220, z = 3) {
+        for (let i = 0; i < n; i++) arr.push({ x: x + rand(-10, 10), y, vx: rand(-sp, sp) * 0.6, vy: rand(-sp * 1.4, -sp * 0.4), l: 0, m: rand(0.5, 0.9), z: Math.round(z * rand(0.7, 1.4)), c: pick(['#4a2c14', '#6a4220', '#3a2410', '#5a7a2a']) });
+      },
+      // napis zestawu: kremowo-pomarańczowy, gruby brązowy obrys, mszysta obwódka
+      muText(ctx, text, x, y, fs, a, sc = 1, maxW = 0, red = false) {
+        if (!text || a <= 0.01 || sc <= 0.01) return;
+        ctx.save();
+        ctx.font = `900 ${fs}px "Trebuchet MS", Verdana, "Arial Black", sans-serif`;
+        let s = sc;
+        if (maxW) { const w = ctx.measureText(text).width + fs * 0.6; if (w * s > maxW) s = maxW / w; }
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+        ctx.translate(x, y); ctx.scale(s, s);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = Math.min(1, a) * 0.5; ctx.fillStyle = '#120800'; ctx.fillText(text, fs * 0.06, fs * 0.12);
+        ctx.globalAlpha = Math.min(1, a);
+        ctx.strokeStyle = red ? '#ffffff' : '#4f8a2a'; ctx.lineWidth = fs * 0.36; ctx.strokeText(text, 0, 0);
+        ctx.strokeStyle = red ? '#4a0604' : '#3a1a06'; ctx.lineWidth = fs * 0.22; ctx.strokeText(text, 0, 0);
+        const g = ctx.createLinearGradient(0, -fs * 0.45, 0, fs * 0.45);
+        if (red) { g.addColorStop(0, '#ffd0c0'); g.addColorStop(0.45, '#ff4a30'); g.addColorStop(1, '#a0100a'); }
+        else { g.addColorStop(0, '#fff6d0'); g.addColorStop(0.5, '#ffc24a'); g.addColorStop(1, '#e0701c'); }
+        ctx.fillStyle = g; ctx.fillText(text, 0, 0);
+        ctx.restore();
+      },
+      // drewniana tabliczka z napisem (z mchem i grzybkiem na rogu)
+      muSign(ctx, text, x, y, fs, a, sc = 1, maxW = 0, rot = 0) {
+        if (!text || a <= 0.01 || sc <= 0.01) return;
+        ctx.save();
+        ctx.font = `bold ${fs}px "Trebuchet MS", Verdana, sans-serif`;
+        const tw = ctx.measureText(text).width, w = tw + fs * 1.8, h = fs * 1.7;
+        let s = sc; if (maxW && w * s > maxW) s = maxW / w;
+        ctx.translate(x, y); ctx.rotate(rot); ctx.scale(s, s);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = Math.min(1, a) * 0.45; ctx.fillStyle = '#000'; rrect(ctx, -w / 2 + 3, -h / 2 + 5, w, h, 5); ctx.fill();
+        ctx.globalAlpha = Math.min(1, a);
+        const g = ctx.createLinearGradient(0, -h / 2, 0, h / 2); g.addColorStop(0, '#b27a40'); g.addColorStop(0.5, '#935c2a'); g.addColorStop(1, '#6a3e18');
+        ctx.fillStyle = g; rrect(ctx, -w / 2, -h / 2, w, h, 5); ctx.fill();
+        ctx.lineWidth = 3; ctx.strokeStyle = '#3a1e0a'; ctx.stroke();
+        ctx.strokeStyle = 'rgba(58,30,10,0.35)'; ctx.lineWidth = 1.5; ctx.beginPath();
+        for (let i = 0; i < 3; i++) { const yy = -h / 2 + h * (0.28 + i * 0.22); ctx.moveTo(-w / 2 + 6, yy); ctx.bezierCurveTo(-w / 6, yy - 3, w / 6, yy + 3, w / 2 - 6, yy); }
+        ctx.stroke();
+        ctx.fillStyle = '#d8d0c0'; for (const sx of [-1, 1]) { ctx.beginPath(); ctx.arc(sx * (w / 2 - fs * 0.4), 0, fs * 0.1 + 1, 0, TAU); ctx.fill(); }
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#2a1204'; ctx.lineWidth = fs * 0.22; ctx.strokeText(text, 0, fs * 0.04);
+        ctx.fillStyle = '#fff2cc'; ctx.fillText(text, 0, fs * 0.04);
+        const px = Math.max(1.5, fs / 9);
+        this.muBlit(ctx, this.muSpr('moss'), -w / 2 + 7 * px, -h / 2 + 2, px, 0, a);
+        this.muBlit(ctx, this.muSpr('moss'), w / 2 - 6 * px, -h / 2 + 2, px, 0, a, 0.5, 1, -1, 1);
+        this.muMush(ctx, 'muchomor', w / 2 - 4 * px, -h / 2 + 1, px * 0.8, 0.15, a);
+        this.muMush(ctx, 'kurka', -w / 2 + 12 * px, -h / 2 + 1, px * 0.75, -0.1, a);
+        ctx.restore();
+      },
+      // koszyk wiklinowy: tył (ucho + wnętrze) i przód (pleciony korpus); rant w (0,0) sprite'u → y = 20/36
+      muBasketBack() {
+        return this.muLow('basketB', 44, 36, g => {
+          g.strokeStyle = '#3a200a'; g.lineWidth = 5; g.beginPath(); g.arc(22, 20, 16, Math.PI * 1.02, Math.PI * 1.98); g.stroke();
+          g.strokeStyle = '#a06a30'; g.lineWidth = 3; g.stroke();
+          g.strokeStyle = '#d09a50'; g.lineWidth = 1; g.beginPath(); g.arc(22, 20, 16.5, Math.PI * 1.1, Math.PI * 1.5); g.stroke();
+          g.fillStyle = '#2a1606'; g.beginPath(); g.ellipse(22, 20.5, 18, 4.6, 0, 0, TAU); g.fill();
+          g.fillStyle = '#4a2c10'; g.beginPath(); g.ellipse(22, 21.5, 15, 3, 0, 0, TAU); g.fill();
+        });
+      },
+      muBasketFront() {
+        return this.muLow('basketF', 44, 36, g => {
+          g.beginPath(); g.moveTo(3.5, 20.5); g.lineTo(40.5, 20.5); g.lineTo(36, 33); g.quadraticCurveTo(22, 36.5, 8, 33); g.closePath();
+          g.fillStyle = '#b07a3a'; g.fill();
+          g.save(); g.clip();
+          for (let r = 0; r < 5; r++) {
+            const yy = 21 + r * 3;
+            g.fillStyle = r % 2 ? '#c88e48' : '#a06a30'; g.fillRect(0, yy, 44, 3);
+            g.fillStyle = '#6e4418';
+            for (let x = (r % 2) * 3; x < 44; x += 6) g.fillRect(x, yy, 3, 1);
+          }
+          g.fillStyle = '#5a3610'; for (let x = 6; x < 40; x += 5) g.fillRect(x, 21, 1, 15);
+          g.fillStyle = 'rgba(40,20,4,0.35)'; g.fillRect(32, 20, 12, 16);
+          g.restore();
+          g.strokeStyle = '#3a200a'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(3.5, 20.5); g.lineTo(8, 33); g.quadraticCurveTo(22, 36.5, 36, 33); g.lineTo(40.5, 20.5); g.stroke();
+          g.strokeStyle = '#3a200a'; g.lineWidth = 3.4; g.beginPath(); g.ellipse(22, 20.5, 18.4, 4.8, 0, 0, Math.PI); g.stroke();
+          g.strokeStyle = '#dca458'; g.lineWidth = 1.8; g.stroke();
+          g.fillStyle = '#b8322a'; g.fillRect(9, 23, 4, 4); g.fillStyle = '#e8e0d0'; g.fillRect(10, 24, 1, 1); g.fillRect(12, 26, 1, 1);
+        });
+      },
+      // koszyk: x,y = środek rantu; px = piksel; contents(ctx) rysuje zawartość między tyłem a przodem
+      muBasket(ctx, x, y, px, a, sx = 1, sy = 1, contents = null) {
+        if (a <= 0.01) return;
+        const gb = this.mgImg('basket'), gf = this.mgImg('basketF');
+        if (gb && gf) {
+          // koszyk z gry: całość (tył), zawartość, potem dolna część koszyka na wierzchu (przód); x,y = środek rantu (wiersz 13 z 29)
+          this.muBlit(ctx, gb, x, y, px, 0, a, 0.5, 13 / 29, sx, sy);
+          if (contents) contents();
+          this.muBlit(ctx, gf, x, y, px, 0, a, 0.5, -3 / 13, sx, sy);
+          return;
+        }
+        this.muBlit(ctx, this.muBasketBack(), x, y, px, 0, a, 0.5, 20.5 / 36, sx, sy);
+        if (contents) contents();
+        this.muBlit(ctx, this.muBasketFront(), x, y, px, 0, a, 0.5, 20.5 / 36, sx, sy);
+      },
+      // ręka z nożykiem (ostrze w lewo); zaczepienie = czubek ostrza
+      muKnifeHand() {
+        return this.muLow('knife', 34, 14, g => {
+          g.fillStyle = '#b8322a'; g.fillRect(24, 2, 10, 10); g.fillStyle = '#7a1a14'; g.fillRect(27, 2, 2, 10); g.fillRect(31, 2, 2, 10); g.fillRect(24, 6, 10, 1);
+          g.fillStyle = '#e8e0d0'; g.fillRect(23, 2, 2, 10);
+          g.fillStyle = '#f0c090'; g.beginPath(); g.ellipse(20, 7, 4.5, 3.6, 0, 0, TAU); g.fill();
+          g.fillStyle = '#d09a6a'; g.fillRect(17, 8, 5, 1);
+          g.fillStyle = '#7a4a1e'; g.fillRect(11, 5.5, 6, 3); g.fillStyle = '#a86a30'; g.fillRect(11, 5.5, 6, 1);
+          g.fillStyle = '#dfe4ec'; g.beginPath(); g.moveTo(11.5, 5); g.lineTo(0.5, 7.2); g.lineTo(11.5, 9); g.closePath(); g.fill();
+          g.fillStyle = '#ffffff'; g.fillRect(3, 6.5, 8, 1);
+          g.fillStyle = '#8a929e'; g.fillRect(4, 8, 7, 1);
+        });
+      },
+      // grzybiarz (kalosze, kapelusz, flanela, koszyk w dłoni); patrzy w prawo; stopy w dole sprite'u
+      muPicker(step, thief) {
+        return this.muLow('picker' + (thief ? 'T' : '') + step, 24, 36, g => {
+          const jacket = thief ? '#4a2a5a' : '#b8322a', jd = thief ? '#2a1438' : '#7a1a14', hat = thief ? '#1e1e24' : '#6a4420', boot = thief ? '#34363c' : '#2f8a2a';
+          const sw = [0, 2, 0, -2][step & 3];
+          // nogi
+          g.fillStyle = '#3a3f5a'; g.fillRect(8 + sw, 22, 3, 8); g.fillRect(12 - sw, 22, 3, 8);
+          g.fillStyle = boot; g.fillRect(7.5 + sw, 28, 4, 7); g.fillRect(8 + sw, 33, 5.5, 2.5); g.fillRect(11.5 - sw, 28, 4, 7); g.fillRect(12 - sw, 33, 5.5, 2.5);
+          g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(8.5 + sw, 28.5, 1, 4); g.fillRect(12.5 - sw, 28.5, 1, 4);
+          // tułów (flanela w kratę)
+          g.fillStyle = jacket; g.fillRect(6.5, 12, 10, 11);
+          g.fillStyle = jd; g.fillRect(9, 12, 1, 11); g.fillRect(13, 12, 1, 11); g.fillRect(6.5, 15, 10, 1); g.fillRect(6.5, 19, 10, 1);
+          g.fillStyle = '#6a5a2a'; g.fillRect(6.5, 12, 3, 11);
+          // ramię + koszyk
+          g.fillStyle = jacket; g.fillRect(14, 13, 3, 7); g.fillStyle = '#f0c090'; g.fillRect(15, 19, 3, 2.5);
+          g.strokeStyle = '#6a4018'; g.lineWidth = 1.2; g.beginPath(); g.arc(18.5, 23, 3.8, Math.PI, 0); g.stroke();
+          g.fillStyle = '#b07a3a'; g.beginPath(); g.moveTo(14, 23); g.lineTo(23.5, 23); g.lineTo(22, 28); g.lineTo(15.5, 28); g.closePath(); g.fill();
+          g.fillStyle = '#7a4e1e'; g.fillRect(14.5, 25, 8.5, 1); g.fillStyle = thief ? '#c47c3c' : '#d8261c'; g.fillRect(16, 21, 3, 2); g.fillStyle = '#f2a21e'; g.fillRect(19.5, 21.5, 2.5, 1.5);
+          // głowa
+          g.fillStyle = '#f0c090'; g.beginPath(); g.arc(12, 9, 3.6, 0, TAU); g.fill();
+          g.fillStyle = '#1a0e06'; g.fillRect(14, 8, 1, 1.5);
+          g.fillStyle = thief ? '#3a2a1a' : '#8a5a2a'; g.fillRect(9, 11, 6, 1.5);
+          // kapelusz
+          g.fillStyle = hat; g.fillRect(8.5, 2, 7, 4.5); g.beginPath(); g.ellipse(12, 6.2, 7, 1.6, 0, 0, TAU); g.fill();
+          g.fillStyle = thief ? '#8a1a1a' : '#e0b040'; g.fillRect(8.5, 4.5, 7, 1);
+          if (!thief) { g.fillStyle = '#d8361c'; g.fillRect(15, 2.5, 2, 2); }
+        });
+      },
+      // wiewiórka (siedząca, w prawo); stopy w dole sprite'u
+      muSquirrel(v) {
+        // wiewiórka z gry: arkusz 7×4 klatek 32×32, wiersz 2 = profil w prawo (bieg: klatki 0–4)
+        const fr = v ? 0 : Math.floor(performance.now() / 90) % 5;
+        const gs = this.mgImg('squirrel', [fr * 32, 64, 32, 32]);
+        if (gs) return gs;
+        return this.muLow('squirrel' + v, 26, 22, g => {
+          g.fillStyle = '#8a3a10'; g.beginPath(); g.ellipse(7, 9, 6, 8.5, -0.25, 0, TAU); g.fill();
+          g.fillStyle = '#c8602a'; g.beginPath(); g.ellipse(7.5, 9, 4.2, 6.8, -0.25, 0, TAU); g.fill();
+          g.fillStyle = '#e8904a'; g.beginPath(); g.ellipse(8, 7, 1.8, 4, -0.25, 0, TAU); g.fill();
+          g.fillStyle = '#b8521e'; g.beginPath(); g.ellipse(14, 15.5, 5.5, 5.5, 0, 0, TAU); g.fill();
+          g.fillStyle = '#f2dcb4'; g.beginPath(); g.ellipse(16.5, 16, 2.6, 4, 0, 0, TAU); g.fill();
+          g.fillStyle = '#b8521e'; g.beginPath(); g.arc(18.5, 9.5, 4, 0, TAU); g.fill();
+          g.beginPath(); g.moveTo(16, 7); g.lineTo(16.5, 2.5); g.lineTo(19, 6.5); g.closePath(); g.fill();
+          g.fillStyle = '#1a0a04'; g.fillRect(19.5, 8, 1.5, 1.5); g.fillRect(22, 10, 1.2, 1);
+          g.fillStyle = '#f2dcb4'; g.fillRect(19, 11, 3, 1.5);
+          g.fillStyle = '#8a3a10'; g.fillRect(11, 19.5, 5, 2.5); g.fillRect(16, 19.5, 4, 2.5);
+          if (v) { g.fillStyle = '#8a5a2a'; g.beginPath(); g.ellipse(21.5, 14.5, 2.2, 2.6, 0, 0, TAU); g.fill(); g.fillStyle = '#5a3412'; g.fillRect(19.3, 12, 4.4, 1.6); }
+          g.fillStyle = '#b8521e'; g.fillRect(18.5, 13, 3, 2);
+        });
+      },
+      // łodyga grzyba (pikselowa), x = środek, yb = dół, yt = góra
+      muStem(ctx, x, yb, yt, w, px, a) {
+        if (a <= 0.01 || yb - yt < 1) return;
+        ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a);
+        const wb = w * 1.25, h = yb - yt;
+        ctx.fillStyle = '#2a160a';
+        ctx.beginPath(); ctx.moveTo(x - w / 2 - px, yt); ctx.lineTo(x + w / 2 + px, yt); ctx.lineTo(x + wb / 2 + px, yb); ctx.lineTo(x - wb / 2 - px, yb); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#f2e6c6';
+        ctx.beginPath(); ctx.moveTo(x - w / 2, yt); ctx.lineTo(x + w / 2, yt); ctx.lineTo(x + wb / 2, yb - px); ctx.lineTo(x - wb / 2, yb - px); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#c4aa7a'; ctx.fillRect(x + w * 0.18, yt, Math.max(px, w * 0.22), h - px);
+        ctx.fillStyle = 'rgba(160,130,90,0.55)';
+        for (let yy = yt + px * 3; yy < yb - px * 2; yy += px * 4) ctx.fillRect(x - w * 0.3 + ((yy / px) % 3) * px, yy, px * 2, px);
+        ctx.restore();
+      },
+
+      init() { return { sp: [], lv: [], dirt: [], sparks: [], popped: 0, dug: 0 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = this.muLib(), D = o.density || 1, k = o.scale || 1, isc = o.itemScale || 1;
+        const it = o.item || {}, img = it.img || FALLBACK_ICON, base = it.base || 32;
+        const off = ((o.index || 0) - ((o.count || 1) - 1) / 2) * 60;
+        const X = (it.x != null ? it.x : b.cx), Y = (it.y != null ? it.y : b.cy);
+        const gy = Y + base * 0.5, px = 3 * k * isc;
+        const T_GROW = 0.3, T_POP = 2.3, T_DOWN = 4.0, T_BACK = 5.3;
+        // wysokość łodygi / skala
+        let grow = easeOutBack(clamp01((t - T_GROW) / 1.1));
+        if (t > T_DOWN) grow = 1 - easeInOut(clamp01((t - T_DOWN) / (T_BACK - T_DOWN)));
+        const stemH = Math.max(0, grow) * (86 * k * isc) * (t > 1.6 && t < T_POP ? 1 - 0.1 * clamp01((t - 1.6) / 0.6) : 1);
+        const mx = X + off * clamp01(grow);
+        const stemTop = gy - stemH;
+        const mossA = a * clamp01(t / 0.3) * (t > T_BACK ? 1 - clamp01((t - T_BACK) / 0.6) : 1);
+        // dół: kępka mchu + liście
+        if (!s.dug && t > 0.05) { s.dug = 1; L.muDirtAdd(s.dirt, X, gy, Math.round(22 * D), 200, 3 * k); for (let i = 0; i < 6 * D; i++) L.muLeafAdd(s.lv, X + rand(-30, 30), gy - 10, rand(-160, 160), rand(-260, -120), 2 * k, 2); }
+        if (t < T_BACK && t > 0.25) o.hideItem();
+        // poświata od spodu kapelusza w fazie napięcia
+        const tense = t > 1.4 && t < T_POP ? clamp01((t - 1.4) / 0.9) : 0;
+        if (tense > 0 || (t > T_POP && t < T_DOWN + 0.4)) {
+          ctx.globalCompositeOperation = 'lighter';
+          const gA = t < T_POP ? tense : 1 - clamp01((t - T_DOWN) / 0.4);
+          dot(ctx, '255,200,90', mx, stemTop - 10 * k, (60 + 50 * gA) * k, a * gA * 0.7);
+        }
+        // promienie za legendą po wystrzale
+        const iy0 = stemTop - base * 1.1 * isc;
+        let ix = mx, iy = iy0, isz = base * 2.2 * isc;
+        if (t > T_POP) {
+          const up = easeOut(clamp01((t - T_POP) / 0.5));
+          iy = stemTop - (base * 0.6 + up * 40 * k) * isc + Math.sin((t - T_POP) * 3) * 4 * k;
+          isz = base * (1 + 1.8 * easeOutBack(clamp01((t - T_POP) / 0.45))) * isc;
+          if (t > T_DOWN) {
+            const f = easeInOut(clamp01((t - T_DOWN) / (T_BACK - T_DOWN)));
+            ix = mx + (X - mx) * f; iy = iy + (Y - iy) * f; isz = isz + (base - isz) * f;
+          }
+          const rA = a * clamp01((t - T_POP) / 0.3) * (1 - clamp01((t - T_DOWN) / 0.8));
+          ctx.globalCompositeOperation = 'lighter';
+          raysBehind(ctx, ix, iy, 150 * k * isc, t, rA * 0.8);
+          dot(ctx, '255,230,140', ix, iy, 70 * k * isc, rA * 0.6);
+        }
+        // mech (za łodygą)
+        L.muBlit(ctx, L.muSpr('moss'), X - 8 * px * 0.6, gy + px, px * 0.9, 0, mossA, 0.5, 1, 1, 0.3 + 0.7 * easeOutBack(clamp01(t / 0.35)));
+        L.muBlit(ctx, L.muSpr('moss'), X + 8 * px * 0.6, gy + px, px * 0.9, 0, mossA, 0.5, 1, -1, 0.3 + 0.7 * easeOutBack(clamp01((t - 0.08) / 0.35)));
+        // łodyga
+        const sw = 26 * k * isc * Math.min(1, grow * 1.3 + 0.1);
+        const wob = t < T_POP ? Math.sin(t * 7) * 0.05 * (1 - clamp01((t - 1.2) / 0.3)) + (tense ? rand(-1, 1) * 0.04 * tense : 0) : 0;
+        if (stemH > 2) {
+          ctx.save(); ctx.translate(mx, gy); ctx.rotate(wob); ctx.translate(-mx, -gy);
+          L.muStem(ctx, mx, gy + px, stemTop, sw, Math.max(1, px * 0.5), a);
+          // kapelusz przed wystrzałem
+          if (t < T_POP) {
+            const cw = Math.max(base * 1.2, 150 * k * isc * Math.max(0.2, grow)), cpx = cw / 12;
+            const lift = tense * 6 * k, jig = tense * rand(-1, 1) * 3 * k;
+            L.muBlit(ctx, L.muSpr('bcap'), mx + jig, stemTop + cpx * 2.5 - lift, cpx, 0, a, 0.5, 1);
+            if (tense > 0.2) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a * tense; ctx.fillStyle = 'rgba(255,220,120,0.9)'; ctx.fillRect(mx - cw * 0.35, stemTop + cpx * 2.2 - lift, cw * 0.7, Math.max(2, 2 * k) * (1 + tense * 2)); }
+            if (Math.random() < dt * 14 * D * tense) L.muSporeAdd(s.sp, mx + rand(-cw / 3, cw / 3), stemTop + cpx, 1, 10, 50, ['255,220,120', '200,255,140'], 4 * k);
+          }
+          ctx.restore();
+        } else if (t < T_POP && t > T_GROW - 0.05) {
+          L.muBlit(ctx, L.muSpr('bcap'), mx, gy + px, base * 1.2 / 12, 0, a);
+        }
+        // WYSTRZAŁ – kapelusz wylatuje, zarodniki
+        if (t >= T_POP && !s.popped) {
+          s.popped = 1;
+          const cw = 150 * k * isc;
+          s.cap = { x: mx, y: stemTop - cw / 12 * 2, vx: rand(-1, 1) > 0 ? 170 * k : -170 * k, vy: -620 * k, r: 0, vr: rand(4, 7) * (Math.random() < 0.5 ? -1 : 1), cw };
+          L.muSporeAdd(s.sp, mx, stemTop - 10 * k, Math.round(70 * D), 80 * k, 420 * k, ['255,214,90', '255,240,180', '170,240,110', '255,160,60'], 7 * k, 1.8);
+          burst(s.sparks, { x: mx, y: stemTop - 10 * k }, Math.round(30 * D), 150 * k, 420 * k, ['255,210,110', '255,245,200']);
+          for (let i = 0; i < 16 * D; i++) L.muLeafAdd(s.lv, mx + rand(-20, 20), stemTop, rand(-340, 340) * k, rand(-420, -120) * k, rand(2, 3) * k, 2.4);
+          s.popT = t;
+        }
+        if (s.cap) {
+          const c = s.cap; c.vy += 1300 * k * dt; c.x += c.vx * dt; c.y += c.vy * dt; c.r += c.vr * dt;
+          const ca = a * (1 - clamp01((t - T_POP - 0.8) / 0.5));
+          if (ca > 0.01) L.muBlit(ctx, L.muSpr('bcap'), c.x, c.y, c.cw / 12, c.r, ca, 0.5, 0.6);
+          else s.cap = null;
+        }
+        if (s.popT != null) {
+          const lt = t - s.popT;
+          if (lt < 0.35) shakeScreen(6 * a * (1 - lt / 0.35));
+          ringFx(ctx, { x: mx, y: stemTop - 10 * k }, lt, 0.7, 170 * k, '255,210,110', a);
+          ringFx(ctx, { x: mx, y: stemTop - 10 * k }, lt - 0.12, 0.8, 120 * k, '170,240,110', a * 0.8);
+        }
+        // legenda
+        if (t > T_POP && t < T_BACK) {
+          const pul = 1 + 0.05 * Math.sin(t * 6);
+          drawItem(ctx, img, ix, iy, isz * pul, Math.sin(t * 2.2) * 0.08 * (1 - clamp01((t - T_DOWN) / 0.6)), 1, a, true);
+          if (Math.random() < dt * 10 * D && t < T_DOWN) L.muSporeAdd(s.sp, ix + rand(-isz / 2, isz / 2), iy + rand(-isz / 2, isz / 2), 1, 5, 30, ['255,230,140', '190,255,150'], 5 * k, 1.4);
+          ctx.globalCompositeOperation = 'lighter';
+          for (let i = 0; i < 3; i++) { const an = t * 1.3 + i * TAU / 3; sparkleStar(ctx, ix + Math.cos(an) * isz * 0.62, iy + Math.sin(an) * isz * 0.55, 5 * k * (0.6 + 0.4 * Math.sin(t * 7 + i)), a * clamp01((t - T_POP) / 0.3) * (1 - clamp01((t - T_DOWN) / 0.5))); }
+          const tA = a * clamp01((t - T_POP - 0.15) / 0.25) * (1 - clamp01((t - T_DOWN + 0.1) / 0.4));
+          L.muText(ctx, 'PRAWDZIWEK!', ix, iy - isz * 0.5 - 30 * k, 30 * k, tA, 0.4 + 0.6 * easeOutBack(clamp01((t - T_POP - 0.15) / 0.35)), Math.min(W - 20, 360 * k));
+        }
+        L.muDirt(ctx, s.dirt, dt, a);
+        L.muLeaves(ctx, s.lv, dt, a, 60);
+        L.muSpores(ctx, s.sp, dt, a);
+        if (s.sparks.length > 160) s.sparks.splice(0, s.sparks.length - 160);
+        sparksDraw(ctx, s.sparks, dt, a, 260);
+      },
+    },
+
+    {
+      id: 'mg_frame', group: G_FRAME, name: 'Grzyby z gry: Mszysta rama', dur: 6,
+      init() { return { lv: [], sp: [], boing: -1, bT: -9, cyc: -1 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'mg_item'), D = o.density || 1;
+        const k = Math.max(0.9, Math.min(2.4, Math.min(b.w, b.h) / 220)), px = Math.min(2 * k, 3.2), pad = 5 * k;
+        const R = { x: b.x - pad, y: b.y - pad, w: b.w + pad * 2, h: b.h + pad * 2 };
+        const per = 2 * (R.w + R.h), live = t < this.dur - 1.2;
+        const grow = u => { // pojawianie się po obwodzie od lewego górnego rogu w obie strony
+          const d = Math.min(u, 1 - u) * 2; return easeOutBack(clamp01((t * 1.1 - d) / 0.35));
+        };
+        // ciemny pas ziemi pod mchem
+        ctx.save(); ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = a * 0.85 * clamp01(t / 0.6); ctx.strokeStyle = '#2c1a0a'; ctx.lineWidth = 4 * k;
+        rrect(ctx, R.x, R.y, R.w, R.h, 6 * k); ctx.stroke();
+        ctx.strokeStyle = '#3d6a1e'; ctx.lineWidth = 2 * k; ctx.stroke();
+        ctx.restore();
+        // mech po obwodzie
+        const moss = L.muSpr('moss'), mw = moss.width * px, n = Math.max(8, Math.round(per / (mw * 0.62)));
+        for (let i = 0; i < n; i++) {
+          const u = (i + 0.5) / n, p = perim(R, u), g = grow(u);
+          if (g <= 0.01) continue;
+          const rot = Math.atan2(p.nx, -p.ny), fl = L.muHash(i * 3.1) < 0.5 ? -1 : 1;
+          const sway = Math.sin(t * 2 + i * 0.7) * 0.04;
+          L.muBlit(ctx, moss, p.x - p.nx * 2 * px, p.y - p.ny * 2 * px, px * (0.85 + 0.3 * L.muHash(i)), rot + sway, a, 0.5, 1, fl, g);
+        }
+        // narożniki: liście w wachlarzu + szyszka
+        const corners = [[R.x, R.y, -Math.PI * 0.75], [R.x + R.w, R.y, -Math.PI * 0.25], [R.x + R.w, R.y + R.h, Math.PI * 0.25], [R.x, R.y + R.h, Math.PI * 0.75]];
+        corners.forEach(([cx, cy, dir], ci) => {
+          const g = easeOutBack(clamp01((t - 0.2 - ci * 0.12) / 0.5));
+          if (g <= 0.01) return;
+          for (let j = -1; j <= 1; j++) {
+            const an = dir + j * 0.55, sh = j === 0 ? 'maple' : 'oak', lp = px * 1.5 * g;
+            L.muBlit(ctx, L.muSpr(sh, (ci + j + 4) % 4), cx + Math.cos(an) * 4 * lp, cy + Math.sin(an) * 4 * lp, lp, an + Math.PI / 2 + Math.sin(t * 1.6 + ci + j) * 0.08, a, 0.5, 0.5);
+          }
+          L.muBlit(ctx, L.muSpr('cone'), cx, cy, px * 1.3 * g, dir + Math.PI / 2 + 0.4, a, 0.5, 0.5);
+        });
+        // grzybki: kępki na górnej krawędzi, hubki-półeczki z grzybkami na bokach, liście na dole
+        const mp = Math.min(3 * k, 4.4), spots = [];
+        const nt = Math.max(3, Math.round(R.w / (75 * k)));
+        for (let i = 0; i < nt; i++) {
+          const cx0 = R.x + R.w * (i + 0.5) / nt + (L.muHash(i * 5.1) - 0.5) * 20 * k, cnt = 1 + ((L.muHash(i * 9.3) * 3) | 0);
+          for (let j = 0; j < cnt; j++) spots.push({ x: cx0 + (j - (cnt - 1) / 2) * 9 * mp + (j % 2 ? 2 : -2) * k, y: R.y + px, kind: L.MU_KINDS[(i * 2 + j * 3 + 1) % L.MU_KINDS.length], z: mp * (j === ((cnt / 2) | 0) ? 1.1 : 0.75) });
+        }
+        const ns = Math.max(1, Math.round(R.h / (120 * k)));
+        const shelves = [];
+        for (const side of [-1, 1]) for (let i = 0; i < ns; i++) {
+          const yy = R.y + R.h * (i + 0.55) / (ns + 0.1), ex = side < 0 ? R.x : R.x + R.w;
+          shelves.push({ x: ex + side * 9 * px, y: yy, side });
+          spots.push({ x: ex + side * 10 * px, y: yy - 2 * px, kind: L.MU_KINDS[(i + (side > 0 ? 2 : 0)) % L.MU_KINDS.length], z: mp * 0.8 });
+        }
+        // hubki (półeczki) pod grzybkami bocznymi
+        shelves.forEach((sh, i) => {
+          const g = easeOutBack(clamp01((t - 0.5 - i * 0.1) / 0.4)); if (g <= 0.01) return;
+          ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = a;
+          ctx.translate(sh.x, sh.y); ctx.scale(g, g);
+          ctx.fillStyle = '#2a160a'; ctx.beginPath(); ctx.ellipse(0, 0, 11 * px, 4 * px, 0, 0, Math.PI); ctx.fill();
+          ctx.fillStyle = '#b8742a'; ctx.beginPath(); ctx.ellipse(0, -px * 0.4, 10 * px, 3.2 * px, 0, 0, Math.PI); ctx.fill();
+          ctx.fillStyle = '#e0a860'; ctx.fillRect(-9 * px, -px, 18 * px, px);
+          ctx.restore();
+          L.muBlit(ctx, L.muSpr('moss'), sh.x, sh.y + px * 0.3, px * 1.1, 0, a, 0.5, 1, sh.side, g);
+        });
+        const nmS = spots.length;
+        const P = 3.2, cyc = Math.floor(t / P);
+        if (cyc !== s.cyc && t > 1.5 && live) { s.cyc = cyc; s.boing = (Math.random() * nmS) | 0; s.bT = t; }
+        spots.forEach((sp2, i) => {
+          const g0 = easeOutBack(clamp01((t - 0.45 - i * 0.06) / 0.45));
+          if (g0 <= 0.01) return;
+          let sq = 1, jump = 0, ex = 0;
+          if (i === s.boing) {
+            const bt = t - s.bT;
+            if (bt < 0.9) { jump = Math.sin(clamp01(bt / 0.6) * Math.PI) * 16 * k; sq = bt < 0.12 ? 1 - bt * 2.5 : (bt > 0.6 && bt < 0.75 ? 0.75 : 1); if (bt < dt * 1.5) L.muSporeAdd(s.sp, sp2.x, sp2.y - 20 * k, Math.round(14 * D), 20, 110, ['255,225,120', '190,255,140'], 4.5 * k); ex = 1; }
+          }
+          const nod = Math.sin(t * 2.4 + i * 1.7) * 0.12 + (ex ? Math.sin(t * 20) * 0.1 : 0);
+          L.muMush(ctx, sp2.kind, sp2.x, sp2.y - jump, sp2.z * g0, nod, a, 1, sq);
+        });
+        // liście i szyszki leżące na dolnej krawędzi
+        const nb = Math.max(3, Math.round(R.w / (55 * k)));
+        for (let i = 0; i < nb; i++) {
+          const g = easeOutBack(clamp01((t - 0.6 - i * 0.05) / 0.4)); if (g <= 0.01) continue;
+          const x = R.x + R.w * (i + 0.5) / nb, hsh = L.muHash(i * 3.7);
+          if (hsh < 0.25) L.muBlit(ctx, L.muSpr('cone'), x, R.y + R.h + 2 * px, px * 1.1 * g, Math.PI / 2 + 0.2, a, 0.5, 0.5);
+          else L.muBlit(ctx, L.muSpr(hsh < 0.6 ? 'maple' : 'oak', (i * 3) % 4), x, R.y + R.h + 2 * px, px * 1.3 * g, (hsh - 0.5) * 2.4 + Math.sin(t * 1.5 + i) * 0.06, a, 0.5, 0.5);
+        }
+        // złoty „promyk słońca” obiegający ramkę
+        ctx.globalCompositeOperation = 'lighter';
+        for (let j = 0; j < 2; j++) { const p = perim(R, t * 0.09 + j * 0.5); dot(ctx, '255,215,120', p.x, p.y, 28 * k, a * 0.55 * clamp01(t - 1)); dot(ctx, '255,250,220', p.x, p.y, 7 * k, a * 0.8 * clamp01(t - 1), true); }
+        // spadające liście z górnej krawędzi
+        if (live && Math.random() < dt * 2.2 * D * Math.min(3, R.w / 250)) L.muLeafAdd(s.lv, R.x + rand(0, R.w), R.y - rand(0, 10 * k), rand(-20, 20), rand(10, 40), px * rand(1, 1.5), 3.2);
+        L.muLeaves(ctx, s.lv, dt, a, 30, 120);
+        // zarodniki/świetliki przy krawędziach
+        if (live && Math.random() < dt * 5 * D * Math.min(3, per / 900)) { const p = perim(R, Math.random()); L.muSporeAdd(s.sp, p.x + p.nx * 8, p.y + p.ny * 8, 1, 3, 20, ['255,225,120', '190,255,140', '255,190,90'], 4.5 * k, 2.2); }
+        L.muSpores(ctx, s.sp, dt, a, 160);
+      },
+    },
+
+    {
+      id: 'mg_around', group: G_AROUND, name: 'Grzyby z gry: Pełny koszyk', dur: 6,
+      init() { return { fly: [], inB: [], lv: [], sp: [], sparks: [], cyc: -1, emit: 0, legT: -9, bump: -9, cnt: 0 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'mg_item'), D = o.density || 1, k = o.scale || 1;
+        const it = o.item || {}, img = it.img || FALLBACK_ICON, base = it.base || 32;
+        const bpx = 4 * k, bw = 44 * bpx;
+        let bx = b.x - bw * 0.62 - 12 * k; if (bx - bw / 2 < 8) bx = b.x + b.w + bw * 0.62 + 12 * k;
+        const byT = b.y + b.h * 0.55;
+        const drop = clamp01(t / 0.55), by = byT - (1 - easeOutBack(drop)) * 120 * k;
+        const bA = a * clamp01(t / 0.2);
+        const P = 4.2, t0 = 0.5, live = t < this.dur - 1.3;
+        const cyc = t > t0 ? Math.floor((t - t0) / P) : -1, lt = t - t0 - cyc * P;
+        if (cyc !== s.cyc && cyc >= 0) { s.cyc = cyc; s.emit = 0; }
+        // wyrzut grzybów z okna
+        const srcX = it.x != null ? it.x : b.cx, srcY = it.y != null ? it.y : b.cy;
+        if (cyc >= 0 && live) {
+          while (s.emit < 6 && lt > s.emit * 0.3) {
+            const kind = L.MU_KINDS[(s.emit + cyc * 2) % L.MU_KINDS.length];
+            s.fly.push({ kind, sx: b.x + b.w * rand(0.2, 0.8), sy: b.y + 6, tx: bx + rand(-bw * 0.28, bw * 0.28), ty: by - 2 * k, T: 0, dur: rand(0.6, 0.8), h: rand(90, 150) * k, r0: rand(-1, 1), vr: rand(-8, 8), leg: 0 });
+            s.emit++;
+          }
+          if (s.emit === 6 && lt > 2.1) {
+            s.fly.push({ kind: 'leg', sx: srcX, sy: srcY, tx: bx, ty: by - 6 * k, T: 0, dur: 0.95, h: 190 * k, r0: 0, vr: TAU * 1.5, leg: 1 });
+            s.emit++;
+          }
+        }
+        // napis i światło po legendzie
+        const la = t - s.legT;
+        if (la >= 0 && la < 0.4) shakeScreen(4 * a * (1 - la / 0.4));
+        ctx.globalCompositeOperation = 'lighter';
+        const glowA = a * (la >= 0 ? clamp01(1 - (la - 1.2) / 1) : 0);
+        if (glowA > 0.01) { raysBehind(ctx, bx, by - 20 * k, 150 * k, t, glowA * 0.7); dot(ctx, '255,210,110', bx, by - 10 * k, 110 * k, glowA * 0.55); }
+        // koszyk (sprężynuje przy trafieniu)
+        const bt = t - s.bump, sq = bt < 0.4 ? Math.sin(bt / 0.4 * Math.PI * 2) * 0.12 * (1 - bt / 0.4) : 0;
+        L.muBasket(ctx, bx, by, bpx, bA, 1 + sq, 1 - sq, () => {
+          for (const q of s.inB) {
+            if (q.leg) drawItem(ctx, img, q.x, q.y - base * 0.45, base * 1.6, q.r, 1, bA, true);
+            else L.muMush(ctx, q.kind, q.x, q.y + 10 * k, 3.2 * k, q.r, bA);
+          }
+        });
+        // lecące grzyby
+        for (let i = s.fly.length - 1; i >= 0; i--) {
+          const q = s.fly[i]; q.T += dt; const f = clamp01(q.T / q.dur);
+          const p = arcPoint({ x: q.sx, y: q.sy }, { x: q.tx, y: q.ty }, easeInOut(f) * 0.15 + f * 0.85, q.h);
+          const rot = q.r0 + q.vr * q.T * (1 - f * 0.5);
+          if (q.leg) {
+            ctx.globalCompositeOperation = 'lighter'; dot(ctx, '255,210,110', p.x, p.y, 40 * k, a * 0.7);
+            L.muSporeAdd(s.sp, p.x, p.y, 1, 5, 30, ['255,220,120', '255,245,200'], 5 * k, 0.8);
+            drawItem(ctx, img, p.x, p.y, base * (1.4 + Math.sin(f * Math.PI) * 0.8), rot, 1, a, true);
+          } else L.muMush(ctx, q.kind, p.x, p.y + 14 * k, 3.2 * k, rot, a);
+          if (f >= 1) {
+            s.fly.splice(i, 1); s.bump = t; s.cnt++;
+            s.inB.push({ kind: q.kind, x: q.tx + (q.leg ? 0 : rand(-2, 2)), y: q.ty, r: q.leg ? -0.15 : rand(-0.5, 0.5), leg: q.leg });
+            if (s.inB.length > 7) { const li = s.inB.findIndex(z => !z.leg); s.inB.splice(li >= 0 ? li : 0, 1); }
+            if (q.leg) {
+              s.legT = t;
+              burst(s.sparks, { x: q.tx, y: q.ty - 10 * k }, Math.round(40 * D), 120 * k, 380 * k, ['255,210,110', '255,245,200', '180,240,120']);
+              for (let j = 0; j < 14 * D; j++) L.muLeafAdd(s.lv, q.tx + rand(-20, 20), q.ty - 8 * k, rand(-300, 300) * k, rand(-420, -160) * k, rand(2, 3) * k, 2.4);
+            } else {
+              for (let j = 0; j < 3 * D; j++) L.muLeafAdd(s.lv, q.tx, q.ty - 6 * k, rand(-160, 160) * k, rand(-240, -80) * k, 2 * k, 1.6);
+            }
+          }
+        }
+        ctx.globalCompositeOperation = 'lighter';
+        if (la >= 0) { ringFx(ctx, { x: bx, y: by - 10 * k }, la, 0.8, 150 * k, '255,210,110', a); ringFx(ctx, { x: bx, y: by - 10 * k }, la - 0.12, 0.9, 110 * k, '160,230,100', a * 0.8); }
+        // tabliczka „Udane grzybobranie!”
+        if (la >= 0 && la < P - 0.2) {
+          const sA = a * clamp01(la / 0.2) * (1 - clamp01((la - (P - 0.9)) / 0.6)), sc = easeOutBack(clamp01(la / 0.4));
+          const sy = by - 20 * bpx - 44 * k + Math.sin(t * 3) * 3 * k - (1 - easeOutBack(clamp01(la / 0.45))) * 50 * k;
+          const sxp = Math.max(150 * k, Math.min(W - 150 * k, bx));
+          L.muSign(ctx, 'Udane grzybobranie!', sxp, sy, 24 * k, sA, 0.6 + 0.4 * sc, Math.min(W - 16, 340 * k), Math.sin(t * 2.2) * 0.05);
+          L.muText(ctx, '+' + s.cnt, bx + bw * 0.42, by + 8 * k - la * 16 * k, 20 * k, sA, 1);
+        }
+        // ambient: liście i świetliki wokół koszyka
+        if (live && Math.random() < dt * 2 * D) L.muLeafAdd(s.lv, bx + rand(-bw, bw), by - 110 * k, rand(-20, 20), rand(10, 40), 2 * k, 2.6);
+        if (live && Math.random() < dt * 5 * D) L.muSporeAdd(s.sp, bx + rand(-bw * 0.6, bw * 0.6), by + rand(-40, 20) * k, 1, 3, 15, ['255,225,120', '190,255,140'], 4 * k, 1.8);
+        L.muLeaves(ctx, s.lv, dt, a, 60, 120);
+        L.muSpores(ctx, s.sp, dt, a, 140);
+        if (s.sparks.length > 160) s.sparks.splice(0, s.sparks.length - 160);
+        sparksDraw(ctx, s.sparks, dt, a, 300);
+      },
+    },
+
+    {
+      id: 'mg_screen', group: G_SCREEN, name: 'Grzyby z gry: Jesienny las', dur: 8,
+      init(env) {
+        const fog = [];
+        for (let i = 0; i < 14; i++) fog.push({ u: Math.random(), v: rand(0.62, 1.02), r: rand(0.16, 0.3), sp: rand(0.008, 0.025) * (Math.random() < 0.5 ? -1 : 1), ph: rand(0, TAU) });
+        const trunks = [];
+        for (let i = 0; i < 3; i++) trunks.push({ side: 0, x: rand(0, 110) + i * 25, w: rand(22, 40), c: pick(['#1c1208', '#24170a', '#160f06']) });
+        for (let i = 0; i < 3; i++) trunks.push({ side: 1, x: rand(0, 110) + i * 25, w: rand(22, 40), c: pick(['#1c1208', '#24170a', '#160f06']) });
+        const ground = [];
+        for (let i = 0; i < 9; i++) ground.push({ u: rand(0.03, 0.97), kind: pick(['borowik', 'podgrzybek', 'kurka', 'kania', 'muchomor']), z: rand(2.4, 3.6), ph: rand(0, TAU) });
+        return { lv: [], sp: [], sparks: [], dirt: [], rain: [], fog, trunks, ground, cyc: -1, sq: { T: -1 }, sqCyc: -1, flash: -9, big: null };
+      },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'mg_item'), D = o.density || 1;
+        const k = Math.max(0.8, Math.min(1.6, Math.min(W, H) / 800));
+        const live = t < this.dur - 1.3, GY = H - 16 * k;
+        if (!o.second) {
+          // leśny półmrok
+          vignette(ctx, W, H, '14,26,8', 0.48 * a, 0.28);
+          // pnie drzew po bokach
+          ctx.save(); ctx.globalCompositeOperation = 'source-over';
+          for (const tr of s.trunks) {
+            const x = tr.side ? W - tr.x - tr.w : tr.x, w = tr.w * k;
+            ctx.globalAlpha = a * 0.55; ctx.fillStyle = tr.c; ctx.fillRect(x, 0, w, H);
+            ctx.fillStyle = 'rgba(255,190,110,0.08)'; ctx.fillRect(tr.side ? x : x + w * 0.7, 0, w * 0.3, H);
+            ctx.fillStyle = tr.c; ctx.beginPath();
+            const bxp = tr.side ? x : x + w, dir = tr.side ? -1 : 1;
+            for (let j = 0; j < 3; j++) { const yy = H * (0.15 + j * 0.22 + (tr.w % 7) * 0.01); ctx.moveTo(bxp, yy); ctx.lineTo(bxp + dir * 70 * k, yy - 40 * k); ctx.lineTo(bxp + dir * 72 * k, yy - 34 * k); ctx.lineTo(bxp, yy + 8 * k); }
+            ctx.fill();
+          }
+          ctx.restore();
+          // promienie słońca przez korony drzew
+          if (!this._beam) {
+            const c = document.createElement('canvas'); c.width = 64; c.height = 256;
+            const g = c.getContext('2d'), gx = g.createLinearGradient(0, 0, 64, 0);
+            gx.addColorStop(0, 'rgba(255,220,150,0)'); gx.addColorStop(0.5, 'rgba(255,220,150,1)'); gx.addColorStop(1, 'rgba(255,220,150,0)');
+            g.fillStyle = gx; g.fillRect(0, 0, 64, 256);
+            g.globalCompositeOperation = 'destination-in';
+            const gy2 = g.createLinearGradient(0, 0, 0, 256); gy2.addColorStop(0, 'rgba(0,0,0,1)'); gy2.addColorStop(1, 'rgba(0,0,0,0)');
+            g.fillStyle = gy2; g.fillRect(0, 0, 64, 256);
+            this._beam = c;
+          }
+          ctx.save(); ctx.globalCompositeOperation = 'lighter';
+          const inA = clamp01(t / 1.2);
+          for (let i = 0; i < 6; i++) {
+            const bx0 = W * (0.12 + i * 0.15), ww = (60 + (i % 3) * 40) * k, fl = 0.55 + 0.45 * Math.sin(t * 0.9 + i * 1.9);
+            ctx.save(); ctx.translate(bx0, -20); ctx.rotate(-0.42);
+            ctx.globalAlpha = a * inA * 0.16 * fl; ctx.drawImage(this._beam, -ww / 2, 0, ww, H * 1.35);
+            ctx.restore();
+          }
+          ctx.restore();
+          // mgła poranna
+          ctx.globalCompositeOperation = 'source-over';
+          for (const f of s.fog) {
+            const x = ((f.u + t * f.sp) % 1 + 1) % 1 * (W + 400) - 200, y = H * f.v + Math.sin(t * 0.5 + f.ph) * 10;
+            dot(ctx, '225,232,220', x, y, f.r * Math.max(W, 900), a * 0.22 * clamp01(t / 1.5));
+          }
+          // runo: mech i grzyby przy dolnej krawędzi
+          const moss = L.muSpr('moss'), mp = 3 * k, mw = moss.width * mp;
+          for (let x = -mw / 2, i = 0; x < W + mw; x += mw * 0.7, i++) L.muBlit(ctx, moss, x, H + mp, mp, 0, a * clamp01(t / 0.6), 0.5, 1, i % 2 ? -1 : 1, 0.6 + 0.4 * L.muHash(i));
+          s.ground.forEach((gm, i) => {
+            const g0 = easeOutBack(clamp01((t - 0.3 - i * 0.12) / 0.5));
+            L.muMush(ctx, gm.kind, W * gm.u, H - 2 * k, gm.z * k * g0, Math.sin(t * 1.8 + gm.ph) * 0.07, a);
+          });
+        }
+        // liście
+        if (live && Math.random() < dt * 9 * D * (W / 1400)) L.muLeafAdd(s.lv, rand(-40, W + 40), -20, rand(10, 60), rand(20, 60), rand(2, 3.4) * k, rand(5, 8));
+        // świetliki / zarodniki
+        if (live && Math.random() < dt * 14 * D) s.sp.push({ x: rand(0, W), y: rand(H * 0.3, H), vx: rand(-15, 15), vy: rand(-15, 5), l: 0, m: rand(2, 4), c: pick(['255,225,120', '200,255,140', '255,190,90']), r: rand(4, 8) * k, ph: rand(0, TAU), up: rand(4, 14) });
+        // wiewiórka – przebiega po dole ekranu, przystaje i chrupie
+        const SQP = 7.5, sqc = Math.floor((t - 0.8) / SQP);
+        if (t > 0.8 && sqc !== s.sqCyc && live) { s.sqCyc = sqc; const dir = sqc % 2 ? -1 : 1; s.sq = { T: 0, dir, x0: dir > 0 ? -40 : W + 40, stop: W * rand(0.25, 0.4) * (dir > 0 ? 1 : -1) + (dir > 0 ? 0 : W) }; }
+        if (s.sq.T >= 0) {
+          const q = s.sq; q.T += dt;
+          const runV = 420 * k, tStop = Math.abs(q.stop - q.x0) / runV;
+          let x, hop = 0, sit = 0;
+          if (q.T < tStop) { x = q.x0 + q.dir * runV * q.T; hop = Math.abs(Math.sin(q.T * 11)) * 16 * k; }
+          else if (q.T < tStop + 2.2) { x = q.stop; sit = 1; }
+          else { const tt = q.T - tStop - 2.2; x = q.stop + q.dir * runV * 1.2 * tt; hop = Math.abs(Math.sin(tt * 12)) * 16 * k; if (x < -60 || x > W + 60) q.T = -1; }
+          if (q.T >= 0) {
+            const nib = sit ? Math.abs(Math.sin(q.T * 16)) * 1.5 * k : 0;
+            L.muBlit(ctx, L.muSquirrel(sit ? 1 : 0), x, GY - hop - nib, 3 * k, sit ? 0 : -0.15 * Math.sign(hop) * q.dir, a, 0.5, 1, q.dir, 1);
+            if (sit && Math.random() < dt * 6) L.muDirtAdd(s.dirt, x + q.dir * 20 * k, GY - 35 * k, 1, 60, 2 * k);
+          }
+        }
+        // GRZYBOWY DESZCZ – cyklicznie
+        const RP = 5.2, rc = t > 1.2 ? Math.floor((t - 1.2) / RP) : -1, rt = t - 1.2 - rc * RP;
+        if (rc !== s.cyc && rc >= 0 && live) {
+          s.cyc = rc; s.flash = t;
+          const n = Math.round(16 * D * Math.min(1.6, W / 1200));
+          for (let i = 0; i < n; i++) s.rain.push({ kind: pick(L.MU_KINDS), x: rand(40, W - 40), y: -rand(30, 500) * k, vx: rand(-40, 40), vy: rand(0, 120), r: rand(0, TAU), vr: rand(-6, 6), z: rand(2.6, 4) * k, bn: 0, sq: 0, l: 0 });
+          s.big = { x: W * rand(0.3, 0.7), y: -150 * k, vy: 0, bn: 0, l: 0, sq: 0, r: 0 };
+        }
+        const fA = t - s.flash;
+        if (fA >= 0 && fA < 3.5 && rt < 2) L.muText(ctx, 'GRZYBOWY DESZCZ!', W / 2, H * 0.16, 44 * k, a * clamp01(fA / 0.25) * (1 - clamp01((fA - 2.3) / 0.6)), 0.5 + 0.5 * easeOutBack(clamp01(fA / 0.4)), W - 40);
+        ctx.globalCompositeOperation = 'source-over';
+        for (let i = s.rain.length - 1; i >= 0; i--) {
+          const q = s.rain[i]; q.l += dt;
+          q.vy += 1500 * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.r += q.vr * dt; q.sq = Math.max(0, q.sq - dt * 4);
+          const gy = GY - 2 * k;
+          if (q.y > gy && q.vy > 0) {
+            q.y = gy; q.bn++; q.sq = 1; q.vy = -q.vy * (q.bn === 1 ? 0.5 : 0.3); q.vx *= 0.6; q.vr *= 0.5;
+            if (q.bn === 1) L.muDirtAdd(s.dirt, q.x, gy, Math.round(4 * D), 140, 3 * k);
+            if (q.bn >= 3) { q.vy = 0; q.vr = 0; }
+          }
+          if (q.bn >= 1) q.r *= Math.pow(0.02, dt);
+          const fa = a * (1 - clamp01((q.l - 3.4) / 0.6));
+          if (fa <= 0.01 || q.l > 4.2) { s.rain.splice(i, 1); continue; }
+          const sq = 1 - q.sq * 0.35;
+          L.muMush(ctx, q.kind, q.x, q.y + 0, q.z, q.bn ? q.r : q.r, fa, 1 / sq, sq);
+        }
+        if (s.rain.length > 120) s.rain.splice(0, s.rain.length - 120);
+        // wielki złoty prawdziwek w kulminacji
+        if (s.big) {
+          const q = s.big; q.l += dt; q.vy += 1500 * dt; q.y += q.vy * dt; q.sq = Math.max(0, q.sq - dt * 3);
+          if (q.y > GY && q.vy > 0) {
+            q.y = GY; q.bn++; q.sq = 1; q.vy = -q.vy * (q.bn === 1 ? 0.45 : 0.25);
+            if (q.bn === 1) {
+              q.hit = t; shakeScreen(10 * a);
+              burst(s.sparks, { x: q.x, y: GY - 60 * k }, Math.round(46 * D), 150 * k, 520 * k, ['255,210,110', '255,245,200', '180,240,120']);
+              L.muDirtAdd(s.dirt, q.x, GY, Math.round(26 * D), 300, 4 * k);
+              for (let j = 0; j < 22 * D; j++) L.muLeafAdd(s.lv, q.x + rand(-40, 40), GY - 20 * k, rand(-420, 420) * k, rand(-520, -180) * k, rand(2.4, 3.6) * k, 3);
+            }
+            if (q.bn >= 3) q.vy = 0;
+          }
+          const ht = q.hit != null ? t - q.hit : -1;
+          if (ht >= 0 && ht < 0.3) shakeScreen(9 * a * (1 - ht / 0.3));
+          const fa = a * (1 - clamp01((q.l - 4) / 0.8));
+          if (fa <= 0.01) s.big = null;
+          else {
+            ctx.globalCompositeOperation = 'lighter';
+            if (ht >= 0) { raysBehind(ctx, q.x, q.y - 50 * k, 200 * k, t, fa * 0.5 * (1 - clamp01((ht - 2) / 1.5))); ringFx(ctx, { x: q.x, y: GY - 20 * k }, ht, 0.9, 260 * k, '255,210,110', fa); ringFx(ctx, { x: q.x, y: GY - 20 * k }, ht - 0.12, 1, 180 * k, '170,240,110', fa * 0.8); }
+            dot(ctx, '255,210,110', q.x, q.y - 50 * k, 110 * k, fa * 0.6);
+            const sq = 1 - q.sq * 0.3;
+            L.muMush(ctx, 'borowik', q.x, q.y, 9 * k, 0, fa, 1 / sq, sq);
+            if (ht >= 0) { ctx.globalCompositeOperation = 'lighter'; for (let j = 0; j < 4; j++) { const an = t * 1.5 + j * TAU / 4; sparkleStar(ctx, q.x + Math.cos(an) * 70 * k, q.y - 60 * k + Math.sin(an) * 50 * k, 7 * k, fa * (0.5 + 0.5 * Math.sin(t * 8 + j))); } }
+          }
+        }
+        L.muDirt(ctx, s.dirt, dt, a);
+        L.muLeaves(ctx, s.lv, dt, a, 25, 240);
+        L.muSpores(ctx, s.sp, dt, a, 200);
+        if (s.sparks.length > 200) s.sparks.splice(0, s.sparks.length - 200);
+        sparksDraw(ctx, s.sparks, dt, a, 380);
+      },
+    },
+
+    {
+      id: 'mg_win', group: G_WIN, name: 'Grzyby z gry: Ścięty prawdziwek', dur: 4.6, minDur: 4.6,
+      init() { return { lv: [], sp: [], sparks: [], dirt: [], cut: 0, land: 0, hit: 0, dug: 0 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'mg_item'), D = o.density || 1, u = o.out, img = u.img || FALLBACK_ICON;
+        const base = u.base || 32, k = Math.max(1, base / 32) * 1.35;
+        const F = { x: u.from.x + (o.index || 0) * 40, y: u.from.y }, T = u.to;
+        const gy = F.y + base * 0.55, stemMax = 40 * k;
+        const T_CUT = 1.15, T_FLY = 1.45, T_LAND = 2.45, T_BAG = 3.25;
+        if (t < T_BAG) o.hideItem();
+        if (!s.dug) { s.dug = 1; L.muDirtAdd(s.dirt, F.x, gy, Math.round(14 * D), 160, 3 * k); }
+        // koszyk nad slotem w torbie
+        const bpx = 2.2 * k, BX = Math.max(60 * k, Math.min(W - 60 * k, T.x)), BY = Math.min(H - 20 * k, T.y - 6 * k);
+        const bIn = easeOutBack(clamp01((t - 0.9) / 0.5)), bOut = easeIn(clamp01((t - T_LAND - 0.35) / 0.5));
+        const bt = t - T_LAND, bsq = s.land && bt < 0.4 ? Math.sin(bt / 0.4 * Math.PI * 2) * 0.14 * (1 - bt / 0.4) : 0;
+        // wzrost grzyba-legendy
+        const grow = easeOutBack(clamp01(t / 0.7));
+        const stemTop = gy - stemMax * Math.max(0, grow);
+        const mossA = a * clamp01(t / 0.25) * (1 - clamp01((t - 2) / 0.6));
+        L.muBlit(ctx, L.muSpr('moss'), F.x - 5 * k, gy + 2 * k, 2 * k, 0, mossA, 0.5, 1, 1, 0.3 + 0.7 * grow);
+        L.muBlit(ctx, L.muSpr('moss'), F.x + 7 * k, gy + 2 * k, 2 * k, 0, mossA, 0.5, 1, -1, 0.3 + 0.7 * grow);
+        const cutY = gy - 10 * k;
+        // cięcie
+        if (t >= T_CUT && !s.cut) {
+          s.cut = 1; s.cutT = t;
+          burst(s.sparks, { x: F.x, y: cutY }, Math.round(20 * D), 100, 300, ['255,255,240', '255,220,140']);
+          L.muSporeAdd(s.sp, F.x, cutY, Math.round(16 * D), 30, 140, ['255,225,120', '200,255,140'], 5 * k);
+          for (let i = 0; i < 5 * D; i++) L.muLeafAdd(s.lv, F.x, cutY, rand(-180, 180), rand(-240, -80), 2 * k, 1.8);
+        }
+        const ct = s.cut ? t - s.cutT : -1;
+        if (ct >= 0 && ct < 0.2) shakeScreen(3 * a * (1 - ct / 0.2));
+        // pozostały pieniek
+        if (s.cut) L.muStem(ctx, F.x, gy + 2 * k, cutY, 12 * k, 1.5, a * (1 - clamp01((t - 2) / 0.6)));
+        // grzyb (łodyga + legenda jako kapelusz): przed cięciem w miejscu, potem lot do koszyka
+        let px = F.x, py = stemTop, rot = 0, sz = base * 1.9, stemLen = s.cut ? stemTop < cutY ? cutY - stemTop : 0 : gy - stemTop;
+        if (!s.cut) rot = Math.sin(t * 6) * 0.06;
+        if (s.cut && t < T_LAND) {
+          const pop = clamp01(ct / (T_FLY - T_CUT));
+          if (t < T_FLY) { py = stemTop - easeOut(pop) * 26 * k; rot = pop * 0.5; }
+          else {
+            const f = clamp01((t - T_FLY) / (T_LAND - T_FLY));
+            const p = arcPoint({ x: F.x, y: stemTop - 26 * k }, { x: BX, y: BY - 20 * k }, easeInOut(f), 160 * k);
+            px = p.x; py = p.y; rot = 0.5 + f * TAU * 1.5; sz = base * (1.9 + Math.sin(f * Math.PI) * 0.8);
+            ctx.globalCompositeOperation = 'lighter'; dot(ctx, '255,210,110', px, py, 34 * k, a * 0.7);
+            if (Math.random() < dt * 30 * D) L.muSporeAdd(s.sp, px, py, 1, 5, 25, ['255,220,120', '255,245,200', '190,255,140'], 5 * k, 0.8);
+            if (Math.random() < dt * 8 * D) L.muLeafAdd(s.lv, px, py, rand(-40, 40), rand(-40, 40), 2 * k, 1.4);
+          }
+        }
+        const drawShroom = (x, y, r, S, sl, al) => {
+          ctx.save(); ctx.translate(x, y); ctx.rotate(r);
+          if (sl > 1) L.muStem(ctx, 0, sl, S * 0.12, 12 * k, 1.5, al);
+          L.muBlit(ctx, L.muSpr('bcap'), 0, S * 0.3, S * 1.25 / 12, 0, al, 0.5, 1);
+          ctx.restore();
+          drawItem(ctx, img, x, y, S, r, 1, al, true);
+        };
+        if (t < T_LAND) {
+          if (!s.cut) { ctx.globalCompositeOperation = 'lighter'; dot(ctx, '255,210,110', px, py, 36 * k, a * 0.5 * grow); }
+          drawShroom(px, py, rot, sz, s.cut ? Math.min(stemLen, cutY - stemTop) : gy - stemTop, a * clamp01(t / 0.15));
+        }
+        // ręka z nożykiem
+        const kh = L.muKnifeHand(), hp = 2.2 * k;
+        const hIn = easeOut(clamp01((t - 0.55) / 0.5)), hOut = easeIn(clamp01((t - T_CUT - 0.1) / 0.45));
+        if (hIn > 0 && hOut < 1) {
+          const hx0 = F.x + 12 * k, slide = t < T_CUT ? 0 : -easeOut(clamp01((t - T_CUT) / 0.1)) * 30 * k;
+          const hx = hx0 + (1 - hIn) * 160 * k + hOut * 200 * k + slide, hy = cutY - 7 * hp + (t < T_CUT ? -Math.sin(t * 20) * 2 * k : 0);
+          L.muBlit(ctx, kh, hx, hy, hp, 0, a * (1 - hOut), 0, 0);
+        }
+        if (ct >= 0 && ct < 0.3) {
+          ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = a * (1 - ct / 0.3);
+          ctx.strokeStyle = '#fffbe8'; ctx.lineWidth = 3 * k * (1 - ct / 0.3) + 1; ctx.beginPath(); ctx.moveTo(F.x + 40 * k, cutY + 2); ctx.lineTo(F.x - 44 * k, cutY - 3); ctx.stroke();
+          ctx.restore();
+        }
+        // koszyk + zawartość
+        const bA = a * clamp01((t - 0.9) / 0.2) * (1 - bOut);
+        if (bIn > 0.01 && bA > 0.01) {
+          const bsc = bIn * (1 - bOut * 0.7);
+          ctx.save(); ctx.translate(BX, BY + bOut * 20 * k); ctx.scale(bsc, bsc);
+          L.muBasket(ctx, 0, 0, bpx, bA, 1 + bsq, 1 - bsq, () => {
+            L.muMush(ctx, 'kurka', -16 * k, 4 * k, 2 * k, -0.4, bA);
+            L.muMush(ctx, 'podgrzybek', 16 * k, 4 * k, 2 * k, 0.4, bA);
+            if (s.land) drawItem(ctx, img, 0, -base * 0.35, base * 1.4, -0.15, 1, bA, true);
+          });
+          ctx.restore();
+        }
+        if (t >= T_LAND && !s.land) {
+          s.land = 1;
+          burst(s.sparks, { x: BX, y: BY - 10 * k }, Math.round(26 * D), 100, 300, ['255,210,110', '255,245,200']);
+          for (let i = 0; i < 8 * D; i++) L.muLeafAdd(s.lv, BX, BY - 10 * k, rand(-220, 220), rand(-320, -120), 2 * k, 1.8);
+        }
+        // trafienie w torbę
+        if (t >= T_BAG && !s.hit) {
+          s.hit = 1;
+          burst(s.sparks, T, Math.round(40 * D), 120, 380, ['255,210,110', '255,245,200', '170,240,110']);
+          L.muSporeAdd(s.sp, T.x, T.y, Math.round(24 * D), 40, 200, ['255,225,120', '200,255,140'], 6 * k, 1.4);
+          for (let i = 0; i < 16 * D; i++) L.muLeafAdd(s.lv, T.x, T.y, rand(-300, 300), rand(-420, -140), rand(2, 2.8) * k, 2.2);
+        }
+        if (s.hit) {
+          const ht = t - T_BAG;
+          if (ht < 0.25) shakeScreen(4 * a * (1 - ht / 0.25));
+          ringFx(ctx, T, ht, 0.7, 70 * k, '255,210,110', a);
+          ringFx(ctx, T, ht - 0.1, 0.8, 50 * k, '170,240,110', a);
+          ctx.globalCompositeOperation = 'lighter'; dot(ctx, '255,220,130', T.x, T.y, 50 * k, a * clamp01(1 - ht / 1));
+        }
+        L.muDirt(ctx, s.dirt, dt, a);
+        L.muLeaves(ctx, s.lv, dt, a, 60, 100);
+        L.muSpores(ctx, s.sp, dt, a, 140);
+        if (s.sparks.length > 160) s.sparks.splice(0, s.sparks.length - 160);
+        sparksDraw(ctx, s.sparks, dt, a, 300);
+        if (s.hit) {
+          const ht = t - T_BAG;
+          L.muText(ctx, 'Do koszyka!', clampX(T.x, W, 260), Math.max(30, T.y - 90 * k) - ht * 10, 26 * k, a * clamp01(ht / 0.15) * (1 - clamp01((ht - 1) / 0.35)), 0.6 + 0.4 * easeOutBack(clamp01(ht / 0.3)), W - 20);
+        }
+      },
+    },
+
+    {
+      id: 'mg_lose', group: G_LOSE, name: 'Grzyby z gry: Muchomor!', dur: 5.4, minDur: 5.4,
+      init() { return { lv: [], sp: [], sparks: [], dirt: [], dust: [], grab: 0, poof: 0, dug: 0 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'mg_item'), D = o.density || 1, u = o.out, img = u.img || FALLBACK_ICON;
+        const base = u.base || 32, k = Math.max(1, base / 32) * 1.3;
+        const F = { x: u.from.x + (o.index || 0) * 50, y: u.from.y };
+        const gy = F.y + base * 0.55, stemMax = 40 * k;
+        const T_GRAB = 1.65, T_POOF = 2.0, T_GONE = 3.6;
+        o.hideItem();
+        if (!o.second) vignette(ctx, W, H, '24,12,4', 0.38 * a * clamp01((t - 1.6) / 0.6), 0.3);
+        if (!s.dug) { s.dug = 1; L.muDirtAdd(s.dirt, F.x, gy, Math.round(12 * D), 150, 3 * k); }
+        // strona, z której nadbiega obcy grzybiarz
+        const dir = F.x > W * 0.5 ? 1 : -1; // 1 = przybiega z lewej
+        const grow = easeOutBack(clamp01(t / 0.6)), stemTop = gy - stemMax * Math.max(0, grow);
+        const mossA = a * clamp01(t / 0.25);
+        L.muBlit(ctx, L.muSpr('moss'), F.x - 5 * k, gy + 2 * k, 2 * k, 0, mossA, 0.5, 1, 1, 0.3 + 0.7 * grow);
+        L.muBlit(ctx, L.muSpr('moss'), F.x + 7 * k, gy + 2 * k, 2 * k, 0, mossA, 0.5, 1, -1, 0.3 + 0.7 * grow);
+        // postać
+        const feet = gy + 4 * k, reach = 34 * k;
+        const stopX = F.x - dir * reach, startX = stopX - dir * Math.min(420 * k, W * 0.45), endX = stopX - dir * (W + 200);
+        let cx, step = 0, face = dir;
+        if (t < 0.5) cx = startX;
+        else if (t < T_GRAB - 0.1) { const f = clamp01((t - 0.5) / (T_GRAB - 0.6)); cx = startX + (stopX - startX) * easeOut(f); step = f < 0.95 ? Math.floor(t * 10) % 4 : 0; }
+        else if (t < 1.95) { cx = stopX; }
+        else { const tt = t - 1.95; cx = stopX - dir * tt * tt * 700 * k - dir * tt * 200 * k; step = Math.floor(t * 14) % 4; face = -dir; }
+        const cA = a * clamp01((t - 0.5) / 0.2) * (cx > -120 && cx < W + 120 ? 1 : 0);
+        // pieczarka-legenda przed zabraniem
+        if (t < T_GRAB) {
+          ctx.save(); ctx.translate(F.x, gy); ctx.rotate(Math.sin(t * 6) * 0.06); ctx.translate(-F.x, -gy);
+          L.muStem(ctx, F.x, gy + 2 * k, stemTop + base * 0.2, 12 * k, 1.5, a);
+          ctx.restore();
+          ctx.globalCompositeOperation = 'lighter'; dot(ctx, '255,210,110', F.x, stemTop, 36 * k, a * 0.5 * grow);
+          L.muBlit(ctx, L.muSpr('bcap'), F.x, stemTop + base * 0.45, base * 1.9 / 12 * Math.max(0.2, grow), Math.sin(t * 6) * 0.06, a, 0.5, 1);
+          drawItem(ctx, img, F.x, stemTop, base * 1.6, Math.sin(t * 6) * 0.06, 1, a, true);
+        }
+        if (t >= T_GRAB && !s.grab) {
+          s.grab = 1;
+          burst(s.sparks, { x: F.x, y: stemTop }, Math.round(14 * D), 80, 220, ['255,255,240', '255,220,140']);
+          for (let i = 0; i < 5 * D; i++) L.muLeafAdd(s.lv, F.x, gy - 10 * k, rand(-150, 150), rand(-220, -80), 2 * k, 1.8);
+        }
+        // legenda ląduje w cudzym koszyku (łuk) i odjeżdża z nim
+        const hold = { x: cx + face * 14 * k, y: feet - 30 * k };
+        if (cA > 0.01) {
+          const ok = u.whoChar && drawCharSprite(ctx, u.whoChar, cx, feet, 2 * k, face > 0 ? 'E' : 'W', step, t, cA);
+          if (!ok) L.muBlit(ctx, L.muPicker(step, true), cx, feet, 2.6 * k, 0, cA, 0.5, 1, face, 1);
+          if (step && Math.random() < dt * 12 * D) s.dust.push({ x: cx, y: feet - 4, vx: -face * rand(20, 60), vy: rand(-30, -5), r: rand(6, 12) * k, l: 0, m: rand(0.5, 0.9) });
+          const nm = u.who || 'Inny grzybiarz';
+          L.muSign(ctx, nm, cx, feet - 110 * k, 11 * k, cA * clamp01((t - 0.7) / 0.3), 1, 220 * k);
+          if (t > 1.7 && t < 3.3) L.muText(ctx, 'Hehe, mój!', cx, feet - 138 * k, 14 * k, cA * clamp01((t - 1.7) / 0.2), 1, 200 * k);
+        }
+        if (t >= T_GRAB) {
+          const f = clamp01((t - T_GRAB) / 0.35);
+          const p = f < 1 ? arcPoint({ x: F.x, y: stemTop }, hold, easeInOut(f), 50 * k) : hold;
+          if (cA > 0.01 || f < 1) drawItem(ctx, img, p.x, p.y - (f >= 1 ? 6 * k : 0), base * (1.6 - 0.5 * f), f * TAU * (f < 1 ? 1 : 0), 1, Math.max(cA, f < 1 ? a : 0), true);
+        }
+        // kurz
+        ctx.globalCompositeOperation = 'source-over';
+        for (let i = s.dust.length - 1; i >= 0; i--) {
+          const q = s.dust[i]; q.l += dt; const f = q.l / q.m; if (f >= 1) { s.dust.splice(i, 1); continue; }
+          q.x += q.vx * dt; q.y += q.vy * dt; dot(ctx, '150,120,80', q.x, q.y, q.r * (1 + f), a * 0.45 * (1 - f));
+        }
+        if (s.dust.length > 80) s.dust.splice(0, s.dust.length - 80);
+        // w miejscu legendy wyrasta muchomor
+        if (t >= T_POOF && !s.poof) {
+          s.poof = 1;
+          L.muDirtAdd(s.dirt, F.x, gy, Math.round(16 * D), 200, 3 * k);
+          L.muSporeAdd(s.sp, F.x, gy - 20 * k, Math.round(24 * D), 30, 160, ['255,90,70', '255,255,255', '255,160,120'], 5 * k, 1.2);
+        }
+        if (s.poof) {
+          const pt = t - T_POOF, g = easeOutBack(clamp01(pt / 0.45)), wob = Math.sin(pt * 3) * 0.06;
+          if (pt < 0.3) shakeScreen(3 * a * (1 - pt / 0.3));
+          L.muMush(ctx, 'muchomor', F.x, gy + 3 * k, 5.2 * k * g, wob, a, 1 + Math.sin(pt * 5) * 0.03 * g, 1 - Math.sin(pt * 5) * 0.03 * g);
+          // smutna minka na trzonie
+          if (g > 0.6) {
+            const fx = F.x + Math.sin(wob) * 20 * k, fy = gy - 18 * k;
+            ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = a; ctx.fillStyle = '#2a160a';
+            ctx.fillRect(fx - 6 * k, fy - 2 * k, 3 * k, 3 * k); ctx.fillRect(fx + 3 * k, fy - 2 * k, 3 * k, 3 * k);
+            ctx.fillRect(fx - 4 * k, fy + 5 * k, 8 * k, 2 * k); ctx.fillRect(fx - 6 * k, fy + 7 * k, 2 * k, 2 * k); ctx.fillRect(fx + 4 * k, fy + 7 * k, 2 * k, 2 * k);
+            ctx.restore();
+            tearDrop(ctx, fx - 5 * k, fy + 4 * k + ((pt * 0.8) % 1) * 12 * k, 2.4 * k, a * (1 - (pt * 0.8) % 1));
+          }
+          const capTop = gy + 3 * k - 14 * 5.2 * k * g;
+          L.muText(ctx, 'MUCHOMOR!', F.x, Math.max(30 * k, capTop - 30 * k), 34 * k, a * clamp01((pt - 0.15) / 0.2), 0.5 + 0.5 * easeOutBack(clamp01((pt - 0.15) / 0.35)), W - 30, true);
+          // opadające, zwiędłe liście
+          if (t < this.dur - 1 && Math.random() < dt * 3 * D) { L.muLeafAdd(s.lv, F.x + rand(-120, 120) * k, capTop - 60 * k, rand(-20, 20), rand(10, 30), 2.2 * k, 2.4); s.lv[s.lv.length - 1].c = 3; }
+          const R = u.reason || '', cyR = Math.min(H - 30, gy + 40 * k), cxR = clampX(F.x, W, 380);
+          caption(ctx, R, cxR, cyR, a * clamp01((pt - 0.35) / 0.4), 22);
+          if (u.who && R.indexOf(u.who) < 0) caption(ctx, 'Zebrał: ' + u.who, cxR, cyR + 26, a * clamp01((pt - 0.5) / 0.4), 17);
+        }
+        L.muDirt(ctx, s.dirt, dt, a);
+        L.muLeaves(ctx, s.lv, dt, a, 50, 100);
+        L.muSpores(ctx, s.sp, dt, a, 120);
+        if (s.sparks.length > 120) s.sparks.splice(0, s.sparks.length - 120);
+        sparksDraw(ctx, s.sparks, dt, a, 300);
+      },
+    },
+
     /* @@NEW_EFFECTS@@ */
   ];
 
@@ -23499,13 +24509,25 @@
   const scalePt = (q, k) => q && Object.assign({}, q, { x: q.x * k, y: q.y * k, base: q.base != null ? q.base * k : q.base });
   // obszar efektów: 'auto' (w trybie pełnoekranowym tylko mapa, pod oknami gry), 'map' (zawsze tak), 'screen' (cały ekran)
   let AREA_MODE = 'auto';
+  // tryb okienkowy gry ma tło „windowModeBackground” (skały) na warstwie window-mode-background-layer;
+  // w trybie pełnoekranowym tego tła nie ma, a mapa zajmuje większość ekranu
+  let FS_CACHE = { t: 0, v: false };
   function isFullscreenGame() {
-    const g = document.querySelector('.game-window-positioner');
-    if (g) { const r = g.getBoundingClientRect(); if (r.width >= innerWidth - 4 && r.height >= innerHeight - 4) return true; }
-    const el = mapCanvas();
-    if (!el) return false;
-    const r = el.getBoundingClientRect();
-    return r.top < 16 || innerHeight - r.bottom < 16 || r.left < 16 || innerWidth - r.right < 16;
+    const now = performance.now();
+    if (now - FS_CACHE.t < 1000) return FS_CACHE.v;
+    let v = false;
+    const wm = document.querySelector('.window-mode-background-layer');
+    const cs = wm && getComputedStyle(wm);
+    const windowBg = !!(cs && cs.display !== 'none' && cs.visibility !== 'hidden' && cs.backgroundImage && cs.backgroundImage !== 'none');
+    if (!windowBg) {
+      const el = mapCanvas();
+      if (el) {
+        const r = el.getBoundingClientRect();
+        v = (r.width * r.height) / (innerWidth * innerHeight) >= 0.45;
+      }
+    }
+    FS_CACHE = { t: now, v };
+    return v;
   }
   const MAP_FS_SCALE = 0.62; // pomniejszenie ozdób ramki okna gry w trybie pełnoekranowym
   const clipToMap = () => AREA_MODE === 'map' || (AREA_MODE === 'auto' && isFullscreenGame());
@@ -24604,6 +25626,7 @@
     { id: 'fb', name: 'Piłkarski', layers: { item: 'fb_item', loot: 'fb_frame', map: 'fb_frame', around: 'fb_around', screen: 'fb_screen', win: 'fb_win', lose: 'fb_lose' } },
     { id: 'moba', name: 'Arena legend', layers: { item: 'moba_scratch', loot: 'moba_hexframe', map: 'moba_hexframe', around: 'moba_legendary', screen: 'moba_nexus', win: 'moba_recall', lose: 'moba_stolen' } },
     { id: 'mushroom', name: '🍄 Grzybobranie (event)', layers: { item: 'mu_item', loot: 'mu_frame', map: 'mu_frame', around: 'mu_around', screen: 'mu_screen', win: 'mu_win', lose: 'mu_lose' } },
+    { id: 'mushroom_gfx', name: '🍄 Grzyby z gry (test)', layers: { item: 'mg_item', loot: 'mg_frame', map: 'mg_frame', around: 'mg_around', screen: 'mg_screen', win: 'mg_win', lose: 'mg_lose' } },
     { id: 'halloween', name: '🎃 Halloween (event)', layers: { item: 'hw_cauldron', loot: 'hw_webframe', map: 'hw_webframe', around: 'hw_pumpkin', screen: 'hw_night', win: 'hw_candy', lose: 'hw_trick' } },
     { id: 'cyber', name: 'Cyberpunk', layers: { item: 'cy_breach', loot: 'cy_frame', map: 'cy_frame', around: 'cy_scan', screen: 'cy_city', win: 'cy_upload', lose: 'cy_flatline' } },
     { id: 'cats', name: '🐱 Koty', layers: { item: 'cat_item', loot: 'cat_frame', map: 'cat_frame', around: 'cat_around', screen: 'cat_screen', win: 'cat_win', lose: 'cat_lose' } },
