@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Konfiguracja łupów – nowe efekty animacji
 // @namespace    majcin.margonem.lnfx
-// @version      2.7.3
+// @version      2.7.4
 // @description  Nowe efekty animacji i losowy dźwięk (z własnych) w dodatku "Konfiguracja łupów" (Margonem NI)
 // @author       Majcin
 // @match        https://*.margonem.pl/*
@@ -24480,10 +24480,40 @@
     return { x: innerWidth / 2, y: innerHeight / 2 };
   }
   // prostokąt okna łupów (jeśli jest widoczne)
+  // widoczna część okna łupów (bez przezroczystych marginesów): suma prostokątów elementów, które coś rysują
+  // (tło, obrazek, ramka); liczona raz na dany rozmiar okna i zapamiętana jako wcięcia względem .loot-wnd
+  const LOOT_VIS = { key: '', ins: [0, 0, 0, 0] };
+  function lootInsets(el, r) {
+    const key = Math.round(r.width) + 'x' + Math.round(r.height) + '|' + el.childElementCount;
+    if (LOOT_VIS.key === key) return LOOT_VIS.ins;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, n = 0;
+    const list = [el].concat(Array.from(el.querySelectorAll('*')).slice(0, 400));
+    for (const e of list) {
+      if (!e.offsetWidth || !e.offsetHeight) continue;
+      const cs = getComputedStyle(e);
+      const bg = cs.backgroundColor && !/rgba\(0, 0, 0, 0\)|transparent/.test(cs.backgroundColor) && parseFloat(cs.opacity) > 0.05;
+      const paints = bg || (cs.backgroundImage && cs.backgroundImage !== 'none') || (cs.borderImageSource && cs.borderImageSource !== 'none') || parseFloat(cs.borderTopWidth) > 0 || e.tagName === 'CANVAS';
+      if (!paints) continue;
+      const q = e.getBoundingClientRect();
+      if (q.width < 6 || q.height < 6) continue;
+      x0 = Math.min(x0, q.left); y0 = Math.min(y0, q.top); x1 = Math.max(x1, q.right); y1 = Math.max(y1, q.bottom); n++;
+    }
+    let ins = [0, 0, 0, 0];
+    if (n && isFinite(x0)) {
+      const c = v => Math.max(0, Math.min(60, v));
+      ins = [c(x0 - r.left), c(y0 - r.top), c(r.right - x1), c(r.bottom - y1)];
+    }
+    LOOT_VIS.key = key; LOOT_VIS.ins = ins;
+    return ins;
+  }
   function lootBox() {
     for (const el of document.querySelectorAll('.loot-wnd')) {
       const r = el.getBoundingClientRect();
-      if (r.width > 40 && r.height > 40 && el.offsetParent !== null) return { x: r.left, y: r.top, w: r.width, h: r.height, cx: r.left + r.width / 2, cy: r.top + r.height / 2 };
+      if (r.width > 40 && r.height > 40 && el.offsetParent !== null) {
+        const [il, it, ir, ib] = lootInsets(el, r);
+        const x = r.left + il, y = r.top + it, w = r.width - il - ir, h = r.height - it - ib;
+        return { x, y, w, h, cx: x + w / 2, cy: y + h / 2 };
+      }
     }
     return null;
   }
@@ -24784,8 +24814,16 @@
       const hole = () => {
         if (holed || !real) return;
         holed = true;
+        // miękka „dziura”: krawędź lekko zachodzi na ramkę okna i łagodnie gaśnie (bez twardego prostokątnego pasa)
         ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.clearRect(Math.floor((real.x - 2) * dpr), Math.floor((real.y - 8) * dpr), Math.ceil((real.w + 4) * dpr), Math.ceil((real.h + 10) * dpr));
+        const F = Math.max(2, 5 * dpr), I = 3 * dpr;
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 1; ctx.fillStyle = '#000';
+        ctx.filter = `blur(${Math.round(F / 2)}px)`;
+        rrect(ctx, real.x * dpr + I, real.y * dpr + I, real.w * dpr - 2 * I, real.h * dpr - 2 * I, 6 * dpr); ctx.fill();
+        ctx.filter = 'none';
+        ctx.clearRect(Math.floor(real.x * dpr + I + F), Math.floor(real.y * dpr + I + F), Math.ceil(real.w * dpr - 2 * (I + F)), Math.ceil(real.h * dpr - 2 * (I + F)));
+        ctx.restore();
       };
       const W = innerWidth, H = innerHeight;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
