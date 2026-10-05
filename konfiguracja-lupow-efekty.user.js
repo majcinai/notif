@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Konfiguracja łupów – nowe efekty animacji
 // @namespace    majcin.margonem.lnfx
-// @version      2.7.1
+// @version      2.7.3
 // @description  Nowe efekty animacji i losowy dźwięk (z własnych) w dodatku "Konfiguracja łupów" (Margonem NI)
 // @author       Majcin
 // @match        https://*.margonem.pl/*
@@ -24516,6 +24516,15 @@
     const now = performance.now();
     if (now - FS_CACHE.t < 1000) return FS_CACHE.v;
     let v = false;
+    // najpewniej: w pełnym ekranie górny pasek i kolumny interfejsu dotykają krawędzi okna przeglądarki,
+    // w okienkowym całość jest wyśrodkowanym „pudełkiem” z marginesami (niezależnie od motywów graficznych)
+    const top = document.querySelector('.interface-layer > .top'), lc = document.querySelector('.interface-layer > .left-column');
+    if (top && top.offsetWidth) {
+      const r = top.getBoundingClientRect(), l = lc && lc.offsetWidth ? lc.getBoundingClientRect() : r;
+      v = r.left <= 2 && r.right >= innerWidth - 2 && r.top <= 2 && l.left <= 2;
+      FS_CACHE = { t: now, v };
+      return v;
+    }
     const wm = document.querySelector('.window-mode-background-layer');
     const cs = wm && getComputedStyle(wm);
     const windowBg = !!(cs && cs.display !== 'none' && cs.visibility !== 'hidden' && cs.backgroundImage && cs.backgroundImage !== 'none');
@@ -24827,6 +24836,20 @@
       }
       areaApply();
       hole();
+      // tipy gry (dymki po najechaniu na przedmiot itp.) zawsze nad animacjami – wycinamy ich prostokąty
+      {
+        const tl = document.querySelector('.tip-layer');
+        if (tl && tl.childElementCount) {
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          for (const e of tl.children) {
+            if (!e.offsetWidth || !e.offsetHeight) continue;
+            const cs = getComputedStyle(e);
+            if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) continue;
+            const r = e.getBoundingClientRect();
+            ctx.clearRect(Math.floor(r.left * dpr) - 2, Math.floor(r.top * dpr) - 2, Math.ceil(r.width * dpr) + 4, Math.ceil(r.height * dpr) + 4);
+          }
+        }
+      }
       setItemsHidden(hide);
       if (!SHAKE.active) resetShake();
       if (!GREY.active) resetGrey();
@@ -25626,7 +25649,7 @@
     { id: 'fb', name: 'Piłkarski', layers: { item: 'fb_item', loot: 'fb_frame', map: 'fb_frame', around: 'fb_around', screen: 'fb_screen', win: 'fb_win', lose: 'fb_lose' } },
     { id: 'moba', name: 'Arena legend', layers: { item: 'moba_scratch', loot: 'moba_hexframe', map: 'moba_hexframe', around: 'moba_legendary', screen: 'moba_nexus', win: 'moba_recall', lose: 'moba_stolen' } },
     { id: 'mushroom', name: '🍄 Grzybobranie (event)', layers: { item: 'mu_item', loot: 'mu_frame', map: 'mu_frame', around: 'mu_around', screen: 'mu_screen', win: 'mu_win', lose: 'mu_lose' } },
-    { id: 'mushroom_gfx', name: '🍄 Grzyby z gry (test)', layers: { item: 'mg_item', loot: 'mg_frame', map: 'mg_frame', around: 'mg_around', screen: 'mg_screen', win: 'mg_win', lose: 'mg_lose' } },
+    { id: 'mushroom_gfx', hidden: true, name: '🍄 Grzyby z gry (test)', layers: { item: 'mg_item', loot: 'mg_frame', map: 'mg_frame', around: 'mg_around', screen: 'mg_screen', win: 'mg_win', lose: 'mg_lose' } },
     { id: 'halloween', name: '🎃 Halloween (event)', layers: { item: 'hw_cauldron', loot: 'hw_webframe', map: 'hw_webframe', around: 'hw_pumpkin', screen: 'hw_night', win: 'hw_candy', lose: 'hw_trick' } },
     { id: 'cyber', name: 'Cyberpunk', layers: { item: 'cy_breach', loot: 'cy_frame', map: 'cy_frame', around: 'cy_scan', screen: 'cy_city', win: 'cy_upload', lose: 'cy_flatline' } },
     { id: 'cats', name: '🐱 Koty', layers: { item: 'cat_item', loot: 'cat_frame', map: 'cat_frame', around: 'cat_around', screen: 'cat_screen', win: 'cat_win', lose: 'cat_lose' } },
@@ -25636,7 +25659,7 @@
     { id: 'vikings', name: '🪓 Wikingowie / Północ', layers: { item: 'vk_ice', loot: 'vk_frame', map: 'vk_frame', around: 'vk_horn', screen: 'vk_sea', win: 'vk_win', lose: 'vk_lose' } },
     { id: 'heroes', name: 'Bohaterowie i magia', layers: { item: 'hr_scroll', loot: 'hr_frame', map: 'hr_frame', around: 'hr_treasure', screen: 'hr_advmap', win: 'hr_ride', lose: 'hr_defeat' } },
   ];
-  const SET_OPTS = [['', '— wybierz —']].concat(SETS.map(s => [s.id, s.name]));
+  const SET_OPTS = [['', '— wybierz —']].concat(SETS.filter(s => !s.hidden).map(s => [s.id, s.name])); // ukryte (testowe) zestawy zostają w kodzie
   function applySet(id) {
     const S = SETS.find(s => s.id === id);
     if (!S) return;
