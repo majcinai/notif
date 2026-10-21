@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Konfiguracja łupów – nowe efekty animacji
 // @namespace    majcin.margonem.lnfx
-// @version      2.9.3
+// @version      2.9.4
 // @description  Nowe efekty animacji i losowy dźwięk (z własnych) w dodatku "Konfiguracja łupów" (Margonem NI)
 // @author       Majcin
 // @match        https://*.margonem.pl/*
@@ -30621,14 +30621,19 @@
   let internalClick = false;
 
   // obsługa obu miejsc: stare okno dodatku (.ln-control/.ln-label) i nowe w Ustawieniach (.option-container/.option-description)
+  // napisy gry w różnych wersjach językowych (margonem.pl / margonem.com)
+  const LABEL_ALIASES = { 'Efekty animacji': ['Efekty animacji', 'Animation effects'], 'Dźwięk': ['Dźwięk', 'Sound'] };
+  const NONE_LABELS = ['Brak', 'None'];
+  const isNone = t => NONE_LABELS.includes(String(t).trim());
   function findControl(text) {
-    const lab = [...document.querySelectorAll('.ln-label, .option-description')].find(e => e.textContent.trim() === text);
+    const names = LABEL_ALIASES[text] || [text];
+    const lab = [...document.querySelectorAll('.ln-label, .option-description')].find(e => names.includes(e.textContent.trim()));
     return lab ? lab.closest('.ln-control, .option-container') : null;
   }
 
   function clickNativeNone(list) {
     const natives = [...list.querySelectorAll('.option:not(.lnfx-opt)')];
-    const none = natives.find(o => o.textContent.trim() === 'Brak') || natives[0];
+    const none = natives.find(o => isNone(o.textContent)) || natives[0];
     internalClick = true;
     try { none && none.click(); } finally { internalClick = false; }
   }
@@ -30639,7 +30644,7 @@
     const list = ctl && ctl.__lnfxList;
     if (!list) return;
     const label = ctl.querySelector('.menu-option');
-    if (label && label.textContent.trim() !== 'Brak' && !label.textContent.startsWith(PREFIX)) clickNativeNone(list);
+    if (label && !isNone(label.textContent) && !label.textContent.startsWith(PREFIX)) clickNativeNone(list);
   }
 
   function choose(cfg, ctl, list, id) {
@@ -30880,7 +30885,15 @@
     const t = [...document.querySelectorAll('.header-label .text')].find(e => e.textContent.trim() === 'Konfiguracja łupów');
     if (t) return t.closest('.c-window');
     const o = document.querySelector('.opt_LEGENDARY_NOTIFICATOR_CHECKBOX'); // nowe miejsce: okno Ustawień gry
-    return o ? o.closest('.c-window') : null;
+    if (o) return o.closest('.c-window');
+    // inne wersje językowe (margonem.com): okno, w którym gra pokazuje zawartość dodatku – niezależnie od tytułu
+    try {
+      let c = window.Engine && Engine.legendaryNotificator && Engine.legendaryNotificator.getContent();
+      c = c && c.jquery ? c[0] : c;
+      const w = c && c.isConnected && c.closest('.c-window');
+      if (w) return w;
+    } catch (e) { /* ignore */ }
+    return null;
   }
   // wzór okna zapamiętujemy – gdy gracz zamknie okno konfiguracji dodatku, konfigurator dalej ma z czego się budować
   let TPL = null;
