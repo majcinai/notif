@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Konfiguracja łupów – nowe efekty animacji
 // @namespace    majcin.margonem.lnfx
-// @version      2.9.4
+// @version      2.11.0
 // @description  Nowe efekty animacji i losowy dźwięk (z własnych) w dodatku "Konfiguracja łupów" (Margonem NI)
 // @author       Majcin
 // @match        https://*.margonem.pl/*
@@ -182,8 +182,11 @@
   }
   // trzęsienie ekranu gry (sam kontener gry, nasz canvas i panel stoją w miejscu)
   const SHAKE = { el: null, orig: '', active: false };
+  // trzęsienie ekranu można wyłączyć w konfiguratorze (ustawienie wspólne dla wszystkich presetów)
+  let SHAKE_ON = true;
+  try { SHAKE_ON = localStorage.getItem('lnfx_shake') !== '0'; } catch (e) { /* ignore */ }
   function shakeScreen(amount) {
-    if (!(amount > 0.3)) return;
+    if (!SHAKE_ON || !(amount > 0.3)) return;
     const el = document.querySelector('.game-window-positioner') || document.body;
     if (!SHAKE.el) { SHAKE.el = el; SHAKE.orig = el.style.transform || ''; }
     SHAKE.active = true;
@@ -278,6 +281,36 @@
     GREY.el.style.filter = `${GREY.orig} grayscale(${Math.min(1, v).toFixed(2)}) brightness(${(1 - 0.25 * Math.min(1, v)).toFixed(2)})`;
   }
   function resetGrey() { if (GREY.el) GREY.el.style.filter = GREY.orig; GREY.el = null; GREY.active = false; }
+  // „rozpad interfejsu”: maska CSS na całym oknie gry (alfa maski = widoczność). Efekt woła pixMask(canvas, wersja)
+  // w każdej klatce; kodowanie maski tylko przy zmianie wersji (toBlob – asynchronicznie). Silnik zdejmuje maskę sam.
+  const PIX = { el: null, active: false, ver: -1, busy: false, url: '' };
+  const PIX_PROPS = ['maskImage', 'webkitMaskImage', 'maskSize', 'webkitMaskSize', 'maskRepeat', 'webkitMaskRepeat'];
+  function pixMask(canvas, ver) {
+    const el = document.querySelector('.game-window-positioner');
+    if (!el || !canvas) return false;
+    if (PIX.el && PIX.el !== el) resetPix();
+    PIX.el = el; PIX.active = true;
+    if (ver === PIX.ver || PIX.busy) return true;
+    PIX.ver = ver; PIX.busy = true;
+    try {
+      canvas.toBlob(b => {
+        PIX.busy = false;
+        if (!b || !PIX.active || PIX.el !== el) return;
+        const url = URL.createObjectURL(b), old = PIX.url;
+        PIX.url = url;
+        el.style.maskImage = el.style.webkitMaskImage = `url(${url})`;
+        el.style.maskSize = el.style.webkitMaskSize = '100% 100%';
+        el.style.maskRepeat = el.style.webkitMaskRepeat = 'no-repeat';
+        if (old) setTimeout(() => URL.revokeObjectURL(old), 500);
+      });
+    } catch (e) { PIX.busy = false; }
+    return true;
+  }
+  function resetPix() {
+    if (PIX.el) for (const p of PIX_PROPS) PIX.el.style[p] = '';
+    if (PIX.url) { const o = PIX.url; setTimeout(() => URL.revokeObjectURL(o), 500); }
+    PIX.el = null; PIX.active = false; PIX.ver = -1; PIX.url = '';
+  }
 
 
   const clampX = (x, W, S) => Math.max(S * 0.6, Math.min(W - S * 0.6, x));
@@ -24436,7 +24469,7 @@
     /* ------------------------- ZESTAW „MIETEL ŻUL” (mz_) – wesoły pijaczyna spod sklepu, grafiki z gry ------------------------- */
     /* mz_item trzyma wspólne narzędzia zestawu (Mietel i butelka z gry, kufel, kapsle, bąbelki, napisy, dymki, ławka, sklep) */
     {
-      id: 'mz_item', group: G_ITEM, name: 'Mietel Żul: Odkorkowanie', dur: 6.4, occupy: 5.6,
+      id: 'mz_item', group: G_ITEM, name: 'Mietek Żul: Odkorkowanie', dur: 6.4, occupy: 5.6,
       mzLib() { return EFFECTS.find(e => e.id === 'mz_item'); },
       MZ_GFX: {
         mietel: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAwCAYAAABwrHhvAAAE3UlEQVR4nM1XTWgbRxT+1jhEIVFsEzWrn02ElpJYtEUuNpjGtU23l9iXgqEYfCvNzWDTQ2859dBrySGH0twKBh8a2kId9xAF201LIYUqDaibFBm3K1lOBFIjG2xksj2s3uzs7I9WsQN9YKyZefO+7/2OJOEl5f33rpp+Z3fvrUph7YRW9AJNqyqiSoqtm0YZW6VSV2RCE+DB06oKAAx8YnQYALD+62+MCAAHGT8iPWHB06rKgHlwXohIVEkhqqTA3/FLWagI0GWegBcRPhJiOvwi0JGACB5VUizEfkR44Yl4kejtRIDACYAHFwuQ9iZGh1kUokoKacBVnCSBNUDek9cTo8MuT8W8N40yfvjme/D36I5XHXQswrSqMu94r7ZKJTSNMtsjMvwZ7TeNsmf9hCIgihhKIvRofYN5/ubEuENvq1TyTUHHGqCLfCRcZ23QR+sbSMOuDT9QXgIj4Nc6PBFZ0lnICdQv5F72QqeA9+bw2x+RevgEsqRjNqcyErKkI/XwiUNXlvRAux0J3L23KplVnYEAwOHkZdxcu4XegnV9NqdiYaiF3kIPbq7dgjzQw3RncyrMqn60UZwvbkrVbevzwlALn380hvnJa+w8p2ns8/zkNXz52adYGGpBlnTcWC0hX9z0HXihBhGR0ABzuWCtD3Mv2Nm5zBXkNGB56z7b++75ZVS3g8GBLp/jS4moeWFwDLKkI5KZwgdndeTP2t5/MmL9/+KBVag/rXyNx9vN4yFwKRE1lf4YjEYNFwbH2HjWnueR0zQU8nlGhsABHA8BAicRSZDQw/PPn/dB+kajFkgidA3wovTHYFZ1bAFs8BC4WdXBk21/Nv1IdIwA7308Ye9TV3iJqBcUhdARiCcA9GetRaPoAkJ/FmgUbWJt3TiKAPyjEBgBh/dZJ4AXIRIvnWqx6NmSoQZRPGGDGI2at1J/1ibU1iMis+kDX9ssBeSt3+CgXPIFJnrOC7XsYvoAOU3DorVtivZZBEayMUzVD6BlM45vLbwntCZCAJxp4FIkRkr7+LonURaBpfymhJlpU1nTMadlTN5j0Zi9jrWLDIyUqHtjtYRFADkNnuIK99zMtPn2z78DAO4MnPQAdYsXSV5G3hnHbPrA82HybMM/WqfwbnoAU5UK7gyc9DTuqAVhLeo/+GUDwDgWr6qAUAeuLli6vSIZ519AnuzDh1/NY6p+EAgWT9h/fuQAqxP4Z9uXAMlyoYRCPm8ZfNrDjPJT0TGIhD2RRE7TcC5zxXXHdxBRNyhPe2Cct95+KkrRCE1BviP4gny83ZS0bMaMJ9rFzonvKKY8zc1Mm3FQHgXQNljQPHDY81Dr+BYs3V6RAGtQdURpFLH21y4mXz/TUTU0gSAwUWgIBb2UonT9y0icjOyx2Qb0vV0klRj0vd3AucBLV98JUxdfM0+39gG4q9xo1NCXUdi6YlgEyn8/C8ToOgUE0gTw76bhNjhgEUtyJI6VAACk3jiDnUoEfe11xaghqdgRkZP7KNfD2eo6BQAcYLyXXvvHnoKkEnOF9nRrH3snIi4yrywFF98axGHdMl4xatg7EWGggFUHdN5Jum5DEio2wIqA1/4rIyAn9490fmQCO5WIL4ic3MdOJRLa1kvVwGG9hnLd3ef2eje0ra7aELBbkYRvs6Cz/638B8Adi6VF6/PfAAAAAElFTkSuQmCC',
@@ -24886,7 +24919,7 @@
     },
 
     {
-      id: 'mz_frame', group: G_FRAME, name: 'Mietel Żul: Barowa półka', dur: 6,
+      id: 'mz_frame', group: G_FRAME, name: 'Mietek Żul: Barowa półka', dur: 6,
       init() { return { bub: [], caps: [], drips: [], pops: [], foam: [], jump: {}, popT: 1.2, dripT: 0.8 }; },
       frame(ctx, s, t, dt, a, W, H, b, o) {
         const L = EFFECTS.find(e => e.id === 'mz_item'), D = o.density || 1;
@@ -25016,7 +25049,7 @@
     },
 
     {
-      id: 'mz_around', group: G_AROUND, name: 'Mietel Żul: Spacerek zygzakiem', dur: 8,
+      id: 'mz_around', group: G_AROUND, name: 'Mietek Żul: Spacerek zygzakiem', dur: 8,
       init() { return { bub: [], pops: [], drops: [], foam: [], u: 0.62, hic: 1.3, say: 0.5, si: 0, drink: 4.2, dropT: 2.6, glug: 0 }; },
       frame(ctx, s, t, dt, a, W, H, b, o) {
         const L = EFFECTS.find(e => e.id === 'mz_item'), D = o.density || 1;
@@ -25096,7 +25129,7 @@
     },
 
     {
-      id: 'mz_screen', group: G_SCREEN, name: 'Mietel Żul: Szumi w głowie', dur: 9,
+      id: 'mz_screen', group: G_SCREEN, name: 'Mietek Żul: Szumi w głowie', dur: 9,
       init(env) { return { bub: [], fall: [], foam: [], pops: [], drips: [], buf: null, fallT: 0, hicT: 1.0, dripT: 0.5, toast: 1.4, tS: -9, clink: 0 }; },
       frame(ctx, s, t, dt, a, W, H, b, o) {
         const L = EFFECTS.find(e => e.id === 'mz_item'), D = o.density || 1;
@@ -25229,7 +25262,7 @@
     },
 
     {
-      id: 'mz_win', group: G_WIN, name: 'Mietel Żul: Chwiejny tragarz', dur: 6, minDur: 6,
+      id: 'mz_win', group: G_WIN, name: 'Mietek Żul: Chwiejny tragarz', dur: 6, minDur: 6,
       init() { return { bub: [], pops: [], sparks: [], foam: [], dust: [], in: 0, trip: 0, hit: 0, h1: 0, h2: 0 }; },
       frame(ctx, s, t, dt, a, W, H, b, o) {
         const L = EFFECTS.find(e => e.id === 'mz_item'), D = o.density || 1, u = o.out, img = u.img || FALLBACK_ICON;
@@ -25327,7 +25360,7 @@
     },
 
     {
-      id: 'mz_lose', group: G_LOSE, name: 'Mietel Żul: Drzemka na ławce', dur: 6, minDur: 6,
+      id: 'mz_lose', group: G_LOSE, name: 'Mietek Żul: Drzemka na ławce', dur: 6, minDur: 6,
       init() { return { bub: [], pops: [], sparks: [], shards: [], zT: 0.2, grab: 0, smash: 0, wake: 0, poof: 0 }; },
       frame(ctx, s, t, dt, a, W, H, b, o) {
         const L = EFFECTS.find(e => e.id === 'mz_item'), D = o.density || 1, u = o.out, img = u.img || FALLBACK_ICON;
@@ -29696,6 +29729,4652 @@
       },
     },
 
+    /* ------------------------- ZESTAW „ZMIERZCH” (dk_) – atrament, aksamitny dym, fiolet z czernią ------------------------- */
+    /* dk_item trzyma wspólne narzędzia zestawu (paleta, plama atramentu, zaćmiony dysk z koroną, kłęby dymu) */
+    {
+      id: 'dk_item', group: G_ITEM, name: 'Zmierzch: Zaćmienie', dur: 5.8, occupy: 5,
+      DK: { ink: '11,6,18', deep: '24,10,42', plum: '58,20,96', vio: '123,63,196', lav: '201,163,255', mist: '160,120,220' },
+      // falujący obrys plamy (miękki, organiczny kształt)
+      dkBlobPath(ctx, x, y, r, t, seed, amp, sy = 1) {
+        const n = 36;
+        ctx.beginPath();
+        for (let i = 0; i <= n; i++) {
+          const an = (i / n) * TAU;
+          const rr = r * (1 + amp * (0.55 * Math.sin(an * 3 + t * 0.9 + seed) + 0.3 * Math.sin(an * 5 - t * 1.3 + seed * 2.1) + 0.15 * Math.sin(an * 8 + t * 0.6 + seed * 3.7)));
+          const px = x + Math.cos(an) * rr, py = y + Math.sin(an) * rr * sy;
+          if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+        }
+        ctx.closePath();
+      },
+      // plama atramentu: aksamitna czerń przechodząca w fiolet, z delikatnie podświetlonym brzegiem
+      dkInk(ctx, x, y, r, al, t, seed, amp = 0.1, rim = 1, tint = 0.4, sy = 1) {
+        if (r < 1 || al <= 0.005) return;
+        const R = r * (1 + amp);
+        this.dkBlobPath(ctx, x, y, r, t, seed, amp, sy);
+        const g = ctx.createRadialGradient(x, y, 0, x, y, R);
+        g.addColorStop(0, 'rgba(8,4,14,0.94)'); g.addColorStop(0.55, 'rgba(13,6,23,0.9)');
+        g.addColorStop(0.8, 'rgba(28,10,50,0.72)'); g.addColorStop(0.93, 'rgba(52,20,92,0.42)'); g.addColorStop(1, 'rgba(90,44,150,0.12)');
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, al); ctx.fillStyle = g; ctx.fill();
+        if (tint > 0) {
+          // fioletowe zabarwienie od środka: czerń ma głębię, a nie szarość
+          const g2 = ctx.createRadialGradient(x, y, 0, x, y, R);
+          g2.addColorStop(0, 'rgba(40,14,70,0.9)'); g2.addColorStop(0.7, 'rgba(48,18,84,0.8)'); g2.addColorStop(1, 'rgba(90,40,150,0.5)');
+          ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.min(1, al * tint); ctx.fillStyle = g2; ctx.fill();
+        }
+        if (rim > 0) {
+          ctx.globalCompositeOperation = 'lighter'; ctx.lineJoin = 'round';
+          ctx.strokeStyle = `rgb(${this.DK.plum})`; ctx.globalAlpha = Math.min(1, al * rim * 0.22); ctx.lineWidth = Math.max(3, r * 0.09); ctx.stroke();
+          ctx.strokeStyle = `rgb(${this.DK.vio})`; ctx.globalAlpha = Math.min(1, al * rim * 0.35); ctx.lineWidth = Math.max(1, r * 0.018); ctx.stroke();
+        }
+      },
+      // korona za dyskiem (rysować PRZED dyskiem): miękki pierścień światła + jaśniejszy sierp po stronie „ang”
+      dkCorona(ctx, x, y, r, al, ang, side = 0.6) {
+        if (r < 1 || al <= 0.005) return;
+        ctx.globalCompositeOperation = 'lighter';
+        const g = ctx.createRadialGradient(x, y, r * 0.7, x, y, r * 2.1);
+        g.addColorStop(0, 'rgba(201,163,255,0)'); g.addColorStop(0.143, `rgba(201,163,255,${Math.min(1, al * 0.9)})`);
+        g.addColorStop(0.2, `rgba(150,90,230,${Math.min(1, al * 0.6)})`); g.addColorStop(0.4, `rgba(90,36,156,${Math.min(1, al * 0.28)})`); g.addColorStop(1, 'rgba(40,10,80,0)');
+        ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 2.1, 0, TAU); ctx.arc(x, y, r * 0.7, 0, TAU, true); ctx.fill();
+        const cx = Math.cos(ang), cy = Math.sin(ang);
+        dot(ctx, this.DK.vio, x + cx * r * 0.45, y + cy * r * 0.45, r * 1.75, al * side * 0.55);
+        dot(ctx, this.DK.lav, x + cx * r * 0.75, y + cy * r * 0.75, r * 0.95, al * side * 0.35);
+      },
+      // ciemny dysk z aksamitnym cieniowaniem (jaśniejszy brzeg od strony światła)
+      dkDisc(ctx, x, y, r, al, ang) {
+        if (r < 1 || al <= 0.005) return;
+        const cx = Math.cos(ang), cy = Math.sin(ang);
+        const g = ctx.createRadialGradient(x - cx * r * 0.3, y - cy * r * 0.3, r * 0.1, x, y, r);
+        g.addColorStop(0, '#07040c'); g.addColorStop(0.7, '#0d0618'); g.addColorStop(0.93, '#1b0b30'); g.addColorStop(1, '#3a1460');
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, al); ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+        ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgb(201,163,255)';
+        ctx.globalAlpha = Math.min(1, al * 0.55); ctx.lineWidth = Math.max(1, r * 0.035);
+        ctx.beginPath(); ctx.arc(x, y, r, ang - 1.1, ang + 1.1); ctx.stroke();
+        ctx.globalAlpha = Math.min(1, al * 0.18); ctx.lineWidth = Math.max(1, r * 0.02);
+        ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke();
+      },
+      // kłęby dymu: dark = ciemny aksamit (source-over), inaczej fioletowa mgiełka (lighter)
+      dkPuff(arr, x, y, vx, vy, r, gr, m, dark, al = 1, max = 220) {
+        arr.push({ x, y, vx, vy, r, gr, l: 0, m, dark, al, ph: rand(0, TAU) });
+        if (arr.length > max) arr.splice(0, arr.length - max);
+      },
+      dkPuffs(ctx, arr, dt, a, rise = 0) {
+        for (let i = arr.length - 1; i >= 0; i--) {
+          const q = arr[i]; q.l += dt; if (q.l >= q.m) { arr.splice(i, 1); continue; }
+          const d = Math.max(0, 1 - 1.4 * dt); q.vx *= d; q.vy *= d; q.vy -= rise * dt;
+          q.x += q.vx * dt + Math.sin(q.l * 1.7 + q.ph) * 6 * dt; q.y += q.vy * dt; q.r += q.gr * dt;
+        }
+        const C = this.DK;
+        ctx.globalCompositeOperation = 'source-over';
+        for (const q of arr) if (q.dark) { const f = q.l / q.m; dot(ctx, C.ink, q.x, q.y, q.r, a * q.al * Math.sin(Math.PI * Math.min(1, f * 1.4 + 0.08)) * (1 - f) * 0.9); }
+        ctx.globalCompositeOperation = 'lighter';
+        for (const q of arr) if (!q.dark) { const f = q.l / q.m; dot(ctx, f < 0.3 ? C.vio : C.plum, q.x, q.y, q.r, a * q.al * Math.sin(Math.PI * f) * 0.5); }
+      },
+      // cienki pierścień rozchodzący się jak krąg na tafli atramentu
+      dkRipple(ctx, x, y, r, al, w, sy = 1) {
+        if (r < 1 || al <= 0.005) return;
+        ctx.beginPath(); ctx.ellipse(x, y, r, r * sy, 0, 0, TAU);
+        ctx.globalCompositeOperation = 'source-over'; ctx.strokeStyle = 'rgb(16,7,28)';
+        ctx.globalAlpha = Math.min(1, al * 0.14); ctx.lineWidth = w * 9; ctx.stroke();
+        ctx.globalAlpha = Math.min(1, al * 0.22); ctx.lineWidth = w * 4; ctx.stroke();
+        ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgb(${this.DK.vio})`; ctx.globalAlpha = Math.min(1, al * 0.55); ctx.lineWidth = w; ctx.stroke();
+      },
+      init() { return { pf: [], dis: 0, fl: 0 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const C = this.DK, D = o.density || 1, it = o.item || { x: b.cx, y: b.cy, base: 32 }, img = it.img || FALLBACK_ICON;
+        const k = o.itemScale || 1, base = it.base || 32;
+        const ox = ((o.index || 0) - ((o.count || 1) - 1) / 2) * 180 * k;
+        const S = 60 * k, R = 66 * k;
+        const P = { x: Math.max(160 * k, Math.min(W - 160 * k, it.x + ox)), y: Math.max(150 * k, b.y - 120 * k) };
+        const T_UP = 1.0, T_DIS = 3.65, T_DN = 3.85, T_LAND = 4.7;
+        let x, y, sz;
+        if (t < T_UP) {
+          const f = easeInOut(clamp01(t / T_UP));
+          x = it.x + (P.x - it.x) * f; y = it.y + (P.y - it.y) * f; sz = base + (S - base) * easeOut(clamp01(t / T_UP));
+        } else if (t < T_DN) {
+          x = P.x; y = P.y + Math.sin((t - T_UP) * 1.6) * 4 * k; sz = S;
+        } else if (t < T_LAND) {
+          const f = easeInOut(clamp01((t - T_DN) / (T_LAND - T_DN))), y0 = P.y + Math.sin((T_DN - T_UP) * 1.6) * 4 * k;
+          x = P.x + (it.x - P.x) * f; y = y0 + (it.y - y0) * f; sz = S + (base - S) * f;
+        } else { x = it.x; y = it.y; sz = base; }
+        if (t < T_LAND) o.hideItem();
+        const Px = P.x, Py = P.y;
+        ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        // aksamitne tło: rozlany cień wokół miejsca zaćmienia
+        const env = clamp01((t - 0.2) / 1.2) * (1 - clamp01((t - T_DIS) / 1.1));
+        if (env > 0) { ctx.globalCompositeOperation = 'source-over'; dot(ctx, C.ink, Px, Py, R * 3.4, a * 0.5 * env); dot(ctx, C.deep, Px, Py, R * 2.2, a * 0.45 * env); }
+        // faza 1: kropla atramentu rozlewa się i skupia w idealny dysk
+        const bl = clamp01((t - 0.35) / 1.5);
+        const dis = clamp01((t - T_DIS) / 0.9);
+        const ang = -Math.PI * 0.75 + t * 0.55;
+        const cor = clamp01((t - 1.3) / 1.0) * (1 - dis);
+        // kręgi na tafli
+        for (let i = 0; i < 4; i++) {
+          const rt = t - 0.5 - i * 0.8; if (rt < 0 || rt > 2.6 || t > T_DIS + 0.6) continue;
+          const f = rt / 2.6;
+          this.dkRipple(ctx, Px, Py, R * (0.9 + easeOut(f) * 1.9), a * Math.sin(Math.PI * f) * 0.7 * (1 - dis), 1.2 * k, 1);
+        }
+        if (cor > 0) {
+          const br = 0.75 + 0.25 * Math.sin(t * 1.7);
+          this.dkCorona(ctx, Px, Py, R, a * cor * br, ang, 0.7);
+        }
+        if (bl > 0 && dis < 1) {
+          const amp = 0.22 * (1 - easeInOut(bl)) + 0.012;
+          const rr = R * (0.25 + 0.75 * easeOut(bl)) * (1 + 0.35 * Math.sin(Math.PI * bl) * (1 - bl));
+          if (bl < 1) this.dkInk(ctx, Px, Py, rr * 1.08, a * (1 - dis), t, 1.3, amp, 1 - cor);
+          this.dkDisc(ctx, Px, Py, R * easeOut(bl) * (1 - dis * 0.35), a * clamp01(bl * 1.6) * (1 - easeIn(dis)), ang);
+        }
+        // kulminacja: „diamentowy pierścień” – jasny błysk na brzegu korony
+        const fl = t - 2.75;
+        if (fl > 0 && fl < 1.0) {
+          const f = fl / 1.0, e = Math.sin(Math.PI * Math.min(1, f * 1.6)) * (1 - f * 0.4);
+          const bx = Px + Math.cos(ang) * R, by = Py + Math.sin(ang) * R;
+          ctx.globalCompositeOperation = 'lighter';
+          dot(ctx, C.vio, bx, by, R * 1.5 * e, a * 0.45 * e);
+          dot(ctx, C.lav, bx, by, R * 0.75 * e, a * 0.9 * e, true);
+          dot(ctx, C.vio, Px, Py, R * 2.6, a * 0.25 * e);
+          ctx.strokeStyle = 'rgb(220,195,255)'; ctx.globalAlpha = Math.min(1, a * 0.35 * e); ctx.lineWidth = 1.2 * k;
+          const sp = R * 0.9 * e;
+          ctx.beginPath(); ctx.moveTo(bx - sp, by); ctx.lineTo(bx + sp, by); ctx.moveTo(bx, by - sp * 0.6); ctx.lineTo(bx, by + sp * 0.6); ctx.stroke();
+        }
+        // rozpad: dysk rozwiewa się w aksamitny dym
+        if (t >= T_DIS && !s.dis) {
+          s.dis = 1;
+          const n = Math.round(22 * Math.min(1.6, D));
+          for (let i = 0; i < n; i++) {
+            const an = (i / n) * TAU + rand(-0.1, 0.1), rr = R * rand(0.5, 1.05), sp = rand(25, 70) * k;
+            this.dkPuff(s.pf, Px + Math.cos(an) * rr, Py + Math.sin(an) * rr, Math.cos(an) * sp, Math.sin(an) * sp - 10 * k, R * rand(0.35, 0.55), 22 * k, rand(1.2, 1.8), i % 3 !== 0, 0.9);
+          }
+        }
+        this.dkPuffs(ctx, s.pf, dt, a, 8 * k);
+        // przedmiot: przed dyskiem, delikatnie podświetlony od tyłu
+        ctx.globalCompositeOperation = 'lighter';
+        if (t < T_LAND) dot(ctx, C.vio, x, y, sz * 0.95, a * (0.25 + 0.25 * cor));
+        drawItem(ctx, img, x, y, sz, 0, 1, a, false);
+        if (t < T_LAND && cor > 0) {
+          ctx.globalCompositeOperation = 'lighter';
+          dot(ctx, C.lav, x + Math.cos(ang) * sz * 0.4, y + Math.sin(ang) * sz * 0.4, sz * 0.35, a * 0.25 * cor);
+        }
+        // lądowanie: miękki krąg w slocie
+        const lt = t - T_LAND;
+        if (lt > 0 && lt < 0.8) this.dkRipple(ctx, it.x, it.y, base * (0.6 + easeOut(lt / 0.8) * 1.2), a * (1 - lt / 0.8), 1.4 * k);
+        ctx.restore();
+      },
+    },
+    {
+      id: 'dk_frame', group: G_FRAME, name: 'Zmierzch: Aksamitna rama', dur: 6,
+      init() { return { pf: [], acc: 0 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = s.L || (s.L = EFFECTS.find(e => e.id === 'dk_item')), C = L.DK, D = o.density || 1;
+        const k = Math.max(0.9, Math.min(2.4, Math.min(b.w, b.h) / 220)), kp = Math.min(k, 1.4);
+        const inw = Math.min(b.w, b.h) > 380, sg = inw ? -1 : 1;
+        const per = 2 * (b.w + b.h);
+        const N = Math.max(16, Math.min(160, Math.round(per / (17 * kp))));
+        const live = t < this.dur - 1;
+        // dwie powolne fale światła okrążające ramkę
+        const w1 = (t * 0.055) % 1, w2 = (t * 0.055 + 0.5) % 1;
+        const wave = u => {
+          let v = 0;
+          for (const w of [w1, w2]) { let d = w - u; d -= Math.floor(d); v = Math.max(v, d < 0.16 ? Math.pow(1 - d / 0.16, 2) : 0); }
+          return v;
+        };
+        ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        const pts = [];
+        for (let i = 0; i < N; i++) {
+          const u = i / N + Math.sin(t * 0.3 + i) * 0.003;
+          const ig = clamp01((t - 0.9 * ((i * 0.618) % 1)) / 1.1);
+          if (ig <= 0) continue;
+          const p = perim(b, u, 0);
+          const br = 0.5 + 0.5 * Math.sin(t * 0.8 + i * 2.17);
+          const off = sg * (inw ? 12 : 9) * kp + sg * 4 * kp * Math.sin(t * 0.7 + i * 1.3);
+          pts.push({ x: p.x + p.nx * off, y: p.y + p.ny * off, r: (21 + 8 * br) * kp * easeOut(ig), ig, w: wave(u), br });
+        }
+        // aksamitny, dymny pas czerni
+        ctx.globalCompositeOperation = 'source-over';
+        for (const q of pts) dot(ctx, C.ink, q.x, q.y, q.r * 1.25, a * (inw ? 0.3 : 0.42) * q.ig);
+        for (const q of pts) dot(ctx, C.deep, q.x, q.y, q.r * 0.8, a * (inw ? 0.2 : 0.3) * q.ig);
+        // fioletowe światło przesączające się przez dym
+        ctx.globalCompositeOperation = 'lighter';
+        for (const q of pts) {
+          const lv = 0.07 + 0.35 * q.w;
+          dot(ctx, C.plum, q.x, q.y, q.r * 1.1, a * lv * q.ig * (0.6 + 0.4 * q.br));
+          if (q.w > 0.2) dot(ctx, C.vio, q.x, q.y, q.r * 0.75, a * (q.w - 0.2) * 0.32 * q.ig);
+        }
+        // fioletowe światło pod dymem – powoli zmienia odcień (śliwka → fiolet → lawenda)
+        const hc = 0.5 + 0.5 * Math.sin(t * 0.45), mix = (c1, c2, f) => c1.map((v, i) => Math.round(v + (c2[i] - v) * f)).join(',');
+        const lc = hc < 0.5 ? mix([58, 20, 96], [123, 63, 196], hc * 2) : mix([123, 63, 196], [170, 120, 235], (hc - 0.5) * 2);
+        const pp = sg * 8 * kp;
+        rrect(ctx, b.x - pp, b.y - pp, b.w + pp * 2, b.h + pp * 2, 10 * kp);
+        ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgb(${lc})`;
+        for (const [lw, q] of [[22, 0.06], [11, 0.1], [4, 0.16]]) { ctx.globalAlpha = Math.min(1, a * q * clamp01(t / 1.4)); ctx.lineWidth = lw * kp; ctx.stroke(); }
+        // linia brzegu: ciemny obrys + cienki fiolet i sunący blask lawendy
+        const ig = clamp01(t / 1.2);
+        rrect(ctx, b.x - 1, b.y - 1, b.w + 2, b.h + 2, 4);
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a * 0.55 * ig); ctx.strokeStyle = 'rgb(11,6,18)'; ctx.lineWidth = 4 * kp; ctx.stroke();
+        ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgb(${C.vio})`;
+        ctx.globalAlpha = Math.min(1, a * 0.45 * ig * (0.8 + 0.2 * Math.sin(t * 1.3))); ctx.lineWidth = 1.3 * kp; ctx.stroke();
+        for (const w of [w1, w2]) {
+          for (let j = 0; j < 30; j++) {
+            const f = j / 30, p = perim(b, w - f * 0.2, 1);
+            dot(ctx, j < 2 ? C.lav : C.vio, p.x, p.y, (13 - f * 7) * kp, a * ig * Math.pow(1 - f, 1.5) * (j < 2 ? 0.45 : 0.32));
+          }
+        }
+        // narożniki: miękkie fioletowe ogniska
+        const cs = [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]];
+        cs.forEach(([cx, cy], i) => { dot(ctx, C.vio, cx, cy, 20 * kp, a * ig * (0.18 + 0.12 * Math.sin(t * 1.1 + i * 1.6))); });
+        // pojedyncze smużki dymu odpływające od ramki
+        if (live) {
+          s.acc += dt * 4 * D * Math.min(2.5, per / 900);
+          while (s.acc >= 1) {
+            s.acc--;
+            const p = perim(b, rand(0, 1), sg * 6 * kp);
+            L.dkPuff(s.pf, p.x, p.y, p.nx * sg * rand(6, 14) * kp, p.ny * sg * rand(6, 14) * kp - 4 * kp, rand(10, 16) * kp, 9 * kp, rand(2.2, 3.2), Math.random() < 0.55, 0.7, 60);
+          }
+        }
+        L.dkPuffs(ctx, s.pf, dt, a, 2 * kp);
+        ctx.restore();
+      },
+    },
+    {
+      id: 'dk_around', group: G_AROUND, name: 'Zmierzch: Kropla atramentu', dur: 6,
+      init() { return { cyc: -1, sp: [], pf: [] }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = s.L || (s.L = EFFECTS.find(e => e.id === 'dk_item')), C = L.DK, D = o.density || 1;
+        const k = Math.max(0.9, Math.min(1.8, Math.max(b.w, b.h) / 300));
+        const Pd = 5.2, cyc = Math.floor(t / Pd), ct = t - cyc * Pd;
+        const cx = b.cx + ((o.index || 0) - ((o.count || 1) - 1) / 2) * 40, cy = b.cy;
+        const R0 = Math.hypot(b.w, b.h) * 0.5;
+        const top = b.y - 6;
+        const T_HIT = 0.85;
+        const okCycle = t < this.dur - 1.2 || cyc === 0;
+        ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        // spadająca kropla (perła fioletowego światła)
+        if (okCycle && ct < T_HIT) {
+          const f = easeIn(ct / T_HIT), y0 = Math.max(30, top - 260 * k), y = y0 + (top - y0) * f;
+          ctx.globalCompositeOperation = 'lighter';
+          for (let i = 0; i < 14; i++) dot(ctx, C.vio, cx, y - i * 9 * k * f, (11 - i * 0.6) * k, a * 0.3 * (1 - i / 14) * clamp01(ct / 0.2));
+          dot(ctx, C.vio, cx, y, 26 * k, a * clamp01(ct / 0.2) * 0.35);
+          dot(ctx, C.lav, cx, y, 9 * k, a * clamp01(ct / 0.2) * 0.9, true);
+        }
+        if (okCycle && ct >= T_HIT && s.cyc !== cyc) {
+          s.cyc = cyc;
+          const n = Math.round(7 * Math.min(1.5, D));
+          for (let i = 0; i < n; i++) { const an = -Math.PI / 2 + rand(-1.1, 1.1), sp = rand(90, 170) * k; s.sp.push({ x: cx, y: top, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp, l: 0, m: rand(0.6, 0.9) }); }
+          for (let i = 0; i < Math.round(10 * Math.min(1.5, D)); i++) {
+            const an = rand(0, TAU), rr = R0 * rand(0.9, 1.15);
+            L.dkPuff(s.pf, cx + Math.cos(an) * rr, cy + Math.sin(an) * rr, Math.cos(an) * 30 * k, Math.sin(an) * 30 * k, rand(26, 40) * k, 18 * k, rand(2.4, 3.2), i % 2 === 0, 0.7, 80);
+          }
+        }
+        const it = ct - T_HIT;
+        if (s.cyc === cyc && it >= 0) {
+          // atrament rozlewa się spod okna
+          const sp = easeOut(clamp01(it / 2.4));
+          const fade = 1 - clamp01((it - 2.6) / 1.6);
+          const ir = (R0 * (0.75 + 0.55 * sp) + 30 * k) * (0.8 + 0.2 * fade);
+          // fioletowa korona wyłaniająca się zza „zaćmionego” okna
+          const cor = clamp01((it - 0.5) / 1.2) * fade;
+          const ang = -Math.PI / 2 + it * 0.45 + cyc * 1.3;
+          L.dkInk(ctx, cx, cy, ir, a * 0.85 * Math.pow(fade, 1.6), t, cyc * 2.3, 0.07 + 0.06 * (1 - sp), 0.8, Math.min(1.2, 0.55 / Math.max(0.3, Math.pow(fade, 0.6))));
+          L.dkCorona(ctx, cx, cy, ir * 0.92, a * cor * 0.6, ang, 0.6);
+          // kręgi na atramencie
+          for (let i = 0; i < 3; i++) {
+            const rt = it - i * 0.45, f = rt / 2.8;
+            if (f <= 0 || f >= 1) continue;
+            L.dkRipple(ctx, cx, cy, R0 * 0.7 + easeOut(f) * (R0 * 0.8 + 200 * k), a * Math.sin(Math.PI * f) * 0.75, 1.3 * k);
+          }
+          // błysk uderzenia na górnej krawędzi
+          if (it < 0.6) { ctx.globalCompositeOperation = 'lighter'; const f = it / 0.6; dot(ctx, C.lav, cx, top, 30 * k * (0.5 + f), a * (1 - f) * 0.7, true); dot(ctx, C.vio, cx, top, 80 * k * (0.4 + f), a * (1 - f) * 0.35); }
+        }
+        // rozprysk kropelek
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = s.sp.length - 1; i >= 0; i--) {
+          const q = s.sp[i]; q.l += dt; if (q.l >= q.m) { s.sp.splice(i, 1); continue; }
+          q.vy += 420 * dt; q.x += q.vx * dt; q.y += q.vy * dt;
+          dot(ctx, C.lav, q.x, q.y, 4 * k, a * (1 - q.l / q.m) * 0.8, true);
+        }
+        L.dkPuffs(ctx, s.pf, dt, a, 4 * k);
+        ctx.restore();
+      },
+    },
+    {
+      id: 'dk_screen', group: G_SCREEN, name: 'Zmierzch: Fioletowa mgła', dur: 8,
+      init(env) {
+        const fog = [];
+        for (let i = 0; i < 9; i++) fog.push({ u: Math.random(), v: 0.15 + 0.8 * (i / 8), r: rand(0.18, 0.32), sp: rand(0.008, 0.02) * (i % 2 ? 1 : -1), dark: i % 3 !== 1, ph: rand(0, TAU) });
+        return { fog, bl: [], nx: 0.4 };
+      },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = s.L || (s.L = EFFECTS.find(e => e.id === 'dk_item')), C = L.DK;
+        const live = t < this.dur - 2;
+        const inn = easeInOut(clamp01(t / 1.8));
+        const M = Math.max(W, H);
+        ctx.save();
+        if (!o.second) {
+          // niebo zmierzchu: czerń opada z góry, fiolet zostaje przy horyzoncie
+          const hz = 0.78 + 0.05 * Math.sin(t * 0.22);
+          const g = ctx.createLinearGradient(0, 0, 0, H);
+          g.addColorStop(0, `rgba(14,6,26,${0.42 * inn})`); g.addColorStop(hz * 0.55, `rgba(36,12,66,${0.3 * inn})`);
+          g.addColorStop(hz, `rgba(70,24,120,${0.24 * inn})`); g.addColorStop(1, `rgba(40,14,72,${0.3 * inn})`);
+          ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+          // delikatny fioletowy nalot na całość (żeby czerń była fioletowa, nie szara)
+          ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.min(1, a * inn * (0.1 + 0.03 * Math.sin(t * 0.4)));
+          ctx.fillStyle = 'rgb(70,26,120)'; ctx.fillRect(0, 0, W, H);
+          // pas poświaty przy horyzoncie
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.save(); ctx.translate(W / 2, H * hz); ctx.scale(1, 0.22);
+          dot(ctx, C.plum, 0, 0, W * 0.75, a * inn * (0.35 + 0.1 * Math.sin(t * 0.5)));
+          dot(ctx, C.vio, Math.sin(t * 0.17) * W * 0.12, 0, W * 0.4, a * inn * (0.22 + 0.08 * Math.sin(t * 0.7 + 1)));
+          ctx.restore();
+        }
+        // dryfujące warstwy mgły (rozciągnięte w poziomie)
+        for (const f of s.fog) {
+          const x = (((f.u + t * f.sp) % 1) + 1) % 1 * (W + M * 0.6) - M * 0.3;
+          const y = f.v * H + Math.sin(t * 0.3 + f.ph) * H * 0.02, r = f.r * M;
+          ctx.save(); ctx.translate(x, y); ctx.scale(1, 0.32);
+          if (f.dark) { ctx.globalCompositeOperation = 'source-over'; dot(ctx, C.deep, 0, 0, r, a * inn * 0.22); }
+          else { ctx.globalCompositeOperation = 'lighter'; dot(ctx, C.plum, 0, 0, r, a * inn * (0.22 + 0.08 * Math.sin(t * 0.6 + f.ph))); }
+          ctx.restore();
+        }
+        // powoli rozkwitające plamy atramentu z fioletowym brzegiem
+        if (live && t >= s.nx) {
+          s.nx = t + rand(1.6, 2.4);
+          const R = rand(0.08, 0.13) * Math.min(W * 1.2, H * 1.6), mg = R * 1.5 + Math.min(W, H) * 0.1;
+          let x, y, tries = 0;
+          do { x = rand(mg, Math.max(mg + 1, W - mg)); y = rand(mg, Math.max(mg + 1, H - mg)); tries++; }
+          while (tries < 10 && (Math.abs(x - b.cx) < b.w / 2 + R && Math.abs(y - b.cy) < b.h / 2 + R || s.bl.some(q => Math.hypot(q.x - x, q.y - y) < (q.R + R) * 1.3)));
+          s.bl.push({ x, y, t0: t, R, sd: rand(0, 9), life: rand(4.2, 5.2) });
+          if (s.bl.length > 5) s.bl.shift();
+        }
+        for (let i = s.bl.length - 1; i >= 0; i--) {
+          const q = s.bl[i], f = (t - q.t0) / q.life;
+          if (f >= 1) { s.bl.splice(i, 1); continue; }
+          const r = q.R * (0.15 + 0.85 * easeOut(Math.min(1, f * 1.4)));
+          const al = Math.sin(Math.PI * Math.min(1, f * 1.15)) * 0.5;
+          L.dkInk(ctx, q.x, q.y, r, a * al * 1.3, t * 0.8, q.sd, 0.14 * (1 - f * 0.5), 1, 0.7);
+          L.dkCorona(ctx, q.x, q.y, r * 0.95, a * al * 0.7, q.sd + t * 0.2, 0.5);
+        }
+        if (!o.second) vignette(ctx, W, H, C.ink, 0.32 * a * inn, 0.35);
+        ctx.restore();
+      },
+    },
+    {
+      id: 'dk_win', group: G_WIN, name: 'Zmierzch: Smuga zmierzchu', dur: 4.2, minDur: 4.2,
+      init() { return { pf: [], acc: 0, hit: 0, ht: 0, pv: null }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = s.L || (s.L = EFFECTS.find(e => e.id === 'dk_item')), C = L.DK, D = o.density || 1, u = o.out, img = u.img || FALLBACK_ICON;
+        const base = u.base || 32, k = Math.max(1, base / 32) * (o.itemScale || 1);
+        const F = { x: u.from.x + (o.index || 0) * 36 * k, y: u.from.y }, T = u.to;
+        const T_UP = 0.85, T_HIT = 2.35;
+        if (t < T_HIT) o.hideItem();
+        const F2 = { x: F.x, y: F.y - 40 * k };
+        const dist = Math.hypot(T.x - F2.x, T.y - F2.y), hgt = 70 * k + dist * 0.25, S0 = base * 1.6, Rd = base * 0.95;
+        let x, y, sz;
+        if (t < T_UP) { const f = easeInOut(clamp01(t / T_UP)); x = F.x; y = F.y - 40 * k * f; sz = base + (S0 - base) * f; }
+        else if (t < T_HIT) { const f = easeInOut(clamp01((t - T_UP) / (T_HIT - T_UP))), p = arcPoint(F2, T, f, hgt); x = p.x; y = p.y; sz = S0 + (base - S0) * f; }
+        else { x = T.x; y = T.y; sz = base; }
+        const vx = s.pv ? (x - s.pv.x) : 0, vy = s.pv ? (y - s.pv.y) : -1;
+        s.pv = { x, y };
+        const ang = Math.atan2(vy, vx);
+        ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        // smuga dymu za lecącym przedmiotem
+        if (t > T_UP && t < T_HIT) {
+          s.acc += Math.hypot(vx, vy) / (Rd * 0.22) * Math.min(1.4, D);
+          while (s.acc >= 1) {
+            s.acc--;
+            const j = rand(-0.4, 0.4) * Rd;
+            L.dkPuff(s.pf, x - Math.cos(ang) * Rd * 0.6 - Math.sin(ang) * j, y - Math.sin(ang) * Rd * 0.6 + Math.cos(ang) * j, rand(-12, 12) * k, rand(-12, 12) * k, Rd * rand(0.5, 0.75), 16 * k, rand(0.8, 1.2), Math.random() < 0.55, 0.6, 200);
+          }
+        }
+        L.dkPuffs(ctx, s.pf, dt, a, 6 * k);
+        // mały zaćmiony dysk niosący przedmiot (światło po stronie lotu)
+        if (t < T_HIT) {
+          const ch = easeOut(clamp01(t / T_UP)), fin = 1 - clamp01((t - T_HIT + 0.25) / 0.25) * 0.6;
+          L.dkCorona(ctx, x, y, Rd * ch, a * 0.9 * ch * fin, ang, 0.9);
+          L.dkDisc(ctx, x, y, Rd * ch, a * 0.92 * ch, ang);
+          ctx.globalCompositeOperation = 'lighter'; dot(ctx, C.vio, x, y, sz * 0.75, a * 0.3 * ch);
+          drawItem(ctx, img, x, y, sz, 0, 1, a, false);
+        }
+        // trafienie: atrament rozkwita w torbie, kręgi i fioletowy błysk
+        if (t >= T_HIT && !s.hit) {
+          s.hit = 1; s.ht = t;
+          const n = Math.round(12 * Math.min(1.6, D));
+          for (let i = 0; i < n; i++) { const an = (i / n) * TAU, sp = rand(40, 90) * k; L.dkPuff(s.pf, T.x, T.y, Math.cos(an) * sp, Math.sin(an) * sp, base * 0.5, 20 * k, rand(1, 1.5), i % 2 === 0, 0.8, 200); }
+        }
+        if (s.hit) {
+          const ht = t - s.ht;
+          const f = clamp01(ht / 1.6);
+          L.dkCorona(ctx, T.x, T.y, base * (0.6 + 1.1 * easeOut(f)), a * (1 - f) * 0.8, -Math.PI / 2 + ht, 0.5);
+          L.dkInk(ctx, T.x, T.y, base * (0.4 + 1.3 * easeOut(f)), a * (1 - easeIn(f)) * 0.7, t, 4.1, 0.15, 1);
+          for (let i = 0; i < 3; i++) { const rt = (ht - i * 0.22) / 1.2; if (rt > 0 && rt < 1) L.dkRipple(ctx, T.x, T.y, base * (0.8 + easeOut(rt) * 2.6), a * (1 - rt), 1.5 * k); }
+          if (ht < 0.5) { ctx.globalCompositeOperation = 'lighter'; dot(ctx, C.lav, T.x, T.y, base * 1.2 * (1 - ht / 0.5) + 6, a * (1 - ht / 0.5) * 0.8, true); }
+        }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'dk_lose', group: G_LOSE, name: 'Zmierzch: Pochłonięty przez mrok', dur: 5.4, minDur: 5.4,
+      init() { return { pf: [], dis: 0, dt0: 0 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = s.L || (s.L = EFFECTS.find(e => e.id === 'dk_item')), C = L.DK, D = o.density || 1, u = o.out, img = u.img || FALLBACK_ICON;
+        const base = u.base || 32, k = Math.max(1, base / 32) * (o.itemScale || 1);
+        const F = { x: u.from.x + (o.index || 0) * 36 * k, y: u.from.y };
+        o.hideItem();
+        const T_DIS = 2.9;
+        const lift = easeOut(clamp01(t / 0.6)), S = base * 1.5;
+        const X = F.x, Y = F.y - 30 * k * lift - Math.max(0, t - 0.6) * 3 * k, sz = base + (S - base) * lift;
+        ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        const grow = easeInOut(clamp01((t - 0.3) / 2.3));
+        const dis = clamp01((t - T_DIS) / 1.3);
+        // gasnący żar: fioletowa poświata wokół przedmiotu słabnie
+        const ember = (1 - grow) * (0.8 + 0.2 * Math.sin(t * 6)) * clamp01(t / 0.3);
+        ctx.globalCompositeOperation = 'lighter';
+        dot(ctx, C.vio, X, Y, sz * 1.6, a * 0.5 * ember);
+        dot(ctx, C.lav, X, Y, sz * 0.7, a * 0.3 * ember);
+        // atrament za przedmiotem
+        const Rb = sz * (0.3 + 1.2 * grow);
+        L.dkInk(ctx, X, Y, Rb * (1 - dis * 0.4), a * clamp01(t / 0.6) * (1 - easeIn(dis)), t, 2.7, 0.2, 0.6 + 0.4 * (1 - grow));
+        // przedmiot szarzeje i ciemnieje
+        if (dis < 1) {
+          const gf = grow;
+          drawItem(ctx, img, X, Y, sz * (1 - 0.15 * gf), 0, 1, a * (1 - dis), false, gf > 0.02 ? `grayscale(${gf.toFixed(2)}) brightness(${(1 - gf * 0.55).toFixed(2)})` : '');
+        }
+        // mrok zalewa przedmiot od brzegów (warstwa z przodu)
+        const cov = clamp01((t - 1.2) / 1.6);
+        if (cov > 0) {
+          L.dkBlobPath(ctx, X, Y, sz * 0.9, t * 1.3, 5.1, 0.25);
+          const g = ctx.createRadialGradient(X, Y, sz * 0.9 * (1 - easeInOut(cov)), X, Y, sz * 1.1);
+          g.addColorStop(0, 'rgba(11,6,18,0)'); g.addColorStop(0.35, 'rgba(11,6,18,0.85)'); g.addColorStop(1, 'rgba(24,10,42,0.9)');
+          ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a * clamp01(cov * 2) * (1 - easeIn(dis))); ctx.fillStyle = g; ctx.fill();
+        }
+        // rozwianie w dym
+        if (t >= T_DIS && !s.dis) {
+          s.dis = 1;
+          const n = Math.round(18 * Math.min(1.6, D));
+          for (let i = 0; i < n; i++) {
+            const an = rand(0, TAU), rr = Rb * rand(0.2, 0.9), sp = rand(10, 35) * k;
+            L.dkPuff(s.pf, X + Math.cos(an) * rr, Y + Math.sin(an) * rr, Math.cos(an) * sp, Math.sin(an) * sp - rand(15, 35) * k, Rb * rand(0.35, 0.6), 16 * k, rand(1.8, 2.6), i % 3 !== 0, 0.85, 120);
+          }
+        }
+        L.dkPuffs(ctx, s.pf, dt, a, 14 * k);
+        // ostatni, cichy krąg
+        const rt = (t - T_DIS - 0.2) / 1.8;
+        if (rt > 0 && rt < 1) L.dkRipple(ctx, X, Y, sz * (0.8 + easeOut(rt) * 2.4), a * Math.sin(Math.PI * rt) * 0.6, 1.2 * k);
+        // powód
+        const ca = a * clamp01((t - 0.7) / 0.4);
+        const capY = Math.min(H - 40 * k, F.y + 90 * k);
+        const tw = (u.reason || '').length * 11.5 + 30, cx = clampX(F.x, W, tw / 1.2);
+        caption(ctx, u.reason, cx, capY, ca, 22);
+        ctx.restore();
+      },
+    },
+    /* ------------------------- ZESTAW „SZKARŁAT” (cr_) – minimalizm: puls serca, fale w takt, cienkie cięcia ------------------------- */
+    /* cr_item trzyma wspólne narzędzia zestawu (paleta, tempo 80 BPM „lub-dub”, linie, cięcia, pierścienie, EKG) */
+    {
+      id: 'cr_item', group: G_ITEM, name: 'Szkarłat: Bijące serce', dur: 5.6, occupy: 4.8,
+      CR: { deep: '58,0,6', bord: '122,0,16', scar: '209,0,31', hot: '255,74,61', core: '255,236,230' },
+      P: 0.75, DUB: 0.19,
+      // pojedyncze uderzenie: ostry atak, wykładnicze wybrzmienie
+      crPulse(x) { if (x < 0) return 0; return x < 0.025 ? x / 0.025 : Math.exp(-(x - 0.025) * 11); },
+      // „lub-dub”: mocne uderzenie + słabsze po 0.19 s; off = moment pierwszego uderzenia
+      crBeat(t, off = 0) {
+        const tt = t - off; if (tt < 0) return 0;
+        const tp = tt % this.P;
+        return Math.min(1.25, this.crPulse(tp) + 0.62 * this.crPulse(tp - this.DUB) + (tt >= this.P ? 0.62 * this.crPulse(tp + this.P - this.DUB) : 0));
+      },
+      // kształt EKG w fazie tp (0..P): Q-R-S przy „lub”, łagodne T przy „dub”
+      crEcg(tp) {
+        if (tp < 0) return 0;
+        if (tp < 0.03) return -0.12 * Math.sin((Math.PI * tp) / 0.03);
+        if (tp < 0.05) return (tp - 0.03) / 0.02;
+        if (tp < 0.075) return 1 - 1.4 * ((tp - 0.05) / 0.025);
+        if (tp < 0.1) return -0.4 * (1 - (tp - 0.075) / 0.025);
+        if (tp > 0.2 && tp < 0.36) return 0.26 * Math.sin((Math.PI * (tp - 0.2)) / 0.16);
+        return 0;
+      },
+      crHash(n) { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); },
+      // obrys bieżącej ścieżki: miękka poświata + linia + biały rdzeń
+      crStroke(ctx, rgb, w, al, core = true) {
+        if (al <= 0.005) return;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = `rgb(${rgb})`;
+        for (const [m, q] of [[5, 0.07], [2.4, 0.18]]) { ctx.globalAlpha = Math.min(1, al * q); ctx.lineWidth = w * m; ctx.stroke(); }
+        ctx.globalAlpha = Math.min(1, al * 0.9); ctx.lineWidth = w; ctx.stroke();
+        if (core) { ctx.strokeStyle = 'rgb(255,226,218)'; ctx.globalAlpha = Math.min(1, al * 0.7); ctx.lineWidth = Math.max(0.5, w * 0.35); ctx.stroke(); }
+      },
+      // cięcie: linia wyrasta z p1 do p2 (jasny grot), potem znika od ogona; f = 0..1
+      crCut(ctx, x1, y1, x2, y2, f, w, al, rgb) {
+        if (f <= 0 || f >= 1 || al <= 0.005) return;
+        const hd = easeOut(clamp01(f / 0.3)), tl = easeIn(clamp01((f - 0.3) / 0.7));
+        const dx = x2 - x1, dy = y2 - y1;
+        ctx.beginPath(); ctx.moveTo(x1 + dx * tl, y1 + dy * tl); ctx.lineTo(x1 + dx * hd, y1 + dy * hd);
+        const fa = al * (1 - tl * 0.5);
+        this.crStroke(ctx, rgb || this.CR.scar, w, fa);
+        if (hd < 1) { dot(ctx, this.CR.hot, x1 + dx * hd, y1 + dy * hd, w * 9, fa, true); }
+        else if (f < 0.45) dot(ctx, this.CR.hot, x2, y2, w * 7 * (1 - (f - 0.3) / 0.15), fa, true);
+      },
+      // ścieżka po obwodzie prostokąta od u1 do u2 (z narożnikami)
+      crPerimPath(ctx, R, u1, u2, per) {
+        const n = Math.max(4, Math.min(700, Math.ceil(((u2 - u1) * per) / 6)));
+        ctx.beginPath();
+        for (let i = 0; i <= n; i++) { const p = perim(R, u1 + ((u2 - u1) * i) / n, 0); i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }
+      },
+      crRing(ctx, x, y, r, w, al, rgb) {
+        if (r < 1 || al <= 0.005) return;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, TAU);
+        this.crStroke(ctx, rgb || this.CR.scar, w, al, false);
+      },
+      // pierścienie w takt: dla ostatnich uderzeń (lub + dub) od momentu off do końca 'until'
+      crBeatRings(ctx, t, off, until, life, fn) {
+        const P = this.P, tt = t - off; if (tt < 0) return;
+        const n1 = Math.floor(tt / P);
+        for (let n = n1; n >= 0 && n >= n1 - Math.ceil(life / P) - 1; n--) {
+          for (const [d, str] of [[0, 1], [this.DUB, 0.6]]) {
+            const st = off + n * P + d; if (st > until) continue;
+            const age = t - st; if (age < 0 || age >= life) continue;
+            fn(age / life, str, n);
+          }
+        }
+      },
+      crSpark(arr, x, y, n, smin, smax, dir, spread, rr) {
+        for (let i = 0; i < n; i++) { const an = dir + rand(-spread, spread), sp = rand(smin, smax); arr.push({ x, y, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp, l: 0, m: rand(0.35, 0.7), r: rr * rand(0.7, 1.2) }); }
+        if (arr.length > 120) arr.splice(0, arr.length - 120);
+      },
+      crSparks(ctx, arr, dt, a) {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.beginPath();
+        for (let i = arr.length - 1; i >= 0; i--) {
+          const q = arr[i]; q.l += dt; if (q.l >= q.m) { arr.splice(i, 1); continue; }
+          const d = Math.max(0, 1 - 4 * dt); q.vx *= d; q.vy *= d; q.x += q.vx * dt; q.y += q.vy * dt;
+          const f = 1 - q.l / q.m;
+          dot(ctx, this.CR.hot, q.x, q.y, q.r * 2 * f + 1, a * f, true);
+          ctx.moveTo(q.x, q.y); ctx.lineTo(q.x - q.vx * 0.05, q.y - q.vy * 0.05);
+        }
+        ctx.globalAlpha = Math.min(1, a * 0.6); ctx.strokeStyle = 'rgb(255,120,100)'; ctx.lineWidth = 1; ctx.stroke();
+      },
+      // linia EKG wokół (cx,cy), długość len, amplituda amp; kształt spike'a = crEcg(fazy) wycentrowany
+      crEcgLine(ctx, cx, cy, len, amp, tp, al, w) {
+        if (al <= 0.005) return;
+        const n = 64;
+        ctx.beginPath();
+        for (let i = 0; i <= n; i++) {
+          const f = i / n, x = cx - len / 2 + len * f, ph = (f - 0.5) * 0.5 + 0.05;
+          const y = cy - amp * this.crEcg(ph) * (tp < 0 ? 0 : 1);
+          i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+        }
+        const g = ctx.createLinearGradient(cx - len / 2, 0, cx + len / 2, 0);
+        g.addColorStop(0, 'rgba(209,0,31,0)'); g.addColorStop(0.3, 'rgba(209,0,31,1)'); g.addColorStop(0.5, 'rgba(255,90,70,1)'); g.addColorStop(0.7, 'rgba(209,0,31,1)'); g.addColorStop(1, 'rgba(209,0,31,0)');
+        ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = g;
+        ctx.globalAlpha = Math.min(1, al * 0.2); ctx.lineWidth = w * 4; ctx.stroke();
+        ctx.globalAlpha = Math.min(1, al); ctx.lineWidth = w; ctx.stroke();
+      },
+      init() { return { sp: [], cut: 0 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const C = this.CR, it = o.item || {}, img = it.img || FALLBACK_ICON;
+        const base = it.base || 32, k = Math.max(1, base / 32) * (o.itemScale || 1);
+        const F = { x: (it.x != null ? it.x : b.cx) + (o.index || 0) * 34 * k, y: it.y != null ? it.y : b.cy };
+        const T_UP = 0.6, T_B0 = 0.65, T_BEND = 4.1, T_DOWN = 4.35, T_LAND = 5.0, T_CUT = 2.6;
+        const S = base * 1.75, H0 = 52 * k;
+        ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        let X = F.x, Y = F.y, sz = base, rot = 0;
+        if (t < T_UP) { const f = easeOutBack(clamp01(t / T_UP)); Y = F.y - H0 * f; sz = base + (S - base) * f; }
+        else if (t < T_DOWN) { Y = F.y - H0; sz = S; }
+        else if (t < T_LAND) { const f = easeInOut(clamp01((t - T_DOWN) / (T_LAND - T_DOWN))); Y = F.y - H0 * (1 - f); sz = S + (base - S) * f; }
+        const bt = t < T_BEND ? this.crBeat(t, T_B0) * clamp01((T_BEND - t) / 0.3 + 0.3) : 0;
+        const hold = clamp01(t / 0.4) * (1 - clamp01((t - T_DOWN) / (T_LAND - T_DOWN)));
+        // poświata za przedmiotem (oddycha w takt)
+        ctx.globalCompositeOperation = 'lighter';
+        dot(ctx, C.bord, X, Y, sz * (2.2 + 0.8 * bt), a * hold * (0.35 + 0.35 * bt));
+        dot(ctx, C.scar, X, Y, sz * (1.1 + 0.5 * bt), a * hold * (0.2 + 0.45 * bt));
+        // linia EKG przecinająca przedmiot
+        const tpE = t >= T_B0 ? (t - T_B0) % this.P : -1;
+        const ecgA = a * clamp01((t - 0.35) / 0.4) * (1 - clamp01((t - T_BEND + 0.1) / 0.5));
+        this.crEcgLine(ctx, X, Y + sz * 0.05, 230 * k, sz * 0.75 * (0.25 + 0.75 * clamp01(bt)), tpE, ecgA * 0.85, 1.3 * k);
+        // fale w takt
+        this.crBeatRings(ctx, t, T_B0, T_BEND - 0.2, 1.15, (f, str) => {
+          this.crRing(ctx, X, Y, sz * 0.62 + easeOut(f) * 95 * k * (0.7 + 0.3 * str), (1.6 - f) * k * str, a * (1 - f) * (1 - f) * 0.85 * str, str > 0.8 ? C.scar : C.hot);
+        });
+        // cięcie w kształcie X przez przedmiot
+        const cf = t - T_CUT;
+        if (cf > 0 && cf < 1.2) {
+          const L = 95 * k;
+          for (const [i, an] of [[0, -0.62], [1, Math.PI + 0.62]]) {
+            const ff = (cf - i * 0.14) / 0.85, c = Math.cos(an), sn = Math.sin(an);
+            this.crCut(ctx, X - c * L, Y - sn * L, X + c * L, Y + sn * L, ff, 1.4 * k, a, C.scar);
+          }
+          if (!s.cut && cf > 0.12) { s.cut = 1; for (const d of [-0.62, Math.PI - 0.62]) { this.crSpark(s.sp, X, Y, 4, 120 * k, 260 * k, d, 0.18, 2 * k); this.crSpark(s.sp, X, Y, 4, 120 * k, 260 * k, d + Math.PI, 0.18, 2 * k); } }
+          if (cf > 0.1 && cf < 0.5) { const fl = 1 - (cf - 0.1) / 0.4; dot(ctx, C.core, X, Y, sz * 1.6 * fl + 4, a * fl * 0.9, true); dot(ctx, C.hot, X, Y, sz * 3.2, a * fl * 0.35); }
+        }
+        this.crSparks(ctx, s.sp, dt, a);
+        // przedmiot
+        if (t < T_LAND) {
+          o.hideItem();
+          const sq = cf > 0.1 && cf < 0.5 ? 1 - 0.08 * Math.sin(((cf - 0.1) / 0.4) * Math.PI) : 1;
+          const ps = sz * (1 + 0.13 * bt) * sq;
+          drawItem(ctx, img, X, Y, ps, rot, 1, a);
+          // czerwone echo przedmiotu przy uderzeniu
+          if (bt > 0.15) {
+            ctx.save(); ctx.globalCompositeOperation = 'lighter';
+            drawItem(ctx, img, X, Y, ps * (1 + 0.25 * (1 - bt)), 0, 1, a * 0.35 * bt, false, 'sepia(1) saturate(8) hue-rotate(-40deg) brightness(0.9)');
+            ctx.restore();
+          }
+        }
+        // lądowanie w slocie: ostatnie ciche „lub-dub”
+        for (const [d, str] of [[0, 1], [this.DUB, 0.55]]) {
+          const lt = t - T_LAND - d;
+          if (lt > 0 && lt < 0.8) { const f = lt / 0.8; this.crRing(ctx, F.x, F.y, base * 0.55 + easeOut(f) * 34 * k, 1.2 * k * str, a * (1 - f) * str * 0.9, C.scar); }
+        }
+        const lf = t - T_LAND;
+        if (lf > 0 && lf < 0.6) { ctx.globalCompositeOperation = 'lighter'; dot(ctx, C.scar, F.x, F.y, base * 1.3, a * 0.4 * (1 - lf / 0.6)); }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'cr_frame', group: G_FRAME, name: 'Szkarłat: Tętniąca rama', dur: 6,
+      init() { return {}; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'cr_item'), C = L.CR;
+        const k = Math.max(0.9, Math.min(2.2, Math.min(b.w, b.h) / 220)), kw = Math.min(k, 1.6);
+        const inw = Math.min(b.w, b.h) > 380;
+        const pad = inw ? -5 * kw : 6 * kw, rr = 4 * kw;
+        const bt = L.crBeat(t, 0.3), ig = clamp01(t / 0.7);
+        const x0 = b.x - pad, y0 = b.y - pad, w = b.w + pad * 2, h = b.h + pad * 2, per = 2 * (w + h);
+        ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        // ciemne bordo pod linią
+        rrect(ctx, x0, y0, w, h, rr);
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a * 0.55 * ig); ctx.strokeStyle = 'rgb(58,0,6)'; ctx.lineWidth = 6 * kw; ctx.stroke();
+        // główna linia – rysuje się od środka góry w obie strony, potem jaśnieje w takt
+        const RB = { x: x0, y: y0, w, h }, uTop = (w / 2) / per, uBot = (w + h + w / 2) / per;
+        if (ig < 1) {
+          const e = easeOut(ig) * 0.5;
+          L.crPerimPath(ctx, RB, uTop - e, uTop + e, per);
+          L.crStroke(ctx, C.scar, 1.6 * kw, a * 0.9, true);
+          for (const sg of [-1, 1]) { const p = perim(RB, uTop + sg * e, 0); ctx.globalCompositeOperation = 'lighter'; dot(ctx, C.hot, p.x, p.y, 10 * kw, a, true); }
+        } else {
+          rrect(ctx, x0, y0, w, h, rr);
+          L.crStroke(ctx, C.scar, 1.7 * kw, a * (0.6 + 0.5 * bt), true);
+        }
+        // cienka druga linia rozbłyskująca na uderzeniu
+        const p2 = pad + (inw ? -7 : 7) * kw * (1 + 0.25 * bt);
+        rrect(ctx, b.x - p2, b.y - p2, b.w + p2 * 2, b.h + p2 * 2, rr + 3 * kw);
+        L.crStroke(ctx, C.hot, 0.9 * kw, a * ig * 0.7 * bt, false);
+        // impulsy biegnące po obwodzie: „lub” od środka góry, „dub” od środka dołu – spotykają się z boku
+        const P = L.P, life = 0.62;
+        if (t > 0.3) {
+          const tt = t - 0.3, n1 = Math.floor(tt / P);
+          for (let n = n1; n >= Math.max(0, n1 - 1); n--) {
+            for (const [d, u0, str] of [[0, uTop, 1], [L.DUB, uBot, 0.7]]) {
+              const st = 0.3 + n * P + d; if (st > this.dur - 0.8) continue;
+              const age = t - st; if (age < 0 || age > life) continue;
+              const f = age / life, e = easeOut(f) * 0.25, fa = a * str * (1 - f * f);
+              const span = Math.min(0.08, (130 * k) / per) * (0.5 + f);
+              for (const dir of [1, -1]) {
+                const uh = u0 + dir * e;
+                L.crPerimPath(ctx, RB, dir > 0 ? uh - span : uh, dir > 0 ? uh : uh + span, per);
+                L.crStroke(ctx, C.hot, 2.2 * kw, fa * 0.85, true);
+                const p = perim(RB, uh, 0);
+                ctx.globalCompositeOperation = 'lighter';
+                dot(ctx, C.scar, p.x, p.y, 16 * kw, fa * 0.6);
+                dot(ctx, C.core, p.x, p.y, 5 * kw, fa, true);
+              }
+            }
+          }
+        }
+        // narożne wsporniki – krótkie ostre kreski, rozchylają się na uderzeniu
+        const ca = clamp01((t - 0.4) / 0.5);
+        if (ca > 0) {
+          const op = (inw ? -14 : 14) * kw + (inw ? -1 : 1) * 3 * kw * bt, arm = Math.min(26 * k, b.w * 0.2, b.h * 0.2) * easeOut(ca);
+          const ex = b.x - op, ey = b.y - op, ew = b.w + op * 2, eh = b.h + op * 2;
+          ctx.beginPath();
+          for (const [cx, cy, sx, sy] of [[ex, ey, 1, 1], [ex + ew, ey, -1, 1], [ex + ew, ey + eh, -1, -1], [ex, ey + eh, 1, -1]]) {
+            ctx.moveTo(cx + sx * arm, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy + sy * arm);
+          }
+          L.crStroke(ctx, C.hot, 1.5 * kw, a * ca * (0.55 + 0.45 * bt), true);
+          ctx.globalCompositeOperation = 'lighter';
+          for (const [cx, cy] of [[ex, ey], [ex + ew, ey], [ex + ew, ey + eh], [ex, ey + eh]]) dot(ctx, C.hot, cx, cy, (6 + 6 * bt) * kw, a * ca * (0.4 + 0.6 * bt), true);
+        }
+        // kreski-podziałki na środkach boków (jak na skali)
+        if (ca > 0) {
+          const tl = (5 + 5 * bt) * kw, m = inw ? -1 : 1, ex = b.x - pad, ey = b.y - pad, ew = w, eh = h;
+          ctx.beginPath();
+          for (let i = -2; i <= 2; i++) {
+            const g = i * 7 * kw, l = i ? tl * 0.55 : tl;
+            ctx.moveTo(b.cx + g, ey); ctx.lineTo(b.cx + g, ey - m * l);
+            ctx.moveTo(b.cx + g, ey + eh); ctx.lineTo(b.cx + g, ey + eh + m * l);
+            ctx.moveTo(ex, b.cy + g); ctx.lineTo(ex - m * l, b.cy + g);
+            ctx.moveTo(ex + ew, b.cy + g); ctx.lineTo(ex + ew + m * l, b.cy + g);
+          }
+          L.crStroke(ctx, C.scar, 1 * kw, a * ca * 0.8, false);
+        }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'cr_around', group: G_AROUND, name: 'Szkarłat: Fala tętna', dur: 6,
+      init() { return {}; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'cr_item'), C = L.CR, P = L.P;
+        const k = Math.max(0.9, Math.min(1.8, Math.min(b.w, b.h) / 220));
+        const bt = L.crBeat(t, 0.3), live = this.dur - 1.2;
+        const ig = clamp01(t / 0.6);
+        ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        // oddychająca łuna za oknem
+        ctx.globalCompositeOperation = 'lighter';
+        const R = Math.max(b.w, b.h);
+        dot(ctx, C.bord, b.cx, b.cy, R * (1.1 + 0.12 * bt), a * ig * (0.4 + 0.3 * bt));
+        dot(ctx, C.scar, b.cx, b.cy, R * (0.85 + 0.1 * bt), a * ig * (0.12 + 0.35 * bt));
+        // fale w kształcie okna, rozchodzące się w takt
+        L.crBeatRings(ctx, t, 0.3, live, 1.5, (f, str) => {
+          const pd = 10 * k + easeOut(f) * 150 * k * (0.75 + 0.25 * str);
+          rrect(ctx, b.x - pd, b.y - pd, b.w + pd * 2, b.h + pd * 2, 6 * k + pd * 0.35);
+          L.crStroke(ctx, str > 0.8 ? C.scar : C.hot, (1.8 - 1.2 * f) * k * str, a * Math.pow(1 - f, 1.6) * str * 0.9, false);
+        });
+        // poziome cięcia (co 2 uderzenia) – rysy przechodzące przez okno
+        const tt = t - 0.3;
+        if (tt > 0) {
+          const n1 = Math.floor(tt / (P * 2));
+          for (let n = n1; n >= Math.max(0, n1 - 1); n--) {
+            const st = 0.3 + n * P * 2; if (st > live) continue;
+            const f = (t - st) / 1.1; if (f <= 0 || f >= 1) continue;
+            const h1 = L.crHash(n + 1), dir = n % 2 ? 1 : -1, span = b.w * 0.5 + 230 * k;
+            for (const [yy, dl] of [[b.y + b.h * (0.12 + 0.2 * h1), 0], [b.y + b.h * (0.68 + 0.2 * L.crHash(n + 7)), 0.08]]) {
+              const xa = b.cx - dir * span, xb = b.cx + dir * span;
+              L.crCut(ctx, xa, yy, xb, yy, f - dl, 1 * k, a * 0.85, C.scar);
+            }
+          }
+          // co 4 uderzenia: ukośne karmazynowe cięcie przez całe okno + błysk
+          const m1 = Math.floor((tt - P * 1.5) / (P * 4));
+          for (let m = m1; m >= Math.max(0, m1 - 1); m--) {
+            if (tt < P * 1.5) break;
+            const st = 0.3 + P * 1.5 + m * P * 4; if (st > live) continue;
+            const f = (t - st) / 1.0; if (f <= 0 || f >= 1) continue;
+            const sg = m % 2 ? 1 : -1, ex = b.w / 2 + 110 * k, ey = b.h / 2 + 70 * k;
+            L.crCut(ctx, b.cx - sg * ex, b.cy + ey, b.cx + sg * ex, b.cy - ey, f, 1.6 * k, a, C.hot);
+            const fl = clamp01(1 - Math.abs(f - 0.22) / 0.18);
+            if (fl > 0) { ctx.globalCompositeOperation = 'lighter'; dot(ctx, C.scar, b.cx, b.cy, R * 0.9, a * fl * 0.35); }
+          }
+        }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'cr_screen', group: G_SCREEN, name: 'Szkarłat: Karmazynowy rytm', dur: 8,
+      init() { return {}; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'cr_item'), C = L.CR, P = L.P;
+        const sc = Math.max(0.7, Math.min(1.6, Math.min(W, H) / 800));
+        const off = 0.3, bt = L.crBeat(t, off), live = this.dur - 1.2, ig = clamp01(t / 0.8);
+        ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        // bordowa winieta pulsująca w takt
+        ctx.globalCompositeOperation = 'source-over';
+        vignette(ctx, W, H, C.deep, a * ig * (0.34 + 0.14 * bt), 0.3);
+        ctx.globalCompositeOperation = 'lighter';
+        vignette(ctx, W, H, C.scar, a * ig * 0.3 * bt, 0.42);
+        // EKG przez cały ekran: grot biegnie od lewej do prawej, za nim zanikający zapis
+        const Y = H * 0.84, amp = 90 * sc, spd = W / (P * 3), tail = W * 0.55;
+        const head = ((t * spd) % W);
+        const ecA = a * ig * (1 - clamp01((t - live) / 1));
+        if (ecA > 0.01) {
+          const step = 4, segs = 6, segL = tail / segs;
+          for (let sgi = 0; sgi < segs; sgi++) {
+            ctx.beginPath(); let started = false, last = null;
+            for (let d = sgi * segL; d <= (sgi + 1) * segL + step; d += step) {
+              let x = head - d; if (x < 0) x += W;
+              const th = t - d / spd - off;
+              const y = Y - amp * (th > 0 ? L.crEcg(th % P) : 0);
+              if (!started || (last != null && x > last + 10)) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+              last = x;
+            }
+            const q = 1 - sgi / segs;
+            L.crStroke(ctx, sgi ? C.scar : C.hot, 2 * sc, ecA * q * q, sgi === 0);
+          }
+          const th0 = t - off, hy = Y - amp * (th0 > 0 ? L.crEcg(th0 % P) : 0);
+          ctx.globalCompositeOperation = 'lighter';
+          dot(ctx, C.hot, head, hy, 22 * sc, ecA * 0.6);
+          dot(ctx, C.core, head, hy, 6 * sc, ecA, true);
+          // cienka linia bazowa
+          ctx.beginPath(); ctx.moveTo(0, Y); ctx.lineTo(W, Y);
+          ctx.globalAlpha = Math.min(1, ecA * 0.12); ctx.strokeStyle = `rgb(${C.scar})`; ctx.lineWidth = 1; ctx.stroke();
+        }
+        // długie ukośne cięcia przez ekran (co 2 uderzenia, na „lub”)
+        const tt = t - off;
+        if (tt > 0) {
+          const n1 = Math.floor(tt / (P * 2));
+          for (let n = n1; n >= Math.max(0, n1 - 1); n--) {
+            const st = off + n * P * 2; if (st > live) continue;
+            const f = (t - st) / 0.95; if (f <= 0 || f >= 1) continue;
+            const h1 = L.crHash(n * 3 + 1), h2 = L.crHash(n * 3 + 2), sg = n % 2 ? 1 : -1;
+            const ya = H * (0.05 + 0.5 * h1), yb = H * (0.45 + 0.5 * h2);
+            const x1 = sg > 0 ? -20 : W + 20, x2 = sg > 0 ? W + 20 : -20;
+            L.crCut(ctx, x1, ya, x2, yb, f, 1.3 * sc, a * 0.9, n % 4 === 3 ? C.hot : C.scar);
+          }
+          // karmazynowy błysk co 8 uderzeń
+          const m = Math.floor((tt - P * 3) / (P * 8));
+          if (tt > P * 3) {
+            const st = off + P * 3 + Math.max(0, m) * P * 8, f = (t - st) / 0.6;
+            if (st <= live && f > 0 && f < 1) {
+              ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.min(1, a * 0.16 * Math.pow(1 - f, 2));
+              ctx.fillStyle = `rgb(${C.scar})`; ctx.fillRect(0, 0, W, H);
+            }
+          }
+        }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'cr_win', group: G_WIN, name: 'Szkarłat: Cięcie do torby', dur: 4, minDur: 3.8,
+      init() { return { sp: [], hit: 0 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'cr_item'), C = L.CR, u = o.out, img = u.img || FALLBACK_ICON;
+        const base = u.base || 32, k = Math.max(1, base / 32) * (o.itemScale || 1);
+        const F = { x: u.from.x + (o.index || 0) * 36 * k, y: u.from.y }, T = u.to;
+        const T_UP = 0.45, T_B = 0.5, T_LINE = 1.5, T_GO = 1.8, T_HIT = 2.2;
+        const F2 = { x: F.x, y: F.y - 40 * k }, S = base * 1.6;
+        if (t < T_HIT) o.hideItem();
+        ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        let x = F.x, y = F.y, sz = base;
+        if (t < T_UP) { const f = easeOutBack(clamp01(t / T_UP)); y = F.y - 40 * k * f; sz = base + (S - base) * f; x = F.x; }
+        else if (t < T_GO) { x = F2.x; y = F2.y; sz = S; }
+        else if (t < T_HIT) { const f = easeIn(clamp01((t - T_GO) / (T_HIT - T_GO))); x = F2.x + (T.x - F2.x) * f; y = F2.y + (T.y - F2.y) * f; sz = S + (base * 0.9 - S) * f; }
+        else { x = T.x; y = T.y; sz = base * 0.9; }
+        const bt = t < T_GO ? L.crBeat(t, T_B) : 0;
+        // dwa „lub-dub” w miejscu
+        ctx.globalCompositeOperation = 'lighter';
+        if (t < T_HIT) dot(ctx, C.scar, x, y, sz * (1.3 + 0.6 * bt), a * (0.3 + 0.45 * bt));
+        L.crBeatRings(ctx, t, T_B, T_LINE, 0.9, (f, str) => L.crRing(ctx, F2.x, F2.y, S * 0.6 + easeOut(f) * 70 * k, 1.4 * k * str, a * (1 - f) * (1 - f) * str, C.scar));
+        // linia cięcia: wyznacza tor do torby, potem przedmiot sunie po niej
+        const dx = T.x - F2.x, dy = T.y - F2.y;
+        const lg = easeOut(clamp01((t - T_LINE) / 0.3)), lfade = 1 - clamp01((t - T_HIT - 0.05) / 0.45);
+        if (lg > 0 && lfade > 0) {
+          const st = t > T_GO ? clamp01((t - T_GO) / (T_HIT - T_GO)) : 0;
+          ctx.beginPath(); ctx.moveTo(F2.x + dx * easeIn(st) * 0.0, F2.y); ctx.moveTo(F2.x, F2.y); ctx.lineTo(F2.x + dx * lg, F2.y + dy * lg);
+          L.crStroke(ctx, C.scar, 1.1 * k, a * lfade * (0.55 + 0.45 * st), true);
+          if (lg < 1) dot(ctx, C.hot, F2.x + dx * lg, F2.y + dy * lg, 9 * k, a, true);
+          // jasny ślad za przedmiotem
+          if (t > T_GO && t < T_HIT + 0.1) {
+            const f = easeIn(clamp01((t - T_GO) / (T_HIT - T_GO))), f0 = Math.max(0, f - 0.25);
+            ctx.beginPath(); ctx.moveTo(F2.x + dx * f0, F2.y + dy * f0); ctx.lineTo(F2.x + dx * f, F2.y + dy * f);
+            L.crStroke(ctx, C.hot, 3 * k, a, true);
+          }
+        }
+        // przedmiot
+        if (t < T_HIT) {
+          drawItem(ctx, img, x, y, sz * (1 + 0.13 * bt), 0, 1, a);
+          if (bt > 0.15) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; drawItem(ctx, img, x, y, sz * (1.15 + 0.2 * (1 - bt)), 0, 1, a * 0.3 * bt, false, 'sepia(1) saturate(8) hue-rotate(-40deg) brightness(0.9)'); ctx.restore(); }
+        }
+        // trafienie w torbę: krzyżowe cięcie, błysk i podwójna fala
+        const ht = t - T_HIT;
+        if (ht >= 0 && !s.hit) {
+          s.hit = 1;
+          const an = Math.atan2(dy, dx);
+          L.crSpark(s.sp, T.x, T.y, 7, 140 * k, 300 * k, an, 0.5, 2 * k);
+          L.crSpark(s.sp, T.x, T.y, 4, 80 * k, 180 * k, an + Math.PI, 0.6, 1.6 * k);
+        }
+        if (ht >= 0) {
+          const fl = clamp01(1 - ht / 0.4);
+          ctx.globalCompositeOperation = 'lighter';
+          dot(ctx, C.core, T.x, T.y, base * 1.4 * fl + 2, a * fl, true);
+          dot(ctx, C.scar, T.x, T.y, base * 3, a * 0.45 * clamp01(1 - ht / 0.9));
+          const Lc = 46 * k;
+          for (const [i, an] of [[0, Math.PI / 4], [1, -Math.PI / 4]]) {
+            const c = Math.cos(an), sn = Math.sin(an), f = (ht - i * 0.08) / 0.75;
+            L.crCut(ctx, T.x - c * Lc, T.y - sn * Lc, T.x + c * Lc, T.y + sn * Lc, f, 1.2 * k, a, C.hot);
+          }
+          for (const [d, str] of [[0, 1], [L.DUB, 0.6], [L.P, 0.5], [L.P + L.DUB, 0.3]]) {
+            const rt = ht - d; if (rt <= 0 || rt > 1) continue;
+            L.crRing(ctx, T.x, T.y, base * 0.5 + easeOut(rt) * 70 * k, 1.6 * k * str, a * (1 - rt) * (1 - rt) * str, str > 0.8 ? C.scar : C.hot);
+          }
+          const ia = 1 - clamp01((ht - 0.3) / 0.6);
+          if (ia > 0) drawItem(ctx, img, T.x, T.y, base * 0.9 * (1 + 0.15 * L.crBeat(ht, 0)), 0, 1, a * ia);
+        }
+        L.crSparks(ctx, s.sp, dt, a);
+        ctx.restore();
+      },
+    },
+    {
+      id: 'cr_lose', group: G_LOSE, name: 'Szkarłat: Ustające tętno', dur: 5.6, minDur: 5.6,
+      init() { return { sp: [], cut: 0 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'cr_item'), C = L.CR, u = o.out, img = u.img || FALLBACK_ICON;
+        const base = u.base || 32, k = Math.max(1, base / 32) * (o.itemScale || 1);
+        const F = { x: u.from.x + (o.index || 0) * 36 * k, y: u.from.y };
+        o.hideItem();
+        const lift = easeOut(clamp01(t / 0.5)), S = base * 1.6;
+        const X = F.x, Y = F.y - 34 * k * lift, sz = base + (S - base) * lift;
+        // coraz słabsze, coraz rzadsze uderzenia
+        const BEATS = [[0.45, 1], [1.35, 0.7], [2.45, 0.42]], T_FLAT = 3.0, T_CUT = 3.35;
+        let bt = 0;
+        for (const [bt0, am] of BEATS) bt += am * (L.crPulse(t - bt0) + 0.62 * L.crPulse(t - bt0 - L.DUB));
+        const drain = clamp01((t - 0.6) / 2.6); // odpływ koloru
+        ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        // przyciemnienie w bordo
+        const dk = clamp01((t - 1.8) / 1.4) * (1 - clamp01((t - 4.9) / 0.7));
+        if (dk > 0) { ctx.globalCompositeOperation = 'source-over'; vignette(ctx, W, H, '20,0,3', a * dk * 0.42, 0.2); }
+        // poświata gasnąca
+        ctx.globalCompositeOperation = 'lighter';
+        dot(ctx, C.scar, X, Y, sz * (1.4 + 0.6 * bt), a * (1 - drain) * (0.3 + 0.5 * bt) * (t < T_CUT ? 1 : 0.3));
+        // fale – coraz mniejsze
+        for (const [bt0, am] of BEATS) for (const [d, str] of [[0, 1], [L.DUB, 0.6]]) {
+          const rt = (t - bt0 - d) / 1.1; if (rt <= 0 || rt >= 1) continue;
+          L.crRing(ctx, X, Y, sz * 0.6 + easeOut(rt) * 80 * k * am, 1.4 * k * str * am, a * (1 - rt) * (1 - rt) * str * am, C.scar);
+        }
+        // EKG pod przedmiotem: zapis biegnie z lewej, spike'i maleją, potem płaska linia
+        const EY = Y + sz * 0.95 + 14 * k, EL = 260 * k, ex0 = X - EL / 2, swp = 3.2;
+        const hf = clamp01(t / swp), hx = ex0 + EL * hf;
+        const ecFade = 1 - clamp01((t - 4.6) / 0.8);
+        if (hf > 0 && ecFade > 0) {
+          ctx.beginPath();
+          const n = Math.max(2, Math.round(90 * hf));
+          for (let i = 0; i <= n; i++) {
+            const f = (i / n) * hf, tx = f * swp;
+            let v = 0;
+            for (const [bt0, am] of BEATS) v += am * (L.crEcg(tx - bt0 + 0.05) || 0);
+            const xx = ex0 + EL * f, yy = EY - 34 * k * v;
+            i ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy);
+          }
+          if (t > swp) ctx.lineTo(ex0 + EL, EY);
+          const flat = clamp01((t - T_FLAT) / 0.8);
+          L.crStroke(ctx, flat > 0.5 ? C.bord : C.scar, 1.3 * k, a * ecFade * (0.9 - 0.35 * flat), flat < 0.5);
+          if (t < swp) { ctx.globalCompositeOperation = 'lighter'; dot(ctx, C.core, hx, EY - 34 * k * BEATS.reduce((v, [bt0, am]) => v + am * L.crEcg(t - bt0 + 0.05), 0), 5 * k, a, true); }
+        }
+        // cięcie: ostra rysa przez przedmiot, połówki rozchodzą się i gasną
+        const an = -0.42, cf = t - T_CUT, Lc = 80 * k;
+        if (cf > 0 && cf < 1.1) {
+          const c = Math.cos(an), sn = Math.sin(an);
+          L.crCut(ctx, X - c * Lc, Y - sn * Lc, X + c * Lc, Y + sn * Lc, cf / 1.1, 1.3 * k, a, C.hot);
+          if (cf < 0.3) { ctx.globalCompositeOperation = 'lighter'; dot(ctx, C.core, X, Y, sz * (1 - cf / 0.3) + 2, a * (1 - cf / 0.3) * 0.8, true); }
+        }
+        if (cf > 0.05 && !s.cut) { s.cut = 1; L.crSpark(s.sp, X, Y, 5, 90 * k, 200 * k, an, 0.2, 1.8 * k); L.crSpark(s.sp, X, Y, 5, 90 * k, 200 * k, an + Math.PI, 0.2, 1.8 * k); }
+        L.crSparks(ctx, s.sp, dt, a);
+        const sep = cf > 0 ? easeOut(clamp01(cf / 1.6)) : 0, ifade = 1 - clamp01((t - 4.2) / 0.9);
+        if (ifade > 0) {
+          const nx = -Math.sin(an), ny = Math.cos(an), R = sz;
+          const ps = sz * (1 + 0.12 * bt);
+          for (const side of cf > 0 ? [-1, 1] : [0]) {
+            ctx.save();
+            const dd = side * sep * 22 * k, dr = side * sep * 0.22, fall = cf > 0 ? cf * cf * 14 * k : 0;
+            ctx.translate(X + nx * dd, Y + ny * dd + fall * (side > 0 ? 1.4 : 0.5)); ctx.rotate(an + dr);
+            if (side) { ctx.beginPath(); ctx.rect(-R * 1.5, side < 0 ? -R * 1.5 : 0, R * 3, R * 1.5); ctx.clip(); }
+            ctx.rotate(-an);
+            drawItem(ctx, img, 0, 0, ps, 0, 1, a * ifade * (1 - drain * 0.9));
+            if (drain > 0.02) drawItem(ctx, img, 0, 0, ps, 0, 1, a * ifade * drain, false, 'grayscale(1) brightness(0.55) sepia(0.35) hue-rotate(-30deg)');
+            ctx.restore();
+          }
+        }
+        // powód
+        const ca = clamp01((t - 0.9) / 0.5) * (1 - clamp01((t - 5.1) / 0.5));
+        const cy = Math.min(H - 20, EY + 34 * k);
+        caption(ctx, u.reason, clampX(X, W, 300), cy, a * ca, 20);
+        ctx.restore();
+      },
+    },
+    /* ------------------- ZESTAW „CIEMNY RÓŻ” (ro_) – jedwab, lawa, bokeh, przelewanie odcieni ------------------- */
+    /* ro_item trzyma wspólne narzędzia zestawu (rampa kolorów, jedwabna wstęga, obwód zaokrąglonej ramki, bokeh, lawa) */
+    {
+      id: 'ro_item', group: G_ITEM, name: 'Ciemny róż: Jedwabny wir', dur: 5.6, occupy: 5.2,
+      RAMP: [[34, 4, 20], [74, 13, 43], [140, 22, 80], [194, 24, 91], [214, 69, 127], [243, 166, 196], [255, 236, 244]],
+      RO: { deep: '74,13,43', berry: '140,22,80', rose: '194,24,91', pink: '214,69,127', powder: '243,166,196', pearl: '255,236,244' },
+      _spr: {},
+      // kolor z rampy ciemnego różu (f 0..1), g = 0..1 odbarwienie do szaroliliowego popiołu
+      roCol(f, g) {
+        const R = this.RAMP, x = clamp01(f) * (R.length - 1), i = Math.min(R.length - 2, Math.floor(x)), m = x - i;
+        let r = R[i][0] + (R[i + 1][0] - R[i][0]) * m, gg = R[i][1] + (R[i + 1][1] - R[i][1]) * m, bb = R[i][2] + (R[i + 1][2] - R[i][2]) * m;
+        if (g) { const L = (r * 0.3 + gg * 0.55 + bb * 0.15) * 0.92; r += (L * 0.98 - r) * g; gg += (L * 0.92 - gg) * g; bb += (L * 1.04 - bb) * g; }
+        return `${r | 0},${gg | 0},${bb | 0}`;
+      },
+      // jedwabna wstęga: P = [{x,y,w,th,z?,al?}], th = skręt (szerokość widoczna ~cos th), z = głębia (zs: rysuj tylko z tej strony)
+      roRibbon(ctx, P, a, zs, g, lit) {
+        const n = P.length; if (n < 2 || a <= 0.005) return;
+        const E = this._E || (this._E = []);
+        for (let i = 0; i < n; i++) {
+          const p = P[i], q0 = P[i > 0 ? i - 1 : 0], q1 = P[i < n - 1 ? i + 1 : n - 1];
+          const tx = q1.x - q0.x, ty = q1.y - q0.y, l = Math.hypot(tx, ty) || 1, c = Math.cos(p.th), hw = p.w * 0.5 * c;
+          const e = E[i] || (E[i] = {}); e.lx = p.x - (ty / l) * hw; e.ly = p.y + (tx / l) * hw; e.rx = p.x + (ty / l) * hw; e.ry = p.y - (tx / l) * hw; e.c = c;
+        }
+        const LO = lit == null ? 0.5 : lit;
+        ctx.globalCompositeOperation = 'source-over'; ctx.lineJoin = 'round'; ctx.lineWidth = 0.9;
+        for (let i = 0; i < n - 1; i++) {
+          const p = P[i], p2 = P[i + 1];
+          if (zs && ((p.z || 0) + (p2.z || 0)) * zs < 0) continue;
+          const e0 = E[i], e1 = E[i + 1], cm = (e0.c + e1.c) * 0.5, th = (p.th + p2.th) * 0.5;
+          let f;
+          if (cm >= 0) { const L = Math.max(0, Math.cos(th - LO)); f = 0.28 + 0.48 * Math.pow(L, 1.3) + 0.26 * Math.pow(L, 6); }
+          else f = 0.1 + 0.22 * Math.abs(cm);
+          const al = a * (p.al == null ? 1 : p.al); if (al <= 0.005) continue;
+          const col = `rgb(${this.roCol(f, g)})`;
+          ctx.globalAlpha = Math.min(1, al); ctx.fillStyle = col; ctx.strokeStyle = col;
+          ctx.beginPath(); ctx.moveTo(e0.lx, e0.ly); ctx.lineTo(e1.lx, e1.ly); ctx.lineTo(e1.rx, e1.ry); ctx.lineTo(e0.rx, e0.ry); ctx.closePath();
+          ctx.fill(); ctx.stroke();
+        }
+      },
+      // punkt na obwodzie zaokrąglonego prostokąta (u 0..1) + normalna na zewnątrz
+      roRR(b, u, pad, r) {
+        const w = b.w + pad * 2, h = b.h + pad * 2, x0 = b.x - pad, y0 = b.y - pad;
+        r = Math.max(1, Math.min(r, w / 2, h / 2));
+        const sw = w - 2 * r, sh = h - 2 * r, q = r * Math.PI / 2, T = 2 * sw + 2 * sh + 4 * q;
+        let d = (((u % 1) + 1) % 1) * T;
+        const arc = (cx, cy, a0) => { const an = a0 + (d / q) * Math.PI / 2; return { x: cx + Math.cos(an) * r, y: cy + Math.sin(an) * r, nx: Math.cos(an), ny: Math.sin(an) }; };
+        if (d < sw) return { x: x0 + r + d, y: y0, nx: 0, ny: -1 }; d -= sw;
+        if (d < q) return arc(x0 + w - r, y0 + r, -Math.PI / 2); d -= q;
+        if (d < sh) return { x: x0 + w, y: y0 + r + d, nx: 1, ny: 0 }; d -= sh;
+        if (d < q) return arc(x0 + w - r, y0 + h - r, 0); d -= q;
+        if (d < sw) return { x: x0 + w - r - d, y: y0 + h, nx: 0, ny: 1 }; d -= sw;
+        if (d < q) return arc(x0 + r, y0 + h - r, Math.PI / 2); d -= q;
+        if (d < sh) return { x: x0, y: y0 + h - r - d, nx: -1, ny: 0 }; d -= sh;
+        return arc(x0 + r, y0 + r, Math.PI);
+      },
+      // miękki krąg bokeh (płaski środek, jaśniejszy brzeg) – sprite na kolor
+      roBok(ctx, f, gy, x, y, r, al) {
+        if (al <= 0.004 || r < 0.5) return;
+        const fq = Math.round(clamp01(f) * 24), gq = Math.round(clamp01(gy || 0) * 6), key = fq + '_' + gq;
+        let c = this._spr[key];
+        if (!c) {
+          const rgb = this.roCol(fq / 24, gq / 6);
+          c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+          const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+          gr.addColorStop(0, `rgba(${rgb},0.32)`); gr.addColorStop(0.68, `rgba(${rgb},0.42)`); gr.addColorStop(0.84, `rgba(${rgb},0.75)`);
+          gr.addColorStop(0.92, `rgba(${rgb},0.3)`); gr.addColorStop(1, `rgba(${rgb},0)`);
+          g.fillStyle = gr; g.fillRect(0, 0, 64, 64); this._spr[key] = c;
+        }
+        ctx.globalAlpha = Math.min(1, al); ctx.drawImage(c, x - r, y - r, r * 2, r * 2);
+      },
+      // metaballe: pole alfa z miękkich kręgów na małym buforze → próg przez iterację a→2a² (kompozycja) → barwienie gradientem
+      roLava(ctx, buf, blobs, X, Y, RW, RH, a, ang) {
+        if (a <= 0.005) return;
+        const bw = buf.width, bh = buf.height, sx = bw / RW, sy = bh / RH, g = buf.getContext('2d');
+        g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, bw, bh);
+        g.globalCompositeOperation = 'lighter';
+        for (const q of blobs) if (q.r > 0.5) dot(g, '255,255,255', (q.x - X) * sx, (q.y - Y) * sy, q.r * sx * 2.6, 1);
+        g.globalAlpha = 1;
+        for (let i = 0; i < 4; i++) {
+          g.globalCompositeOperation = 'destination-in'; g.drawImage(buf, 0, 0);
+          g.globalCompositeOperation = 'lighter'; g.drawImage(buf, 0, 0);
+        }
+        g.globalCompositeOperation = 'source-in';
+        const cx = bw / 2, cy = bh / 2, L = Math.max(bw, bh) * 0.6, gr = g.createLinearGradient(cx - Math.cos(ang) * L, cy - Math.sin(ang) * L, cx + Math.cos(ang) * L, cy + Math.sin(ang) * L);
+        gr.addColorStop(0, `rgb(${this.RO.deep})`); gr.addColorStop(0.3, `rgb(${this.RO.berry})`); gr.addColorStop(0.6, `rgb(${this.RO.rose})`); gr.addColorStop(1, `rgb(${this.RO.pink})`);
+        g.fillStyle = gr; g.fillRect(0, 0, bw, bh);
+        g.globalCompositeOperation = 'source-over';
+        ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a); ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(buf, X, Y, RW, RH); ctx.restore();
+      },
+      init() {
+        const bk = [];
+        for (let i = 0; i < 8; i++) bk.push({ an: rand(0, TAU), rr: rand(0.9, 1.9), sp: rand(-0.35, 0.35), r: rand(8, 20), f: rand(0.55, 0.95), ph: rand(0, TAU) });
+        return { bk, P: [] };
+      },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const it = o.item || { x: b.cx, y: b.cy, base: 32 }, img = it.img || FALLBACK_ICON, base = it.base || 32;
+        const k = Math.max(1, base / 32) * (o.itemScale || 1);
+        const T_UP = 1.1, T_DN = 4.2, T_LAND = 5.15;
+        const up = easeInOut(clamp01(t / T_UP)), dn = easeInOut(clamp01((t - T_DN) / (T_LAND - T_DN))), lift = up * (1 - dn);
+        const X = it.x + ((o.index || 0) * 34 * k + Math.sin(t * 1.3) * 6 * k) * lift, Y = it.y - 115 * k * lift + Math.sin(t * 2.1) * 3 * k * lift;
+        const sz = base * (1 + 1.5 * lift);
+        if (t < T_LAND) o.hideItem();
+        ctx.save();
+        // przelewający się blask za przedmiotem
+        const hue = 0.6 + 0.15 * Math.sin(t * 1.2);
+        ctx.globalCompositeOperation = 'lighter';
+        dot(ctx, this.roCol(hue - 0.1), X, Y, sz * 3, a * 0.32 * lift);
+        dot(ctx, this.roCol(hue + 0.15), X, Y, sz * 1.5, a * 0.35 * lift);
+        // bokeh dookoła
+        for (const q of s.bk) {
+          const an = q.an + t * q.sp, R = sz * q.rr * (0.6 + 0.4 * lift);
+          const bx = X + Math.cos(an) * R * 1.3, by = Y + Math.sin(an) * R * 0.9 - (t * 6 * k) % 20;
+          this.roBok(ctx, q.f + 0.12 * Math.sin(t * 0.9 + q.ph), 0, bx, by, q.r * k * (0.8 + 0.2 * Math.sin(t * 1.7 + q.ph)), a * 0.5 * lift);
+        }
+        // trzy jedwabne wstęgi w helisie (najpierw tylna połowa, potem przedmiot, potem przednia)
+        const grow = easeInOut(clamp01((t - 0.35) / 1.2)), unw = easeIn(clamp01((t - 3.4) / 1.1));
+        const ribs = [];
+        if (grow > 0.01 && unw < 1) {
+          for (let r = 0; r < 2; r++) {
+            const P = [], N = 44;
+            for (let j = 0; j < N; j++) {
+              const f = (j / (N - 1)) * grow;
+              const phi = f * TAU * 1.05 + t * (1.5 + unw * 2.5) + r * Math.PI;
+              const R = (sz * 0.95 + 12 * k) * (1 + unw * 1.8) * (0.82 + 0.28 * Math.sin(Math.PI * f));
+              P.push({
+                x: X + Math.cos(phi) * R, y: Y + (f - 0.5) * sz * 2.3 * (1 + unw) + Math.sin(phi) * R * 0.32 - unw * 40 * k,
+                w: 17 * k * Math.pow(Math.sin(Math.PI * Math.min(1, f / Math.max(0.01, grow))), 0.6) * (1 - unw * 0.4),
+                th: f * 4.2 + t * 1.3 + r * 1.9, z: Math.sin(phi), al: 1 - unw,
+              });
+            }
+            ribs.push(P);
+          }
+          for (const P of ribs) this.roRibbon(ctx, P, a * lift, -1);
+        }
+        drawItem(ctx, img, X, Y, sz, Math.sin(t * 1.4) * 0.08 * lift, 1, a, false);
+        if (lift > 0.05) { ctx.globalCompositeOperation = 'lighter'; dot(ctx, this.RO.pearl, X - sz * 0.22, Y - sz * 0.26, sz * 0.3, a * 0.18 * lift); }
+        for (const P of ribs) this.roRibbon(ctx, P, a * lift, 1);
+        // miękkie lądowanie
+        const lt = t - T_LAND;
+        if (lt > -0.1 && lt < 0.8) {
+          const f = clamp01(lt / 0.8);
+          ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.min(1, a * (1 - f) * 0.8); ctx.lineWidth = 2 * k * (1 - f) + 0.6;
+          ctx.strokeStyle = `rgb(${this.RO.powder})`; ctx.beginPath(); ctx.ellipse(it.x, it.y, base * 0.6 + easeOut(f) * 46 * k, (base * 0.6 + easeOut(f) * 46 * k) * 0.8, 0, 0, TAU); ctx.stroke();
+          dot(ctx, this.RO.pink, it.x, it.y, base * 1.6, a * (1 - f) * 0.5);
+        }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'ro_frame', group: G_FRAME, name: 'Ciemny róż: Jedwabna szarfa', dur: 6,
+      init() { return { K: EFFECTS.find(e => e.id === 'ro_item'), bk: [], acc: 0, P0: [], P1: [] }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const K = s.K, D = o.density || 1, per = 2 * (b.w + b.h);
+        const k = Math.max(0.8, Math.min(1.5, Math.sqrt(per / 1300)));
+        const pad = 7 * k, rad = 14 * k, N = Math.max(110, Math.min(380, Math.round(per / 8)));
+        const waves = Math.max(4, Math.round(per / 190)), tw = Math.max(2, Math.round(per / 420));
+        const intro = easeInOut(clamp01(t / 1.4));
+        ctx.save();
+        // poświata obwodu – odcienie powoli przelewają się dookoła
+        const ang = t * 0.35, L = Math.hypot(b.w, b.h) / 2;
+        const gr = ctx.createLinearGradient(b.cx - Math.cos(ang) * L, b.cy - Math.sin(ang) * L, b.cx + Math.cos(ang) * L, b.cy + Math.sin(ang) * L);
+        gr.addColorStop(0, `rgb(${K.RO.berry})`); gr.addColorStop(0.5, `rgb(${K.RO.powder})`); gr.addColorStop(1, `rgb(${K.RO.rose})`);
+        rrect(ctx, b.x - pad, b.y - pad, b.w + pad * 2, b.h + pad * 2, rad);
+        ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = gr;
+        ctx.globalAlpha = Math.min(1, a * 0.16 * intro); ctx.lineWidth = 16 * k; ctx.stroke();
+        ctx.globalAlpha = Math.min(1, a * 0.45 * intro); ctx.lineWidth = 4 * k; ctx.stroke();
+        // dwie wstęgi splatające się wzdłuż obwodu
+        const len = intro, flow = t * 0.018;
+        const Ps = [s.P0, s.P1];
+        for (let ri = 0; ri < 2; ri++) {
+          const P = Ps[ri]; P.length = 0;
+          const M = Math.max(2, Math.round(N * len));
+          for (let j = 0; j <= M; j++) {
+            const u = (j / N) + flow + ri * 0.5 * (1 - len), ph = u * TAU * waves + t * 1.1 + ri * Math.PI;
+            const p = K.roRR(b, u, pad, rad), off = Math.sin(ph) * 6 * k;
+            const tap = len < 1 ? Math.min(1, j / 6, (M - j) / 6) : 1;
+            P.push({ x: p.x + p.nx * off, y: p.y + p.ny * off, w: 10 * k * tap, th: u * TAU * tw + t * 1.3 + ri * 1.7, z: Math.cos(ph) * (ri ? -1 : 1) });
+          }
+        }
+        K.roRibbon(ctx, s.P0, a, -1); K.roRibbon(ctx, s.P1, a, -1);
+        K.roRibbon(ctx, s.P0, a, 1); K.roRibbon(ctx, s.P1, a, 1);
+        // perłowe odblaski płynące po jedwabiu
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < 2; i++) {
+          const u0 = t * 0.06 + i * 0.5;
+          for (let j = 0; j < 7; j++) {
+            const p = K.roRR(b, u0 - j * 0.004, pad, rad);
+            dot(ctx, j ? K.RO.powder : K.RO.pearl, p.x, p.y, (12 - j * 1.2) * k, a * 0.4 * intro * (1 - j / 7), j === 0);
+          }
+        }
+        // kilka miękkich kręgów odpływających od ramki
+        if (t < this.dur - 1.2 && t > 0.8) {
+          s.acc += dt * per / 900 * D;
+          while (s.acc >= 1) { s.acc--; const u = Math.random(), p = K.roRR(b, u, pad, rad); s.bk.push({ x: p.x, y: p.y, vx: p.nx * rand(6, 14) * k, vy: p.ny * rand(6, 14) * k - 4 * k, l: 0, m: rand(2.2, 3.6), r: rand(6, 13) * k, f: rand(0.55, 0.95) }); }
+        }
+        if (s.bk.length > 80) s.bk.splice(0, s.bk.length - 80);
+        for (let i = s.bk.length - 1; i >= 0; i--) {
+          const q = s.bk[i]; q.l += dt; if (q.l > q.m) { s.bk.splice(i, 1); continue; }
+          q.x += q.vx * dt; q.y += q.vy * dt; const f = q.l / q.m;
+          K.roBok(ctx, q.f + 0.15 * Math.sin(t + i), 0, q.x, q.y, q.r * (0.6 + f * 0.6), a * 0.45 * Math.sin(Math.PI * f));
+        }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'ro_around', group: G_AROUND, name: 'Ciemny róż: Różana lawa', dur: 6,
+      init() {
+        const bl = [];
+        for (let i = 0; i < 14; i++) bl.push({ u: i / 14 + rand(-0.02, 0.02), sp: rand(0.016, 0.04) * (i % 2 ? 1 : 1.3), pd: rand(34, 82), r0: rand(20, 40), ph: rand(0, TAU), wf: rand(0.4, 0.9), x: 0, y: 0, r: 0 });
+        const buf = document.createElement('canvas'); buf.width = 160; buf.height = 160;
+        return { K: EFFECTS.find(e => e.id === 'ro_item'), bl, buf };
+      },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const K = s.K, sc = o.scale || 1;
+        const RW = b.w + 330 * sc, RH = b.h + 330 * sc, X0 = b.cx - RW / 2, Y0 = b.cy - RH / 2;
+        const bh = Math.max(60, Math.min(260, Math.round(160 * RH / RW)));
+        if (s.buf.height !== bh) s.buf.height = bh;
+        const grow = easeInOut(clamp01(t / 1.6));
+        ctx.save();
+        // ciemnośliwowe tło pod lawą
+        ctx.globalCompositeOperation = 'source-over';
+        dot(ctx, K.RO.deep, b.cx, b.cy, Math.max(RW, RH) * 0.62, a * 0.4 * grow);
+        // ruch bąbli: powolny obieg wokół okna + wznoszenie, różne prędkości → zlewanie się i rozdzielanie
+        for (const q of s.bl) {
+          const u = q.u + t * q.sp, pd = (q.pd + 18 * Math.sin(t * q.wf + q.ph)) * sc;
+          const p = K.roRR(b, u, pd, 60 * sc);
+          q.x = p.x + Math.sin(t * 0.7 + q.ph) * 10 * sc; q.y = p.y - Math.sin(t * q.wf * 1.3 + q.ph) * 14 * sc;
+          q.r = q.r0 * sc * grow * (0.8 + 0.25 * Math.sin(t * 0.9 + q.ph * 2));
+        }
+        ctx.globalCompositeOperation = 'lighter';
+        for (const q of s.bl) dot(ctx, K.RO.rose, q.x, q.y, q.r * 2.6, a * 0.16 * grow);
+        K.roLava(ctx, s.buf, s.bl, X0, Y0, RW, RH, a * 0.95, t * 0.25);
+        // perłowe połyski na bąblach
+        ctx.globalCompositeOperation = 'lighter';
+        for (const q of s.bl) dot(ctx, K.RO.pearl, q.x - q.r * 0.32, q.y - q.r * 0.38, q.r * 0.42, a * 0.22 * grow);
+        ctx.restore();
+      },
+    },
+    {
+      id: 'ro_screen', group: G_SCREEN, name: 'Ciemny róż: Jedwabne fale', dur: 8,
+      init() {
+        const bk = [];
+        for (let i = 0; i < 16; i++) bk.push({ x: Math.random(), y: Math.random(), r: rand(22, 70), vy: rand(0.008, 0.025), vx: rand(-0.01, 0.01), f: rand(0.45, 0.85), ph: rand(0, TAU) });
+        const rb = [
+          { y: 0.13, A: 0.05, f1: 0.8, s1: 0.35, w: 64, tw: 1.6, sp: 0.9, d: 0.0, lit: 0.4 },
+          { y: 0.27, A: 0.06, f1: 1.1, s1: -0.28, w: 42, tw: 2.2, sp: 1.2, d: 0.5, lit: 0.9 },
+          { y: 0.76, A: 0.06, f1: 0.9, s1: 0.3, w: 52, tw: 1.9, sp: -1.0, d: 0.3, lit: 0.2 },
+          { y: 0.9, A: 0.05, f1: 0.7, s1: -0.38, w: 78, tw: 1.3, sp: 0.8, d: 0.8, lit: 0.7 },
+        ];
+        return { K: EFFECTS.find(e => e.id === 'ro_item'), bk, rb, P: [] };
+      },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const K = s.K, D = o.density || 1, k = Math.max(0.8, Math.min(1.6, Math.min(W / 1400, H / 840) * 1.1));
+        ctx.save();
+        if (!o.second) {
+          vignette(ctx, W, H, K.RO.deep, 0.4 * a * clamp01(t / 1.2), 0.3);
+          // powoli przelewająca się różowa mgiełka
+          ctx.globalCompositeOperation = 'lighter';
+          dot(ctx, K.RO.berry, W * (0.5 + 0.35 * Math.sin(t * 0.13)), H * (0.5 + 0.3 * Math.cos(t * 0.17)), Math.max(W, H) * 0.55, a * 0.18 * clamp01(t / 1.5));
+        }
+        // bokeh w tle
+        ctx.globalCompositeOperation = 'lighter';
+        const nb = Math.min(s.bk.length, Math.round(s.bk.length * Math.min(1, D)));
+        for (let i = 0; i < nb; i++) {
+          const q = s.bk[i], yy = (((q.y - t * q.vy) % 1) + 1) % 1, xx = (((q.x + t * q.vx + 0.02 * Math.sin(t * 0.5 + q.ph)) % 1) + 1) % 1;
+          K.roBok(ctx, q.f + 0.15 * Math.sin(t * 0.6 + q.ph), 0, xx * W, H * 1.1 - yy * H * 1.2, q.r * k, a * 0.55 * Math.sin(Math.PI * yy) * clamp01(t / 1));
+        }
+        // wielkie jedwabne wstęgi wpływające z lewej
+        const N = Math.max(80, Math.min(170, Math.round(W / 9)));
+        for (const R of s.rb) {
+          const rev = easeInOut(clamp01((t - R.d) / 2.6));
+          if (rev <= 0) continue;
+          const P = s.P; P.length = 0;
+          for (let j = 0; j < N; j++) {
+            const f = j / (N - 1) * rev, x = -120 + f * (W + 240), xn = x / W;
+            const y = H * (R.y + R.A * Math.sin(xn * TAU * R.f1 + t * R.s1) + R.A * 0.5 * Math.sin(xn * TAU * R.f1 * 2.3 - t * R.s1 * 1.4 + 1));
+            const tip = Math.min(1, (rev - f) * 8 + (rev >= 1 ? 1 : 0));
+            P.push({ x, y, w: R.w * k * (0.8 + 0.25 * Math.sin(xn * 5 + t * 0.6)) * tip, th: xn * TAU * R.tw + t * R.sp, al: 0.88 });
+          }
+          K.roRibbon(ctx, P, a, 0, 0, R.lit + 0.4 * Math.sin(t * 0.3));
+        }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'ro_win', group: G_WIN, name: 'Ciemny róż: Wstęga do torby', dur: 4.2, minDur: 4.2,
+      init() { return { K: EFFECTS.find(e => e.id === 'ro_item'), P: [], bk: [], hit: 0 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const K = s.K, D = o.density || 1, u = o.out, img = u.img || FALLBACK_ICON, base = u.base || 32;
+        const k = Math.max(1, base / 32) * (o.itemScale || 1);
+        const F = { x: u.from.x + (o.index || 0) * 30 * k, y: u.from.y }, T = u.to;
+        const T_UP = 0.6, T_LAND = 2.7;
+        const up = easeInOut(clamp01(t / T_UP));
+        const S0 = { x: F.x, y: F.y - 40 * k * up };
+        const C1 = { x: F.x + (T.x - F.x) * 0.15 - 60 * k, y: Math.min(F.y, T.y) - 260 * k }, C2 = { x: T.x + (F.x < T.x ? 40 : -40) * k, y: T.y - 300 * k };
+        const bez = p => { const m = 1 - p; return { x: m * m * m * S0.x + 3 * m * m * p * C1.x + 3 * m * p * p * C2.x + p * p * p * T.x, y: m * m * m * S0.y + 3 * m * m * p * C1.y + 3 * m * p * p * C2.y + p * p * p * T.y }; };
+        const e = easeInOut(clamp01((t - T_UP) / (T_LAND - T_UP)));
+        if (t < T_LAND) o.hideItem();
+        ctx.save();
+        // wstęga ciągnięta za przedmiotem (po lądowaniu wsuwa się do torby)
+        const tail = 0.55 * (1 - easeInOut(clamp01((t - T_LAND) / 0.7)));
+        const P = s.P; P.length = 0;
+        if (t > T_UP * 0.5 && tail > 0.005) {
+          const N = 72;
+          for (let j = 0; j < N; j++) {
+            const f = j / (N - 1), pp = Math.max(0, e - f * tail), p = bez(pp), q = bez(Math.max(0, pp - 0.01));
+            const tx = p.x - q.x, ty = p.y - q.y, l = Math.hypot(tx, ty) || 1, off = Math.sin(pp * 12 - t * 5) * 14 * k * f;
+            P.push({ x: p.x - (ty / l) * off, y: p.y + (tx / l) * off, w: 22 * k * Math.pow(1 - f, 0.6) * clamp01((e - f * tail) * 30 + 0.3), th: pp * 16 + t * 2.5, al: 1 - f * 0.5 });
+          }
+          K.roRibbon(ctx, P, a);
+        }
+        // przedmiot
+        const pos = t < T_UP ? S0 : bez(e);
+        if (t < T_LAND) {
+          const sz = base * (1 + 0.45 * up * (1 - e));
+          ctx.globalCompositeOperation = 'lighter';
+          dot(ctx, K.roCol(0.55 + 0.2 * Math.sin(t * 2)), pos.x, pos.y, sz * 1.8, a * 0.45 * up);
+          drawItem(ctx, img, pos.x, pos.y, sz, Math.sin(t * 3) * 0.12 * (1 - e), 1, a, false);
+        }
+        // lądowanie: miękki rozkwit kolorów i kilka kręgów unoszących się z torby
+        if (t >= T_LAND && !s.hit) {
+          s.hit = 1;
+          for (let i = 0; i < Math.round(9 * D); i++) s.bk.push({ x: T.x + rand(-14, 14) * k, y: T.y + rand(-8, 8) * k, vx: rand(-18, 18) * k, vy: rand(-55, -25) * k, l: 0, m: rand(1.1, 1.6), r: rand(6, 12) * k, f: rand(0.6, 0.95) });
+        }
+        const lt = t - T_LAND;
+        if (lt >= 0 && lt < 1.3) {
+          ctx.globalCompositeOperation = 'lighter';
+          const f = lt / 1.3;
+          dot(ctx, K.RO.pink, T.x, T.y, (30 + 40 * easeOut(f)) * k, a * 0.6 * (1 - f));
+          dot(ctx, K.RO.pearl, T.x, T.y, 18 * k * (1 - f), a * 0.7 * (1 - f), true);
+          for (let i = 0; i < 2; i++) {
+            const g = clamp01((lt - i * 0.22) / 1); if (g <= 0 || g >= 1) continue;
+            ctx.globalAlpha = Math.min(1, a * (1 - g)); ctx.lineWidth = (5 - i * 2) * k * (1 - g) + 1;
+            ctx.strokeStyle = `rgb(${i ? K.RO.powder : K.RO.rose})`;
+            ctx.beginPath(); ctx.arc(T.x, T.y, (10 + easeOut(g) * (60 + i * 25)) * k, 0, TAU); ctx.stroke();
+          }
+        }
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = s.bk.length - 1; i >= 0; i--) {
+          const q = s.bk[i]; q.l += dt; if (q.l > q.m) { s.bk.splice(i, 1); continue; }
+          q.vx *= 1 - dt * 0.8; q.vy *= 1 - dt * 0.6; q.x += q.vx * dt; q.y += q.vy * dt; const f = q.l / q.m;
+          K.roBok(ctx, q.f, 0, q.x, q.y, q.r * (0.7 + 0.5 * f), a * 0.7 * Math.sin(Math.PI * f));
+        }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'ro_lose', group: G_LOSE, name: 'Ciemny róż: Wyblakły jedwab', dur: 5.6, minDur: 5.6,
+      init() { return { K: EFFECTS.find(e => e.id === 'ro_item'), P: [], bk: [], acc: 0 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const K = s.K, D = o.density || 1, u = o.out, img = u.img || FALLBACK_ICON, base = u.base || 32;
+        const k = Math.max(1, base / 32) * (o.itemScale || 1);
+        const F = { x: u.from.x + (o.index || 0) * 36 * k, y: u.from.y };
+        o.hideItem();
+        const lift = easeInOut(clamp01(t / 0.7));
+        const X = F.x, Y = F.y - 30 * k * lift + Math.sin(t * 1.6) * 2 * k * lift;
+        const gr = easeInOut(clamp01((t - 0.9) / 1.9));            // odpływ koloru
+        const fall = easeInOut(clamp01((t - 1.7) / 2.2));          // wstęga zsuwa się i opada
+        const dis = easeInOut(clamp01((t - 2.8) / 1.8));           // przedmiot rozpływa się
+        let sz = base * (1 + 0.5 * lift) * (1 - 0.25 * dis);
+        ctx.save();
+        // blask, który szarzeje
+        ctx.globalCompositeOperation = 'lighter';
+        dot(ctx, K.roCol(0.5, gr), X, Y, sz * 2.8, a * (0.45 - 0.3 * gr) * lift * (1 - dis));
+        // wstęga oplatająca przedmiot → rozwija się i opada
+        const P = s.P; P.length = 0;
+        const N = 44, ga = clamp01(t / 0.9), fa = 1 - clamp01((t - 3.6) / 1.2);
+        if (fa > 0.01) {
+          for (let j = 0; j < N; j++) {
+            const f = j / (N - 1) * ga;
+            const phi = f * TAU * 1.4 + t * 1.4 * (1 - fall);
+            const R = sz * 0.9 + 8 * k;
+            const hx = X + Math.cos(phi) * R, hy = Y + (f - 0.5) * sz * 1.6 + Math.sin(phi) * R * 0.3;
+            const lx = X - 70 * k + f * 150 * k + Math.sin(f * 7 + t * 1.8) * 14 * k;
+            const ly = Y + 30 * k + fall * 70 * k + Math.sin(f * 5 - t * 1.5) * 16 * k + f * 20 * k;
+            P.push({ x: hx + (lx - hx) * fall, y: hy + (ly - hy) * fall, w: 13 * k * Math.pow(Math.sin(Math.PI * Math.min(1, f / Math.max(0.01, ga))), 0.5), th: f * 4.5 + t * 1.2, z: Math.sin(phi) * (1 - fall) + fall, al: fa });
+          }
+          K.roRibbon(ctx, P, a * lift, -1, gr);
+        }
+        // przedmiot traci barwy i rozpływa się w szarawe kręgi
+        if (dis < 1) {
+          drawItem(ctx, img, X, Y, sz, Math.sin(t * 1.1) * 0.05, 1, a * (1 - dis), false, gr > 0.02 ? `grayscale(${gr.toFixed(2)}) brightness(${(1 - 0.35 * gr).toFixed(2)})` : null);
+        }
+        if (fa > 0.01) K.roRibbon(ctx, P, a * lift, 1, gr);
+        if (t > 2.6 && t < 4.4) {
+          s.acc += dt * 9 * D;
+          while (s.acc >= 1) { s.acc--; s.bk.push({ x: X + rand(-sz, sz) * 0.4, y: Y + rand(-sz, sz) * 0.4, vx: rand(-14, 14) * k, vy: rand(8, 28) * k, l: 0, m: rand(1.4, 2.2), r: rand(5, 11) * k, f: rand(0.55, 0.9) }); }
+        }
+        if (s.bk.length > 60) s.bk.splice(0, s.bk.length - 60);
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = s.bk.length - 1; i >= 0; i--) {
+          const q = s.bk[i]; q.l += dt; if (q.l > q.m) { s.bk.splice(i, 1); continue; }
+          q.x += (q.vx + Math.sin(t * 2 + i) * 8 * k) * dt; q.y += q.vy * dt; const f = q.l / q.m;
+          K.roBok(ctx, q.f, Math.min(1, gr * 0.6 + f * 0.6), q.x, q.y, q.r * (0.8 + 0.6 * f), a * 0.6 * Math.sin(Math.PI * f));
+        }
+        // powód
+        const ca = a * clamp01((t - 0.6) / 0.5);
+        const capY = Math.min(H - 40 * k, F.y + 100 * k);
+        const tw = (u.reason || '').length * 11.5 + 30, cx = clampX(F.x, W, tw / 1.2);
+        caption(ctx, u.reason, cx, capY, ca, 22);
+        ctx.restore();
+      },
+    },
+    /* ------------------------- ZESTAW „BŁĘKIT I ZŁOTO” (bg_) – minimalistyczna geometria w stylu plakatu Bauhausu ------------------------- */
+    /* bg_item trzyma wspólne narzędzia zestawu (paleta, płaskie figury, ołówkowe linie, siatki kropek, kroki ruchu) */
+    {
+      id: 'bg_item', group: G_ITEM, name: 'Błękit i złoto: Słoneczna kompozycja', dur: 5.6, occupy: 4.9,
+      BG: { navy: '11,42,111', blue: '31,95,209', sky: '111,179,255', yel: '255,210,63', gold: '240,165,0', cream: '255,246,220' },
+      // ruch krokowy: co P sekund przesunięcie o 1 trwające m sekund (precyzyjny, mechaniczny rytm)
+      bgStep(t, P, m, back) {
+        const n = Math.floor(t / P), f = clamp01((t - n * P) / m);
+        return n + (back ? easeOutBack(f) : easeInOut(f));
+      },
+      bgFill(ctx, rgb, al) {
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, al); ctx.fillStyle = `rgb(${rgb})`; ctx.fill();
+      },
+      bgDisc(ctx, x, y, r, rgb, al) {
+        if (r < 0.5 || al <= 0.005) return;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); this.bgFill(ctx, rgb, al);
+      },
+      bgSector(ctx, x, y, r, a0, a1, rgb, al) {
+        if (r < 0.5 || al <= 0.005 || Math.abs(a1 - a0) < 0.001) return;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.arc(x, y, r, a0, a1); ctx.closePath(); this.bgFill(ctx, rgb, al);
+      },
+      bgHalf(ctx, x, y, r, rot, rgb, al) {
+        if (r < 0.5 || al <= 0.005) return;
+        ctx.beginPath(); ctx.arc(x, y, r, rot, rot + Math.PI); ctx.closePath(); this.bgFill(ctx, rgb, al);
+      },
+      bgArc(ctx, x, y, r, a0, a1, lw, rgb, al, cap) {
+        if (r < 0.5 || al <= 0.005 || Math.abs(a1 - a0) < 0.001) return;
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, al);
+        ctx.lineCap = cap || 'butt'; ctx.strokeStyle = `rgb(${rgb})`; ctx.lineWidth = lw;
+        ctx.beginPath(); ctx.arc(x, y, r, a0, a1, a1 < a0); ctx.stroke();
+      },
+      bgSq(ctx, x, y, s, rot, rgb, al, lw) {
+        if (s < 0.5 || al <= 0.005) return;
+        ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+        ctx.beginPath(); ctx.rect(-s / 2, -s / 2, s, s);
+        if (lw) { ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, al); ctx.strokeStyle = `rgb(${rgb})`; ctx.lineWidth = lw; ctx.lineJoin = 'miter'; ctx.stroke(); }
+        else this.bgFill(ctx, rgb, al);
+        ctx.restore();
+      },
+      // linia „ołówkiem” po okręgu z grafitowym czubkiem
+      bgPencil(ctx, x, y, r, a0, a1, lw, rgb, al) {
+        if (al <= 0.005 || Math.abs(a1 - a0) < 0.002) return;
+        this.bgArc(ctx, x, y, r, a0, a1, lw, rgb, al, 'round');
+        const px = x + Math.cos(a1) * r, py = y + Math.sin(a1) * r;
+        this.bgDisc(ctx, px, py, lw * 1.5, this.BG.cream, al);
+        ctx.globalCompositeOperation = 'lighter'; dot(ctx, this.BG.yel, px, py, lw * 5, al * 0.35);
+      },
+      // siatka kropek z falą i zamianą kolorów
+      bgDots(ctx, x0, y0, nx, ny, sp, r, t, al, c1, c2) {
+        if (al <= 0.005 || r < 0.3) return;
+        const sw = Math.floor(t * 1.25);
+        for (let pass = 0; pass < 2; pass++) {
+          ctx.beginPath();
+          for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+            if (((i + j + sw) & 1) !== pass) continue;
+            const w = 0.55 + 0.45 * Math.sin(t * 3 - (i + j) * 0.6), rr = r * w, x = x0 + i * sp, y = y0 + j * sp;
+            ctx.moveTo(x + rr, y); ctx.arc(x, y, rr, 0, TAU);
+          }
+          this.bgFill(ctx, pass ? c2 : c1, al);
+        }
+      },
+      init(env) { return {}; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const C = this.BG, I = o.item || { x: b.cx, y: b.cy, base: 32 }, img = (o.item && o.item.img) || FALLBACK_ICON;
+        const base = I.base || 32, k = Math.max(1, base / 32) * (o.itemScale || 1);
+        const P0 = { x: I.x + (o.index || 0) * 36 * k, y: I.y }, P1 = { x: P0.x, y: P0.y - 78 * k };
+        const T_UP = 0.75, T_DN0 = 4.15, T_DN1 = 4.9;
+        let f;
+        if (t < T_UP) f = easeOutBack(clamp01(t / T_UP));
+        else if (t < T_DN0) f = 1;
+        else f = 1 - easeInOut(clamp01((t - T_DN0) / (T_DN1 - T_DN0)));
+        const x = P0.x, y = P0.y + (P1.y - P0.y) * f + (t > T_UP && t < T_DN0 ? Math.sin((t - T_UP) * 2.2) * 2.5 * k : 0);
+        const sz = base * (1 + 0.95 * Math.max(0, f));
+        ctx.save();
+        // kompozycja za przedmiotem
+        const gIn = easeOutBack(clamp01((t - 0.35) / 0.6)), gOut = 1 - easeInOut(clamp01((t - 3.85) / 0.6));
+        const g = Math.max(0, gIn * gOut), R = 40 * k * g;
+        if (R > 0.5) {
+          const rot = this.bgStep(Math.max(0, t - 1.1), 1.05, 0.5) * Math.PI / 2 - Math.PI / 2;
+          this.bgDisc(ctx, x, y, R, C.navy, a * 0.94);
+          this.bgHalf(ctx, x, y, R, rot, C.yel, a);
+          // mały błękitny półdysk w przeciwfazie
+          this.bgHalf(ctx, x, y, R * 0.42, -rot * 1 + Math.PI, C.sky, a * 0.95);
+          // dwa łuki złota, obracające się przeciwnie
+          const ar = R * 1.32, sp = t * 0.9;
+          for (let i = 0; i < 2; i++) this.bgArc(ctx, x, y, ar, sp + i * Math.PI, sp + i * Math.PI + 1.9, 3 * k, C.gold, a * g);
+          for (let i = 0; i < 2; i++) this.bgArc(ctx, x, y, ar + 7 * k, -sp * 0.7 + i * Math.PI + 1, -sp * 0.7 + i * Math.PI + 2.1, 1.5 * k, C.sky, a * g * 0.9);
+        }
+        // pierścień kropek, zapalanych po kolei
+        const dIn = clamp01((t - 0.9) / 0.7), dOut = 1 - clamp01((t - 3.7) / 0.5);
+        if (dIn > 0 && dOut > 0) {
+          const N = 16, rr = 66 * k * (0.9 + 0.1 * dOut), r0 = t * 0.25;
+          for (let pass = 0; pass < 2; pass++) {
+            ctx.beginPath();
+            for (let i = 0; i < N; i++) {
+              if ((i & 1) !== pass) continue;
+              const on = clamp01(dIn * N - i), an = r0 + (i / N) * TAU, r = 2.6 * k * on * dOut * (0.8 + 0.2 * Math.sin(t * 4 + i));
+              if (r < 0.3) continue;
+              const px = x + Math.cos(an) * rr, py = y + Math.sin(an) * rr;
+              ctx.moveTo(px + r, py); ctx.arc(px, py, r, 0, TAU);
+            }
+            this.bgFill(ctx, pass ? C.sky : C.yel, a);
+          }
+        }
+        // ołówek rysuje okrąg, potem go „wymazuje”
+        const pd = easeInOut(clamp01((t - 0.15) / 0.95)), pe = easeInOut(clamp01((t - 3.6) / 0.7));
+        if (pd > pe) this.bgPencil(ctx, x, y, 54 * k, -Math.PI / 2 + pe * TAU, -Math.PI / 2 + pd * TAU, 1.6 * k, C.cream, a);
+        // przedmiot
+        if (t < T_DN1) {
+          o.hideItem();
+          ctx.globalCompositeOperation = 'lighter'; dot(ctx, C.yel, x, y, sz * 0.9, a * 0.22 * Math.max(0, f));
+          drawItem(ctx, img, x, y, sz, t > T_UP && t < T_DN0 ? Math.sin((t - T_UP) * 1.6) * 0.05 : 0, 1, a, false);
+        }
+        // lądowanie w slocie: złoty pierścień i obracający się kwadrat
+        const lt = t - T_DN1 + 0.12;
+        if (lt > 0 && lt < 0.7) {
+          const q = lt / 0.7;
+          this.bgArc(ctx, P0.x, P0.y, (12 + 26 * easeOut(q)) * k, 0, TAU, 3 * k * (1 - q) + 0.5, C.yel, a * (1 - q));
+          this.bgSq(ctx, P0.x, P0.y, (44 - 14 * easeOut(q)) * k, Math.PI / 4 * (1 - easeOut(q)), C.blue, a * (1 - q), 2 * k);
+        }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'bg_frame', group: G_FRAME, name: 'Błękit i złoto: Rama w pasy', dur: 6,
+      init() { return {}; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'bg_item'), C = L.BG;
+        const k = Math.max(0.8, Math.min(1.8, (b.w + b.h) / 2 / 380));
+        const pad = 7 * k, x0 = b.x - pad, y0 = b.y - pad, w = b.w + pad * 2, h = b.h + pad * 2, Pm = 2 * (w + h);
+        const rectPath = (px, py, pw, ph) => { ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + pw, py); ctx.lineTo(px + pw, py + ph); ctx.lineTo(px, py + ph); ctx.closePath(); };
+        const intro = easeInOut(clamp01(t / 0.9));
+        ctx.save(); ctx.lineJoin = 'miter'; ctx.lineCap = 'butt';
+        ctx.globalCompositeOperation = 'source-over';
+        // pas granatowy (rysowany od lewego górnego rogu) + złote odcinki przesuwane krokowo
+        const bw = 6 * k;
+        rectPath(x0, y0, w, h);
+        ctx.setLineDash([Pm * intro, Pm]); ctx.lineDashOffset = 0;
+        ctx.globalAlpha = Math.min(1, a * 0.95); ctx.strokeStyle = `rgb(${C.navy})`; ctx.lineWidth = bw; ctx.stroke();
+        const D = 22 * k, stepN = L.bgStep(t, 1.5, 0.55), ya = clamp01((t - 0.8) / 0.35);
+        if (ya > 0) {
+          rectPath(x0, y0, w, h);
+          ctx.setLineDash([D, D]); ctx.lineDashOffset = -stepN * D;
+          ctx.globalAlpha = Math.min(1, a * ya); ctx.strokeStyle = `rgb(${C.yel})`; ctx.lineWidth = bw; ctx.stroke();
+        }
+        ctx.setLineDash([]);
+        // wewnętrzna cienka błękitna linia
+        rectPath(b.x - 1.5 * k, b.y - 1.5 * k, b.w + 3 * k, b.h + 3 * k);
+        ctx.globalAlpha = Math.min(1, a * 0.75 * intro); ctx.strokeStyle = `rgb(${C.sky})`; ctx.lineWidth = Math.max(1, 1.2 * k); ctx.stroke();
+        // zewnętrzna linia ołówkiem – rysowana i wymazywana dookoła
+        const po = 15 * k, xo = x0 - po + pad, yo = y0 - po + pad;
+        const ow = b.w + po * 2, oh = b.h + po * 2, Po = 2 * (ow + oh);
+        const cyc = 5, ct = t % cyc, head = easeInOut(clamp01(ct / 2.3)), tail = easeInOut(clamp01((ct - 2.3) / 2.3));
+        const lap = Math.floor(t / cyc) * 0.25;
+        if (head - tail > 0.002) {
+          ctx.save();
+          rectPath(b.x - po, b.y - po, ow, oh);
+          ctx.setLineDash([(head - tail) * Po, Po * 2]); ctx.lineDashOffset = -(tail + lap) * Po;
+          ctx.globalAlpha = Math.min(1, a * 0.9); ctx.strokeStyle = `rgb(${C.cream})`; ctx.lineWidth = Math.max(1, 1.5 * k); ctx.lineCap = 'round'; ctx.stroke();
+          ctx.restore();
+          const tp = perim({ x: b.x - po, y: b.y - po, w: ow, h: oh }, head + lap, 0);
+          L.bgDisc(ctx, tp.x, tp.y, 2.4 * k, C.yel, a);
+          ctx.globalCompositeOperation = 'lighter'; dot(ctx, C.yel, tp.x, tp.y, 10 * k, a * 0.4);
+        }
+        // narożniki: ćwiartki koła, kolor zamieniany „falą” od środka
+        const cr = 21 * k, cs = L.bgStep(t + 0.75, 2.2, 0.6), ci = Math.floor(cs), cf = cs - ci;
+        const corners = [[x0, y0, Math.PI, 1.5 * Math.PI], [x0 + w, y0, 1.5 * Math.PI, TAU], [x0 + w, y0 + h, 0, Math.PI / 2], [x0, y0 + h, Math.PI / 2, Math.PI]];
+        corners.forEach(([cx, cy, a0, a1], i) => {
+          const ce = easeOutBack(clamp01((t - 0.2 - i * 0.18) / 0.5));
+          if (ce <= 0) return;
+          const cA = (i + ci) & 1 ? C.blue : C.yel, cB = (i + ci) & 1 ? C.yel : C.blue;
+          L.bgSector(ctx, cx, cy, cr * ce, a0, a1, cA, a);
+          if (cf > 0 && cf < 1) L.bgSector(ctx, cx, cy, cr * ce * cf, a0, a1, cB, a);
+          // mały kwadracik na przekątnej
+          const dx = Math.cos((a0 + a1) / 2), dy = Math.sin((a0 + a1) / 2);
+          L.bgSq(ctx, cx + dx * cr * 1.55, cy + dy * cr * 1.55, 5 * k * ce, Math.PI / 4 + L.bgStep(t, 2.2, 0.5) * Math.PI / 2, C.cream, a * 0.9);
+        });
+        // środek górnej i dolnej krawędzi: trzy kropki
+        const dIn = clamp01((t - 0.8) / 0.4);
+        if (dIn > 0) for (const yy of [y0 - 22 * k, y0 + h + 22 * k]) L.bgDots(ctx, b.cx - 14 * k, yy, 3, 1, 14 * k, 3.2 * k * dIn, t, a, C.yel, C.sky);
+        ctx.restore();
+      },
+    },
+    {
+      id: 'bg_around', group: G_AROUND, name: 'Błękit i złoto: Splecione pierścienie', dur: 6,
+      init() { return {}; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'bg_item'), C = L.BG;
+        const k = Math.max(0.8, Math.min(1.5, Math.min(b.w, b.h) / 170));
+        const R0 = Math.hypot(b.w, b.h) / 2 + 16 * k, e = easeOutBack(clamp01(t / 0.9)), R = R0 * (0.7 + 0.3 * e);
+        const al = a * clamp01(t / 0.35);
+        const cx = b.cx, cy = b.cy;
+        // rozsuwanie i zsuwanie pierścieni (krokowo, płynnie)
+        const st = L.bgStep(t, 2.4, 1.2), d = R * 0.2 * Math.cos(st * Math.PI);
+        const lw = 7 * k;
+        ctx.save();
+        const cL = C.yel, cR = C.blue;
+        L.bgArc(ctx, cx + d, cy, R, 0, TAU, lw, cR, al * 0.95);
+        L.bgArc(ctx, cx - d, cy, R, 0, TAU, lw, cL, al * 0.95);
+        // przeplot: niebieski pierścień nad żółtym przy dolnym przecięciu
+        const yi = Math.sqrt(Math.max(0, R * R - d * d)), ang = Math.atan2(yi, -d);
+        if (Math.abs(d) > lw) L.bgArc(ctx, cx + d, cy, R, ang - 0.12, ang + 0.12, lw, cR, al * 0.95);
+        // cienkie kremowe obwódki, nadające figurom ostrość
+        L.bgArc(ctx, cx - d, cy, R - lw / 2 - 2 * k, 0, TAU, 1 * k, C.cream, al * 0.35);
+        // ołówek po większym okręgu
+        const Ro = R * 1.13, cyc = 4.6, ct = t % cyc, h1 = easeInOut(clamp01(ct / 2.1)), t1 = easeInOut(clamp01((ct - 2.2) / 2.1));
+        const base = -Math.PI / 2 + Math.floor(t / cyc) * 0.9;
+        if (h1 > t1) L.bgPencil(ctx, cx, cy, Ro, base + t1 * TAU, base + h1 * TAU, 1.5 * k, C.cream, al * 0.9);
+        // figury na orbicie: złote koło i granatowy kwadrat, w przeciwfazie
+        const oa = t * 0.45;
+        const p1 = { x: cx + Math.cos(oa) * Ro, y: cy + Math.sin(oa) * Ro }, p2 = { x: cx - Math.cos(oa) * Ro, y: cy - Math.sin(oa) * Ro };
+        L.bgDisc(ctx, p1.x, p1.y, 10 * k * e, C.gold, al);
+        L.bgHalf(ctx, p1.x, p1.y, 10 * k * e, L.bgStep(t, 1.3, 0.5) * Math.PI, C.yel, al);
+        L.bgSq(ctx, p2.x, p2.y, 17 * k * e, L.bgStep(t + 0.6, 1.3, 0.5, true) * Math.PI / 2, C.navy, al);
+        L.bgSq(ctx, p2.x, p2.y, 7 * k * e, -L.bgStep(t + 0.6, 1.3, 0.5, true) * Math.PI / 2, C.sky, al);
+        // siatki kropek w przeciwległych narożnikach
+        const sp = 11 * k, dIn = clamp01((t - 0.6) / 0.5);
+        L.bgDots(ctx, cx - R * 1.32, cy - R * 0.95, 4, 4, sp, 2.6 * k * dIn, t, al * 0.95, C.yel, C.sky);
+        L.bgDots(ctx, cx + R * 1.32 - 3 * sp, cy + R * 0.95 - 3 * sp, 4, 4, sp, 2.6 * k * dIn, t + 0.7, al * 0.95, C.sky, C.yel);
+        ctx.restore();
+      },
+    },
+    {
+      id: 'bg_screen', group: G_SCREEN, name: 'Błękit i złoto: Plakat ze słońcem', dur: 8,
+      init() { return {}; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'bg_item'), C = L.BG, m = Math.min(W, H);
+        ctx.save();
+        if (!o.second) vignette(ctx, W, H, C.navy, 0.38 * a, 0.35);
+        // pasy przecierające ekran ukośnie (co 5 s)
+        const wc = 5, wt = (t - 0.6) % wc;
+        if (t > 0.6 && wt < 1.8) {
+          const f = easeInOut(wt / 1.8), bw = W * 0.11, sk = H * 0.36, n = Math.floor((t - 0.6) / wc);
+          const cols = n & 1 ? [C.yel, C.blue, C.sky] : [C.blue, C.yel, C.sky];
+          const X = -W * 0.5 - sk + f * (W * 2 + sk);
+          cols.forEach((c, i) => {
+            const xx = X - i * bw * 1.08;
+            ctx.beginPath(); ctx.moveTo(xx, 0); ctx.lineTo(xx + bw, 0); ctx.lineTo(xx + bw - sk, H); ctx.lineTo(xx - sk, H); ctx.closePath();
+            L.bgFill(ctx, c, a * 0.2);
+          });
+        }
+        // słońce w prawym górnym rogu + przesuwające się zaćmienie z kremową soczewką
+        const Rs = 0.19 * m, se = easeOutBack(clamp01(t / 1.0)), sx = W - Rs * 0.85, sy = Rs * 0.95;
+        L.bgDisc(ctx, sx, sy, Rs * se, C.yel, a * 0.88);
+        const ep = (t * 0.17 + 0.12) % 1, ex = sx + Rs * (2.3 - 4.6 * easeInOut(ep)), ey = sy + Rs * 0.35;
+        if (se > 0.2) {
+          L.bgDisc(ctx, ex, ey, Rs * se, C.blue, a * 0.82);
+          ctx.save(); ctx.beginPath(); ctx.arc(ex, ey, Rs * se, 0, TAU); ctx.clip();
+          L.bgDisc(ctx, sx, sy, Rs * se, C.cream, a * 0.92);
+          ctx.restore();
+        }
+        // ołówek okrążający słońce
+        const pc = 4.4, pt = t % pc, h1 = easeInOut(clamp01(pt / 2)), t1 = easeInOut(clamp01((pt - 2.1) / 2));
+        if (h1 > t1) L.bgPencil(ctx, sx, sy, Rs * 1.2 * se, Math.PI * 0.5 + t1 * TAU, Math.PI * 0.5 + h1 * TAU, Math.max(1.5, m * 0.002), C.cream, a * 0.85);
+        // łuki-półkola przy dolnej krawędzi (lewo), kolory przecierane sektorowo
+        const ax = W * 0.13, ay = H, cols = [C.blue, C.yel, C.sky, C.navy];
+        const as = L.bgStep(t, 1.6, 0.7), ai = Math.floor(as), af = as - ai;
+        [0.36, 0.28, 0.2, 0.12].forEach((rf, i) => {
+          const ie = easeOutBack(clamp01((t - 0.15 - i * 0.12) / 0.7)), r = rf * m * ie;
+          if (r < 1) return;
+          L.bgHalf(ctx, ax, ay, r, Math.PI, cols[(i + ai) % 4], a * 0.8);
+          if (af > 0 && af < 1) L.bgSector(ctx, ax, ay, r, Math.PI, Math.PI + af * Math.PI, cols[(i + ai + 1) % 4], a * 0.8);
+        });
+        // siatka kropek w lewym górnym rogu
+        const dsp = m * 0.034;
+        L.bgDots(ctx, W * 0.05, H * 0.08, 7, 5, dsp, m * 0.0065 * clamp01((t - 0.4) / 0.6), t, a * 0.8, C.yel, C.sky);
+        // obracające się kwadraty w prawym dolnym rogu
+        const qs = 0.12 * m, qx = W - qs * 1.1, qy = H - qs * 1.1, qe = easeOutBack(clamp01((t - 0.5) / 0.7));
+        const qr = L.bgStep(t, 1.8, 0.6, true) * Math.PI / 2;
+        L.bgSq(ctx, qx, qy, qs * qe, qr, C.navy, a * 0.85);
+        L.bgSq(ctx, qx, qy, qs * 0.62 * qe, -qr * 0.5 + Math.PI / 4, C.yel, a * 0.92);
+        L.bgDisc(ctx, qx, qy, qs * 0.16 * qe, C.blue, a);
+        // cienkie linie konstrukcyjne
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a * 0.35 * clamp01(t / 1.2));
+        ctx.strokeStyle = `rgb(${C.cream})`; ctx.lineWidth = 1; ctx.beginPath();
+        ctx.moveTo(0, sy); ctx.lineTo(W * clamp01(t / 1.2), sy);
+        ctx.moveTo(ax, H); ctx.lineTo(ax, H - H * clamp01(t / 1.2)); ctx.stroke();
+        ctx.restore();
+      },
+    },
+    {
+      id: 'bg_win', group: G_WIN, name: 'Błękit i złoto: Złota trajektoria', dur: 4, minDur: 4,
+      init() { return { hit: 0 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'bg_item'), C = L.BG, u = o.out, img = u.img || FALLBACK_ICON;
+        const base = u.base || 32, k = Math.max(1, base / 32) * (o.itemScale || 1);
+        const F = { x: u.from.x + (o.index || 0) * 36 * k, y: u.from.y }, T = u.to;
+        const F2 = { x: F.x, y: F.y - 40 * k };
+        const T_UP = 0.55, T_GO = 1.0, T_HIT = 2.2;
+        const dist = Math.hypot(T.x - F2.x, T.y - F2.y), hgt = 60 * k + dist * 0.22;
+        if (t < T_HIT) o.hideItem();
+        let x, y, sz, rot = 0;
+        if (t < T_GO) { const f = easeOutBack(clamp01(t / T_UP)); x = F.x; y = F.y - 40 * k * f; sz = base * (1 + 0.6 * f); }
+        else if (t < T_HIT) { const f = easeInOut(clamp01((t - T_GO) / (T_HIT - T_GO))), p = arcPoint(F2, T, f, hgt); x = p.x; y = p.y; sz = base * (1.6 - 0.6 * f); rot = f * Math.PI * 2; }
+        else { x = T.x; y = T.y; sz = base; }
+        ctx.save();
+        // trajektoria: kreskowana linia „ołówkiem” rysowana do torby, zjadana za przedmiotem
+        const lp = easeInOut(clamp01((t - 0.35) / 0.65)), le = t < T_GO ? 0 : easeInOut(clamp01((t - T_GO) / (T_HIT - T_GO)));
+        if (lp > le && t < T_HIT + 0.1) {
+          ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a * 0.9);
+          ctx.strokeStyle = `rgb(${C.cream})`; ctx.lineWidth = 1.6 * k; ctx.setLineDash([6 * k, 6 * k]); ctx.lineDashOffset = -t * 30 * k; ctx.lineCap = 'round';
+          ctx.beginPath();
+          for (let i = 0; i <= 40; i++) { const f = le + (lp - le) * (i / 40), p = arcPoint(F2, T, f, hgt); i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }
+          ctx.stroke(); ctx.setLineDash([]);
+          const tip = arcPoint(F2, T, lp, hgt); L.bgDisc(ctx, tip.x, tip.y, 2.6 * k, C.yel, a);
+          // znacznik celu: kwadrat obracający się nad torbą
+          if (lp > 0.95) L.bgSq(ctx, T.x, T.y, 30 * k, L.bgStep(t, 0.6, 0.3) * Math.PI / 2 + Math.PI / 4, C.yel, a * 0.9, 2 * k);
+        }
+        // dysk za przedmiotem: granat z żółtym półkolem, które obraca się w locie
+        if (t < T_HIT) {
+          const dg = easeOutBack(clamp01(t / 0.5)), R = sz * 0.85 * dg;
+          L.bgDisc(ctx, x, y, R, C.navy, a * 0.92);
+          L.bgHalf(ctx, x, y, R, -Math.PI / 2 + rot + (t < T_GO ? L.bgStep(t, 0.5, 0.3) * Math.PI / 2 : 0), C.yel, a);
+          L.bgArc(ctx, x, y, R + 4 * k, 0, TAU, 1.5 * k, C.sky, a * 0.85);
+          drawItem(ctx, img, x, y, sz, t < T_GO ? 0 : Math.sin(rot) * 0.15, 1, a, false);
+        }
+        // trafienie: rozchodzące się kwadraty i koła na przemian kolorów
+        if (t >= T_HIT) {
+          const tt = t - T_HIT;
+          if (tt < 0.25) shakeScreen(3 * (1 - tt / 0.25) * a);
+          for (let i = 0; i < 3; i++) {
+            const q = clamp01((tt - i * 0.12) / 0.8); if (q <= 0 || q >= 1) continue;
+            const r = (14 + 46 * easeOut(q)) * k, col = i & 1 ? C.sky : C.yel;
+            if (i === 1) L.bgSq(ctx, T.x, T.y, r * 1.6, Math.PI / 4 + q * Math.PI / 2, C.blue, a * (1 - q), 3 * k * (1 - q) + 0.6);
+            else L.bgArc(ctx, T.x, T.y, r, 0, TAU, 4 * k * (1 - q) + 0.6, col, a * (1 - q));
+          }
+          // słoneczne koło, które zamyka się na slocie
+          const pe = clamp01(tt / 0.6), pr = 26 * k * Math.sin(pe * Math.PI);
+          if (pr > 0.5) { L.bgDisc(ctx, T.x, T.y, pr, C.yel, a * 0.9); L.bgHalf(ctx, T.x, T.y, pr, tt * 6, C.gold, a * 0.9); }
+          // promienie z krótkich kresek
+          const rq = clamp01(tt / 0.7);
+          if (rq < 1) {
+            ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a * (1 - rq)); ctx.strokeStyle = `rgb(${C.cream})`; ctx.lineWidth = 2 * k; ctx.lineCap = 'butt';
+            ctx.beginPath();
+            for (let i = 0; i < 8; i++) { const an = i / 8 * TAU + Math.PI / 8, r1 = (24 + 40 * easeOut(rq)) * k, r2 = r1 + 10 * k * (1 - rq); ctx.moveTo(T.x + Math.cos(an) * r1, T.y + Math.sin(an) * r1); ctx.lineTo(T.x + Math.cos(an) * r2, T.y + Math.sin(an) * r2); }
+            ctx.stroke();
+          }
+          if (tt > 0.15 && tt < 0.45) drawItem(ctx, img, T.x, T.y, base * (1 + 0.25 * Math.sin((tt - 0.15) / 0.3 * Math.PI)), 0, 1, a, false);
+        }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'bg_lose', group: G_LOSE, name: 'Błękit i złoto: Zaćmienie', dur: 5.2, minDur: 5.2,
+      init() { return {}; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'bg_item'), C = L.BG, u = o.out, img = u.img || FALLBACK_ICON;
+        const base = u.base || 32, k = Math.max(1, base / 32) * (o.itemScale || 1);
+        const F = { x: u.from.x + (o.index || 0) * 36 * k, y: u.from.y };
+        o.hideItem();
+        const lift = easeOutBack(clamp01(t / 0.55)), X = F.x, Y = F.y - 46 * k * lift, sz = base * (1 + 0.6 * lift);
+        const R = 40 * k;
+        ctx.save();
+        // słońce za przedmiotem
+        const sIn = easeOutBack(clamp01((t - 0.1) / 0.5)), sOut = 1 - easeIn(clamp01((t - 3.2) / 0.6));
+        const sr = R * sIn * sOut;
+        // zaćmienie: niebieski dysk najeżdża z prawej
+        const ef = easeInOut(clamp01((t - 0.7) / 1.1)), ex = X + R * 2.4 * (1 - ef), er = sr;
+        if (sr > 0.5) {
+          L.bgDisc(ctx, X, Y, sr, C.yel, a);
+          // kremowy „rąbek” korony, malejący z postępem zaćmienia
+          L.bgArc(ctx, X, Y, sr + 6 * k, 0, TAU, 2 * k, C.gold, a * (1 - ef * 0.7));
+          L.bgDisc(ctx, ex, Y, er, C.navy, a * 0.96);
+          L.bgArc(ctx, ex, Y, er, 0, TAU, 1.5 * k, C.blue, a);
+        }
+        // przedmiot: szarzeje w cieniu, potem rozcięty na pasy, które rozjeżdżają się na boki
+        const grey = clamp01((t - 1.2) / 0.6), sl = clamp01((t - 2.1) / 1.1);
+        if (sl < 1) {
+          const filt = grey > 0 ? `grayscale(${grey.toFixed(2)}) brightness(${(1 - 0.35 * grey).toFixed(2)})` : null;
+          const N = 4, top = Y - sz / 2, hh = sz / N, fa = 1 - clamp01((sl - 0.35) / 0.65);
+          if (sl <= 0) drawItem(ctx, img, X, Y, sz, 0, 1, a, false, filt);
+          else for (let i = 0; i < N; i++) {
+            const dx = (i & 1 ? 1 : -1) * easeInOut(sl) * 46 * k;
+            ctx.save(); ctx.beginPath(); ctx.rect(X - sz * 2, top + i * hh, sz * 4, hh + 0.5); ctx.clip();
+            drawItem(ctx, img, X + dx, Y, sz, 0, 1, a * fa, false, filt);
+            ctx.restore();
+          }
+        }
+        // po zaćmieniu: dysk kurczy się do kropki i opada
+        const dt2 = clamp01((t - 3.5) / 0.9);
+        if (dt2 > 0 && dt2 < 1) L.bgDisc(ctx, X, Y + easeIn(dt2) * 40 * k, 5 * k * (1 - dt2), C.blue, a * (1 - dt2));
+        // ołówkowy okrąg, który się odrysowuje (wymazuje) – przegrana
+        const pr = 1 - easeInOut(clamp01((t - 0.9) / 2.2));
+        if (t > 0.3 && pr > 0.01) L.bgPencil(ctx, X, Y, R + 14 * k, -Math.PI / 2, -Math.PI / 2 + TAU * pr * clamp01((t - 0.3) / 0.4), 1.4 * k, C.cream, a * 0.85);
+        // napis z powodem
+        const ca = a * clamp01((t - 0.9) / 0.4);
+        const capY = Math.max(24 * k, Y - R - 50 * k), cx = clampX(X, W, 360);
+        caption(ctx, u.reason, cx, capY, ca, 22);
+        // podkreślenie: dwa pasy (żółty/niebieski) wysuwane od środka
+        const ul = easeInOut(clamp01((t - 1.1) / 0.5)) * 70 * k;
+        if (ul > 1) {
+          ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, ca);
+          ctx.fillStyle = `rgb(${C.yel})`; ctx.fillRect(cx - ul, capY + 15, ul, 3);
+          ctx.fillStyle = `rgb(${C.blue})`; ctx.fillRect(cx, capY + 15, ul, 3);
+        }
+        ctx.restore();
+      },
+    },
+    /* ------------------------- ZESTAW „SPAWALNIA” (wd_) – łuk, iskry, spoina, barwy nalotowe ------------------------- */
+    /* wd_item trzyma wspólne narzędzia zestawu (iskry z odbiciem, łuk elektryczny, kolory stygnięcia, spoina łuskowa, dym) */
+    {
+      id: 'wd_item', group: G_ITEM, name: 'Spawalnia: Spoina obwodowa', dur: 6.2, occupy: 5.6,
+      WD: { arc: '255,244,225', core: '255,255,255', hot: '255,214,140', orange: '255,140,40', smoke: '150,150,160' },
+      // kolor stygnącej stali: biel → żółć → pomarańcz → czerwień żaru → ciemny grafit → stal
+      HEAT: [[0, [255, 252, 235]], [0.08, [255, 228, 150]], [0.22, [255, 150, 45]], [0.42, [215, 64, 18]], [0.62, [120, 34, 18]],
+        [0.78, [72, 58, 54]], [0.9, [98, 98, 102]], [1, [132, 136, 142]]],
+      // q = 0..1 (0 = świeża spoina, 1 = zimna); zwraca [r,g,b]
+      wdHeat(q) {
+        const H = this.HEAT; q = clamp01(q);
+        for (let i = 1; i < H.length; i++) {
+          if (q <= H[i][0]) {
+            const f = (q - H[i - 1][0]) / (H[i][0] - H[i - 1][0]), A = H[i - 1][1], B = H[i][1];
+            return [A[0] + (B[0] - A[0]) * f, A[1] + (B[1] - A[1]) * f, A[2] + (B[2] - A[2]) * f];
+          }
+        }
+        return H[H.length - 1][1];
+      },
+      // iskry: krótkie smugi w kierunku lotu, grawitacja, odbicie od „podłogi”
+      wdSpark(arr, x, y, n, dir, spread, vmin, vmax, life) {
+        for (let i = 0; i < n; i++) {
+          const an = dir + rand(-spread, spread), v = rand(vmin, vmax);
+          arr.push({ x, y, vx: Math.cos(an) * v, vy: Math.sin(an) * v, l: 0, m: rand(0.35, 1) * (life || 1.1), b: 0 });
+        }
+        if (arr.length > 700) arr.splice(0, arr.length - 700);
+      },
+      wdSparks(ctx, arr, dt, a, grav, floorY, k) {
+        ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+        const B = [[], [], []];
+        for (let i = arr.length - 1; i >= 0; i--) {
+          const q = arr[i]; q.l += dt;
+          if (q.l > q.m) { arr.splice(i, 1); continue; }
+          q.vy += grav * dt; q.vx *= 1 - 0.6 * dt;
+          q.x += q.vx * dt; q.y += q.vy * dt;
+          if (floorY != null && q.y > floorY && q.vy > 0 && q.b < 2) {
+            q.y = floorY; q.vy *= -rand(0.2, 0.4); q.vx *= rand(0.5, 0.9); q.b++;
+            if (q.b === 1 && Math.random() < 0.3) arr.push({ x: q.x, y: q.y, vx: -q.vx * rand(0.3, 0.8), vy: q.vy * rand(0.5, 1), l: q.l, m: q.m, b: 1 });
+          }
+          const f = q.l / q.m;
+          B[f < 0.25 ? 0 : f < 0.6 ? 1 : 2].push(q);
+        }
+        const cols = ['255,246,210', '255,190,80', '255,110,30'], wd = [1.7, 1.4, 1.1];
+        for (let j = 0; j < 3; j++) {
+          if (!B[j].length) continue;
+          ctx.strokeStyle = `rgb(${cols[j]})`; ctx.lineWidth = wd[j] * (k || 1); ctx.globalAlpha = Math.min(1, a * (1 - j * 0.22));
+          ctx.beginPath();
+          for (const q of B[j]) {
+            const L = 0.022 + 0.01 * j;
+            ctx.moveTo(q.x, q.y); ctx.lineTo(q.x - q.vx * L, q.y - q.vy * L);
+          }
+          ctx.stroke();
+        }
+      },
+      // migotanie łuku (szum), 0.55..1
+      wdFlick(t, seed) {
+        return 0.72 + 0.14 * Math.sin(t * 91 + seed) + 0.09 * Math.sin(t * 57 + seed * 3) + 0.05 * Math.sin(t * 173);
+      },
+      // łuk elektryczny: biało-błękitny błysk + krótkie wyładowania
+      wdArc(ctx, x, y, R, t, a, seed) {
+        if (a <= 0.01) return;
+        const f = this.wdFlick(t, seed || 0);
+        ctx.globalCompositeOperation = 'lighter';
+        dot(ctx, '255,200,120', x, y, R * 2.2 * f, a * 0.16);
+        dot(ctx, this.WD.arc, x, y, R * 1.2 * f, a * 0.55);
+        dot(ctx, this.WD.core, x, y, R * 0.6 * f, a, true);
+        ctx.strokeStyle = 'rgb(255,248,235)'; ctx.lineWidth = Math.max(1, R * 0.05); ctx.globalAlpha = Math.min(1, a * 0.45);
+        ctx.beginPath();
+        for (let i = 0; i < 3; i++) {
+          const an = (t * 37 + i * 2.1 + (seed || 0)) % TAU, len = R * (0.5 + 0.5 * Math.abs(Math.sin(t * 41 + i)));
+          let px = x, py = y; ctx.moveTo(px, py);
+          for (let j = 1; j <= 3; j++) { px = x + Math.cos(an) * len * j / 3 + rand(-1, 1) * R * 0.12; py = y + Math.sin(an) * len * j / 3 + rand(-1, 1) * R * 0.12; ctx.lineTo(px, py); }
+        }
+        ctx.stroke();
+      },
+      // jeden „łusek” spoiny: półksiężyc w kolorze stygnięcia + połysk; dir = kierunek spawania
+      wdBead(ctx, x, y, r, dir, q, a) {
+        const c = this.wdHeat(q), hot = clamp01(1 - q / 0.7);
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a);
+        ctx.fillStyle = `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})`;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+        // cień łuski (krawędź od strony spawania) i jasny grzbiet
+        ctx.strokeStyle = `rgba(20,16,14,${0.35 * (1 - hot * 0.7)})`; ctx.lineWidth = Math.max(0.8, r * 0.28);
+        ctx.beginPath(); ctx.arc(x, y, r * 0.86, dir - 1.3, dir + 1.3); ctx.stroke();
+        ctx.strokeStyle = `rgba(255,255,255,${0.18 + 0.4 * hot})`; ctx.lineWidth = Math.max(0.6, r * 0.18);
+        ctx.beginPath(); ctx.arc(x - Math.cos(dir) * r * 0.2, y - Math.sin(dir) * r * 0.2, r * 0.5, dir + Math.PI - 0.9, dir + Math.PI + 0.9); ctx.stroke();
+      },
+      // poświata żaru nad gorącą częścią spoiny (osobno, w trybie 'lighter')
+      wdGlow(ctx, x, y, r, q, a) {
+        if (q > 0.6) return;
+        const h = 1 - q / 0.6, c = this.wdHeat(q);
+        ctx.globalCompositeOperation = 'lighter';
+        dot(ctx, `${c[0] | 0},${c[1] | 0},${c[2] | 0}`, x, y, r * (2 + 2 * h), a * 0.45 * h);
+      },
+      // dym unoszący się znad spoiny
+      wdSmoke(ctx, arr, dt, a) {
+        ctx.globalCompositeOperation = 'source-over';
+        for (let i = arr.length - 1; i >= 0; i--) {
+          const q = arr[i]; q.l += dt; if (q.l > q.m) { arr.splice(i, 1); continue; }
+          q.x += q.vx * dt; q.y += q.vy * dt; q.vx += Math.sin(q.l * 2 + q.s) * 6 * dt;
+          const f = q.l / q.m, r = q.r * (0.6 + f * 1.8);
+          ctx.globalAlpha = Math.min(1, a * 0.16 * Math.sin(f * Math.PI));
+          ctx.fillStyle = 'rgb(120,122,130)';
+          ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, TAU); ctx.fill();
+        }
+        if (arr.length > 90) arr.splice(0, arr.length - 90);
+      },
+      wdPuff(arr, x, y, r) {
+        arr.push({ x: x + rand(-3, 3), y, vx: rand(-6, 6), vy: rand(-34, -22), l: 0, m: rand(1.6, 2.6), r: r * rand(0.8, 1.2), s: rand(0, 9) });
+      },
+      init(env) { return { sp: [], sm: [], beads: [], lastU: 0 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const I = o.item || { x: b.cx, y: b.cy, base: 32 }, img = (o.item && o.item.img) || FALLBACK_ICON;
+        const base = I.base || 32, k = Math.max(1, base / 32) * (o.itemScale || 1);
+        const P0 = { x: I.x + (o.index || 0) * 36 * k, y: I.y }, P1 = { x: P0.x, y: P0.y - 84 * k };
+        const T_UP = 0.6, T_W0 = 1.0, T_W1 = 3.6, T_DN0 = 5.0, T_DN1 = 5.7;
+        let f;
+        if (t < T_UP) f = easeOutBack(clamp01(t / T_UP));
+        else if (t < T_DN0) f = 1;
+        else f = 1 - easeInOut(clamp01((t - T_DN0) / (T_DN1 - T_DN0)));
+        const x = P0.x, y = P0.y + (P1.y - P0.y) * f;
+        const sz = base * (1 + 1.3 * Math.max(0, f));
+        const R = 44 * k, floorY = P0.y + 40 * k;
+        ctx.save();
+        // postęp spawania po okręgu (spoina orbitalna – jak przy rurach)
+        const wu = clamp01((t - T_W0) / (T_W1 - T_W0)), wElse = t > T_W1 ? 1 : wu;
+        const COOL = 2.1; // czas stygnięcia do barwy stali (s)
+        const ringA = a * clamp01(f * 1.5) * (1 - clamp01((t - T_DN0 + 0.1) / 0.5));
+        // przedmiot za spoiną: rozgrzewa się podczas spawania
+        const heatI = clamp01((t - T_W0) / 0.8) * (1 - clamp01((t - T_W1) / 1.6));
+        if (t < T_DN1) {
+          o.hideItem();
+          ctx.globalCompositeOperation = 'lighter';
+          dot(ctx, this.WD.orange, x, y, sz * 0.95, a * 0.35 * heatI);
+          drawItem(ctx, img, x, y, sz, 0, 1, a, false, heatI > 0.05 ? `brightness(${1 + 0.35 * heatI}) sepia(${0.5 * heatI}) saturate(${1 + 1.5 * heatI})` : null);
+        }
+        // spoina: łuski co ~kąt; kąt startu u góry, spawanie zgodnie z ruchem wskazówek zegara
+        if (wElse > 0 && ringA > 0.01) {
+          const N = 64, n = Math.floor(N * wElse), br = 4.2 * k;
+          for (let i = 0; i < n; i++) {
+            const an = -Math.PI / 2 + (i / N) * TAU, bx = x + Math.cos(an) * R, by = y + Math.sin(an) * R;
+            const dep = T_W0 + (i / N) * (T_W1 - T_W0), q = clamp01((t - dep) / COOL);
+            this.wdBead(ctx, bx, by, br, an + Math.PI / 2, q, ringA);
+          }
+          for (let i = 0; i < n; i += 2) {
+            const an = -Math.PI / 2 + (i / N) * TAU, dep = T_W0 + (i / N) * (T_W1 - T_W0);
+            this.wdGlow(ctx, x + Math.cos(an) * R, y + Math.sin(an) * R, 4.2 * k, clamp01((t - dep) / COOL), ringA);
+          }
+        }
+        // łuk + iskry + dym w trakcie spawania
+        if (t > T_W0 - 0.25 && t < T_W1) {
+          const an = -Math.PI / 2 + wu * TAU, hx = x + Math.cos(an) * R, hy = y + Math.sin(an) * R;
+          const ig = clamp01((t - (T_W0 - 0.25)) / 0.25);
+          if (t > T_W0) {
+            const n = Math.round(rand(2, 5) * (o.density || 1));
+            this.wdSpark(s.sp, hx, hy, n, an + Math.PI / 2 + rand(-0.3, 0.3), 1.0, 120 * k, 330 * k, 1.1);
+            if (Math.random() < 0.25) this.wdSpark(s.sp, hx, hy, 2, -Math.PI / 2, 1.4, 60 * k, 200 * k, 0.8);
+            if (Math.random() < dt * 9) this.wdPuff(s.sm, hx, hy - 4 * k, 7 * k);
+          }
+          this.wdSmoke(ctx, s.sm, 0, a);
+          this.wdArc(ctx, hx, hy, 9 * k * ig, t, a * ig, 1);
+          // zajarzenie łuku = krótki błysk całej sceny
+          if (t > T_W0 - 0.05 && t < T_W0 + 0.2) { const q = 1 - Math.abs(t - T_W0 - 0.05) / 0.17; ctx.globalCompositeOperation = 'lighter'; dot(ctx, this.WD.arc, hx, hy, 60 * k, a * 0.3 * clamp01(q)); }
+        } else if (t >= T_W1 && Math.random() < dt * 4 && t < T_DN0) this.wdPuff(s.sm, x + rand(-R, R), y - R * 0.6, 6 * k);
+        this.wdSmoke(ctx, s.sm, dt, a);
+        this.wdSparks(ctx, s.sp, dt, a, 520 * k, floorY, k);
+        // lądowanie w slocie: krótki stalowy błysk
+        const lt = t - T_DN1 + 0.1;
+        if (lt > 0 && lt < 0.6) { ctx.globalCompositeOperation = 'lighter'; dot(ctx, '255,220,170', P0.x, P0.y, 26 * k, a * 0.4 * (1 - lt / 0.6)); }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'wd_frame', group: G_FRAME, name: 'Spawalnia: Spawana rama', dur: 8,
+      init(env) { return { sp: [], sm: [] }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'wd_item');
+        const per = 2 * (b.w + b.h), k = Math.max(0.8, Math.min(1.6, (o.scale || 1) * Math.sqrt(per / 700)));
+        const loopT = Math.max(5, per / 260), COOL = Math.min(loopT * 0.85, 3.4);
+        const head = (t / loopT) % 1, lap = Math.floor(t / loopT);
+        const step = Math.max(3.2 * k, per / 900), N = Math.floor(per / step), br = 3.3 * k, pad = 1;
+        ctx.save();
+        // spoina po obwodzie: kolor zależy od tego, jak dawno łuk przeszedł danym miejscem
+        for (let pass = 0; pass < 2; pass++) {
+          for (let i = 0; i < N; i++) {
+            const u = i / N;
+            if (lap === 0 && u > head) break;
+            const age = ((head - u + 1) % 1) * loopT, q = clamp01(age / COOL);
+            const p = perim(b, u, pad), dir = Math.atan2(p.ny, p.nx) + Math.PI / 2;
+            if (pass === 0) L.wdBead(ctx, p.x, p.y, br, dir, q, a * 0.95);
+            else if (q < 0.6 && (i & 1) === 0) L.wdGlow(ctx, p.x, p.y, br, q, a);
+          }
+        }
+        // łuk na czele spoiny
+        const hp = perim(b, head, pad);
+        const ox = hp.nx * 2 * k, oy = hp.ny * 2 * k;
+        const n = Math.round(rand(1, 4) * (o.density || 1) * (o.second ? 0.6 : 1));
+        const tang = Math.atan2(hp.ny, hp.nx) + Math.PI / 2;
+        L.wdSpark(s.sp, hp.x + ox, hp.y + oy, n, Math.atan2(hp.ny, hp.nx) + rand(-0.6, 0.6), 0.9, 90 * k, 260 * k, 0.9);
+        if (Math.random() < 0.3) L.wdSpark(s.sp, hp.x, hp.y, 1, tang + Math.PI, 0.4, 60 * k, 140 * k, 0.6);
+        if (Math.random() < dt * 6) L.wdPuff(s.sm, hp.x, hp.y - 4 * k, 6 * k);
+        L.wdSmoke(ctx, s.sm, dt, a);
+        L.wdSparks(ctx, s.sp, dt, a, 480 * k, null, k);
+        L.wdArc(ctx, hp.x + ox, hp.y + oy, 8 * k, t, a, 2);
+        ctx.restore();
+      },
+    },
+    {
+      id: 'wd_around', group: G_AROUND, name: 'Spawalnia: Kaskada iskier', dur: 6,
+      init(env) { return { sp: [], sm: [], cyc: -1, seed: 0 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'wd_item');
+        const k = Math.max(0.8, Math.min(1.4, (o.scale || 1) * Math.sqrt(b.w / 220)));
+        const CY = 4.6, n = Math.floor(t / CY), ct = t - n * CY;
+        if (n !== s.cyc) { s.cyc = n; s.seed = rand(0, 1); }
+        const live = t < this.dur - 1.2;
+        const top = b.y - 3 * k, floorY = b.y + b.h + 2 * k;
+        // łuk wędruje wzdłuż górnej krawędzi okna (tam i z powrotem), za nim krótka spoina
+        const W0 = 0.25, W1 = 3.4, COOL = 1.8;
+        const span = b.w * 0.7, x0 = b.x + b.w * 0.15, dirR = n % 2 === 0;
+        const wu = clamp01((ct - W0) / (W1 - W0));
+        const hx = dirR ? x0 + span * wu : x0 + span * (1 - wu);
+        const NB = Math.floor(span / (3.2 * k));
+        ctx.save();
+        // poprzednia spoina dogasa w barwach nalotowych, bieżąca rośnie
+        for (let i = 0; i < NB; i++) {
+          const u = i / NB, bx = dirR ? x0 + span * u : x0 + span * (1 - u);
+          const dep = W0 + u * (W1 - W0);
+          if (ct < dep) {
+            const q = clamp01((ct + CY - dep) / COOL);
+            if (n > 0 && q < 1) L.wdBead(ctx, bx, top, 3 * k, dirR ? Math.PI / 2 : -Math.PI / 2, q, a * (1 - clamp01((ct + CY - dep - COOL) / 0.6)));
+            continue;
+          }
+          const q = clamp01((ct - dep) / COOL);
+          L.wdBead(ctx, bx, top, 3 * k, dirR ? 0 : Math.PI, q, a);
+          if (q < 0.6 && (i & 1) === 0) L.wdGlow(ctx, bx, top, 3 * k, q, a);
+        }
+        const on = live && ct > W0 && ct < W1;
+        if (on) {
+          // kaskada: iskry lecą w górę i spadają przed oknem, odbijając się od jego dolnej krawędzi
+          const m = Math.round(rand(3, 7) * (o.density || 1));
+          L.wdSpark(s.sp, hx, top, m, -Math.PI / 2 + (dirR ? -0.5 : 0.5), 1.1, 140 * k, 380 * k, 1.5);
+          if (Math.random() < dt * 8) L.wdPuff(s.sm, hx, top - 6 * k, 8 * k);
+          // błękitne światło łuku na otoczeniu
+          ctx.globalCompositeOperation = 'lighter';
+          dot(ctx, '255,190,110', hx, top, 70 * k * L.wdFlick(t, 4), a * 0.1);
+        }
+        L.wdSmoke(ctx, s.sm, dt, a);
+        L.wdSparks(ctx, s.sp, dt, a, 600 * k, floorY, k);
+        if (on) L.wdArc(ctx, hx, top, 10 * k, t, a, 3);
+        // „zajarzenie” na starcie każdego przejścia
+        const st = ct - W0;
+        if (live && st > -0.05 && st < 0.3) { ctx.globalCompositeOperation = 'lighter'; dot(ctx, L.WD.arc, hx, top, 70 * k, a * 0.25 * (1 - Math.abs(st - 0.05) / 0.3)); }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'wd_screen', group: G_SCREEN, name: 'Spawalnia: Przyłbica', dur: 8,
+      init(env) { return { sp: [], pts: [], next: 0.3, dark: 0 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'wd_item');
+        const k = Math.max(0.8, Math.min(1.5, Math.min(W, H) / 800));
+        const live = t < this.dur - 1.5;
+        // co chwilę zajarza się łuk w innym miejscu ekranu
+        if (live && t > s.next) {
+          s.next = t + rand(1.6, 2.6);
+          let x, y, g = 0;
+          do { x = rand(W * 0.18, W * 0.82); y = rand(H * 0.25, H * 0.8); g++; }
+          while (g < 12 && b && x > b.x - 120 && x < b.x + b.w + 120 && y > b.y - 120 && y < b.y + b.h + 120);
+          s.pts.push({ x, y, t0: t, d: rand(1.1, 1.8), seed: rand(0, 9) });
+        }
+        // automatyczne przyciemnianie przyłbicy: gdy łuk się pali, szybka ciemnieje
+        let arcOn = 0;
+        for (const p of s.pts) { const lt = t - p.t0; if (lt > 0 && lt < p.d) arcOn = 1; }
+        s.dark += ((arcOn ? 1 : 0) - s.dark) * Math.min(1, dt * (arcOn ? 14 : 2.5));
+        ctx.save();
+        // szybka przyłbicy: zielonkawy filtr + ciemne obrzeże hełmu (prostokąt z zaokrągleniem)
+        ctx.globalCompositeOperation = 'source-over';
+        const tint = a * (0.14 + 0.24 * s.dark);
+        ctx.globalAlpha = Math.min(0.5, tint);
+        ctx.fillStyle = 'rgb(18,60,30)';
+        ctx.fillRect(0, 0, W, H);
+        const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.72);
+        g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(4,8,6,${0.45 * a})`);
+        ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+        // łuki i iskry (przez szybkę – zielonkawo-białe)
+        for (let i = s.pts.length - 1; i >= 0; i--) {
+          const p = s.pts[i], lt = t - p.t0;
+          if (lt > p.d + 2) { s.pts.splice(i, 1); continue; }
+          if (lt < p.d) {
+            const ig = clamp01(lt / 0.08);
+            L.wdSpark(s.sp, p.x, p.y, Math.round(rand(2, 5) * (o.density || 1)), -Math.PI / 2 + rand(-1, 1), 1.0, 120 * k, 340 * k, 1.2);
+            ctx.globalCompositeOperation = 'lighter';
+            dot(ctx, '220,255,200', p.x, p.y, 110 * k * L.wdFlick(t, p.seed), a * 0.1 * ig);
+            L.wdArc(ctx, p.x, p.y, 11 * k, t, a * ig, p.seed);
+          } else {
+            // stygnący punkt spoiny
+            const q = clamp01((lt - p.d) / 1.8);
+            L.wdBead(ctx, p.x, p.y, 4 * k, 0, q * 0.95, a * (1 - clamp01((lt - p.d - 1.4) / 0.6)));
+            L.wdGlow(ctx, p.x, p.y, 4 * k, q, a);
+          }
+        }
+        L.wdSparks(ctx, s.sp, dt, a, 560 * k, H * 0.97, k);
+        // wskaźnik przyłbicy (DIN) w dolnym rogu szybki
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a * 0.75);
+        ctx.font = `bold ${Math.round(12 * k)}px monospace`; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+        ctx.fillStyle = s.dark > 0.5 ? 'rgb(120,255,150)' : 'rgb(90,150,110)';
+        ctx.fillText(s.dark > 0.5 ? 'DIN 11 ●' : 'DIN 4 ○', W - 18 * k, H - 14 * k);
+        ctx.restore();
+      },
+    },
+    {
+      id: 'wd_win', group: G_WIN, name: 'Spawalnia: Zgrzew w torbie', dur: 4.2, minDur: 4.2,
+      init(env) { return { sp: [], sm: [], tr: [], hit: false }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'wd_item'), u = o.out, img = u.img || FALLBACK_ICON;
+        const k = Math.max(1, (u.base || 32) / 32);
+        const T_GO = 0.55, T_HIT = 1.9;
+        const from = u.from, to = u.to;
+        ctx.save();
+        if (t < T_HIT) {
+          o.hideItem();
+          let p, sz, heat;
+          if (t < T_GO) {
+            // przedmiot rozgrzewa się do białości w miejscu
+            heat = clamp01(t / T_GO);
+            p = { x: from.x + rand(-1, 1) * heat, y: from.y };
+            sz = (u.base || 32) * (1 + 0.3 * heat);
+          } else {
+            const f = easeInOut(clamp01((t - T_GO) / (T_HIT - T_GO)));
+            p = arcPoint(from, to, f, Math.min(160, Math.hypot(to.x - from.x, to.y - from.y) * 0.35));
+            sz = (u.base || 32) * (1.3 - 0.35 * f); heat = 1;
+            s.tr.push({ x: p.x, y: p.y, l: 0 });
+            L.wdSpark(s.sp, p.x, p.y, Math.round(2 * (o.density || 1)), Math.PI / 2, 1.4, 30 * k, 120 * k, 0.6);
+          }
+          trailDraw(ctx, s.tr, dt, a, '255,150,50', 9 * k);
+          ctx.globalCompositeOperation = 'lighter';
+          dot(ctx, L.WD.orange, p.x, p.y, sz * 1.1, a * 0.5 * heat);
+          dot(ctx, L.WD.hot, p.x, p.y, sz * 0.55, a * 0.4 * heat, true);
+          drawItem(ctx, img, p.x, p.y, sz, 0, 1, a, false, `brightness(${1 + 0.5 * heat}) sepia(${0.6 * heat}) saturate(${1 + 2 * heat})`);
+        } else {
+          trailDraw(ctx, s.tr, dt, a, '255,150,50', 9 * k);
+          if (!s.hit) {
+            s.hit = true;
+            L.wdSpark(s.sp, to.x, to.y, Math.round(60 * (o.density || 1)), -Math.PI / 2, Math.PI * 0.9, 120 * k, 420 * k, 1.3);
+            for (let i = 0; i < 5; i++) L.wdPuff(s.sm, to.x + rand(-10, 10) * k, to.y - 6 * k, 9 * k);
+          }
+          const ht = t - T_HIT;
+          // zgrzew punktowy: błysk łuku, fala i stygnący punkt w barwach nalotowych
+          if (ht < 0.45) L.wdArc(ctx, to.x, to.y, 16 * k * (1 - ht / 0.45), t, a * (1 - ht / 0.45), 5);
+          ringFx(ctx, to, ht, 0.7, 60 * k, '255,230,190', a * 0.8);
+          ringFx(ctx, to, ht - 0.12, 0.8, 46 * k, '255,170,70', a);
+          const q = clamp01(ht / 1.9);
+          const N = 12;
+          for (let i = 0; i < N; i++) {
+            const an = (i / N) * TAU;
+            L.wdBead(ctx, to.x + Math.cos(an) * 13 * k, to.y + Math.sin(an) * 13 * k, 3.4 * k, an + Math.PI / 2, clamp01(q - 0.03 * (N - i) / N), a * (1 - clamp01((ht - 1.9) / 0.4)));
+          }
+          L.wdGlow(ctx, to.x, to.y, 9 * k, q, a);
+        }
+        L.wdSmoke(ctx, s.sm, dt, a);
+        L.wdSparks(ctx, s.sp, dt, a, 600 * k, to.y + 18 * k, k);
+        ctx.restore();
+      },
+    },
+    {
+      id: 'wd_lose', group: G_LOSE, name: 'Spawalnia: Pęknięta spoina', dur: 5, minDur: 5,
+      init(env) { return { sp: [], sm: [], crack: null }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'wd_item'), u = o.out, img = u.img || FALLBACK_ICON;
+        const k = Math.max(1, (u.base || 32) / 32);
+        const P = { x: u.from.x, y: u.from.y - 40 * k }, sz = (u.base || 32) * 1.6;
+        const T_CR = 1.5, T_FALL = 2.1;
+        const seamY = P.y + sz * 0.55, half = 34 * k, N = 22;
+        if (!s.crack) {
+          s.crack = [];
+          for (let i = 0; i <= 8; i++) s.crack.push({ x: P.x - half + (i / 8) * half * 2, y: seamY + (i % 2 ? -1 : 1) * rand(1.5, 3.5) * k });
+        }
+        ctx.save();
+        // spoina pod przedmiotem: świeżo położona, stygnie
+        const fadeSeam = 1 - clamp01((t - 3.8) / 0.8);
+        for (let i = 0; i < N; i++) {
+          const bx = P.x - half + (i / (N - 1)) * half * 2, dep = 0.1 + (i / N) * 0.8, q = clamp01((t - dep) / 1.6);
+          if (t < dep) break;
+          L.wdBead(ctx, bx, seamY, 3.2 * k, 0, q, a * fadeSeam);
+          if ((i & 1) === 0) L.wdGlow(ctx, bx, seamY, 3.2 * k, q, a * fadeSeam);
+        }
+        if (t < 0.9) {
+          const hx = P.x - half + clamp01((t - 0.1) / 0.8) * half * 2;
+          L.wdSpark(s.sp, hx, seamY, Math.round(3 * (o.density || 1)), -Math.PI / 2, 1.2, 80 * k, 220 * k, 0.8);
+          L.wdArc(ctx, hx, seamY, 8 * k, t, a, 6);
+        }
+        // pęknięcie: rysa przebiega przez spoinę z krótkim trzaskiem
+        const cr = clamp01((t - T_CR) / 0.35);
+        if (cr > 0) {
+          const n = Math.max(1, Math.round(cr * (s.crack.length - 1)));
+          ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a * fadeSeam);
+          ctx.strokeStyle = 'rgb(18,14,12)'; ctx.lineWidth = 2.2 * k; ctx.lineJoin = 'miter';
+          ctx.beginPath(); ctx.moveTo(s.crack[0].x, s.crack[0].y);
+          for (let i = 1; i <= n; i++) ctx.lineTo(s.crack[i].x, s.crack[i].y);
+          ctx.stroke();
+          if (t - T_CR < 0.4) { ctx.globalCompositeOperation = 'lighter'; dot(ctx, '255,120,40', s.crack[n].x, s.crack[n].y, 18 * k, a * 0.6); }
+          if (t > T_CR && t - dt <= T_CR) for (let i = 0; i < 4; i++) L.wdPuff(s.sm, P.x + rand(-half, half), seamY - 4 * k, 8 * k);
+        }
+        // przedmiot odpada i szarzeje
+        if (t < 4.3) {
+          o.hideItem();
+          const ft = Math.max(0, t - T_FALL), dy = 0.5 * 900 * ft * ft * k, rot = ft * 2.2;
+          const grey = clamp01((t - T_CR) / 1.2), al = a * (1 - clamp01((t - 3.4) / 0.8));
+          drawItem(ctx, img, P.x + ft * 30 * k, P.y + Math.min(dy, H), sz, rot, 1, al, false, `grayscale(${grey}) brightness(${1 - 0.35 * grey})`);
+        }
+        L.wdSmoke(ctx, s.sm, dt, a);
+        L.wdSparks(ctx, s.sp, dt, a, 520 * k, seamY + 30 * k, k);
+        caption(ctx, u.reason, u.from.x, u.from.y - 110 * k, a * clamp01((t - 0.3) / 0.5), 20);
+        ctx.restore();
+      },
+    },
+    {
+      id: 'tm_item', group: G_ITEM, name: 'Technomagia: Namierzenie i portal', dur: 6.2, occupy: 5.6,
+      // paleta: złoto/bursztyn HUD, ciepła czerwień, cyjan tylko jako akcent danych
+      TM: { gold: '255,176,0', amber: '255,206,110', red: '255,90,42', hot: '255,244,214', cyan: '140,236,255', err: '255,60,40' },
+      // iskry portalu: [biało-gorące, bursztyn, czerwień] (wg wieku iskry)
+      SPK: { gold: ['255,248,222', '255,184,48', '255,96,30'], red: ['255,214,190', '255,82,40', '180,28,18'] },
+      tmMono(fs) { return `bold ${Math.max(7, Math.round(fs))}px Consolas, "Lucida Console", Menlo, monospace`; },
+      // krótkie odczyty danych (losowe kody, bez słów)
+      tmCodes() {
+        const HX = '0123456789ABCDEF', hx = n => { let r = ''; for (let i = 0; i < n; i++) r += HX[(Math.random() * 16) | 0]; return r; };
+        return [
+          `ID ${hx(4)}-${hx(2)}`,
+          `Σ ${rand(1, 9.9).toFixed(2)}e${(rand(2, 7) | 0)}`,
+          `${rand(0, 359).toFixed(1)}° ${(rand(10, 99) | 0)}.${(rand(0, 9) | 0)}`,
+          `λ ${rand(0.1, 0.99).toFixed(3)}`,
+          `Δ ${rand(100, 999).toFixed(1)}`,
+          `${hx(2)}:${hx(2)}:${hx(2)}`,
+          `0x${hx(6)}`,
+          `R ${(rand(100, 999) | 0)} / ${(rand(10, 99) | 0)}`,
+        ];
+      },
+      // hologramowa linia: szeroki słaby obrys + cienki jasny (bez shadowBlur); ścieżka musi być już zbudowana
+      tmGlow(ctx, rgb, lw, a) {
+        if (a <= 0.003) return;
+        ctx.strokeStyle = `rgb(${rgb})`;
+        ctx.globalAlpha = Math.min(1, a * 0.22); ctx.lineWidth = lw * 3.4; ctx.stroke();
+        ctx.globalAlpha = Math.min(1, a); ctx.lineWidth = lw; ctx.stroke();
+      },
+      // cztery narożne nawiasy celownika
+      tmBrackets(ctx, x, y, hw, hh, len, rot, rgb, lw, a) {
+        if (a <= 0.01) return;
+        ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot);
+        ctx.beginPath();
+        for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+          const cx = sx * hw, cy = sy * hh;
+          ctx.moveTo(cx - sx * len, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy - sy * len);
+        }
+        this.tmGlow(ctx, rgb, lw, a);
+        ctx.restore();
+      },
+      // okrąg z podziałką (kreski na zewnątrz od R; co `major` dłuższa)
+      tmTicks(ctx, x, y, R, n, len, major, rot, rgb, lw, a, span) {
+        if (a <= 0.01) return;
+        ctx.beginPath();
+        const sp = span || 1;
+        for (let i = 0; i < n; i++) {
+          const an = rot + (i / n) * TAU * sp, L = i % major === 0 ? len * 2 : len, c = Math.cos(an), s = Math.sin(an);
+          ctx.moveTo(x + c * R, y + s * R); ctx.lineTo(x + c * (R + L), y + s * (R + L));
+        }
+        this.tmGlow(ctx, rgb, lw, a);
+      },
+      // celownik namierzający: nawiasy zjeżdżają się (lk 0→1), potem podziałka, łuki i znacznik
+      tmReticle(ctx, x, y, R, t, a, lk, rgb, k, jit) {
+        if (a <= 0.01) return;
+        ctx.globalCompositeOperation = 'lighter';
+        const e = easeOut(clamp01(lk)), d = R * (0.8 + 1.9 * (1 - e)), rot = (1 - e) * Math.PI * 0.5;
+        const jx = jit ? rand(-1, 1) * jit : 0, jy = jit ? rand(-1, 1) * jit : 0;
+        this.tmBrackets(ctx, x + jx, y + jy, d, d, R * 0.34, rot, rgb, 1.9 * k, a * (0.35 + 0.65 * clamp01(lk * 2.5)));
+        const ra = a * clamp01((lk - 0.3) / 0.5);
+        if (ra <= 0.01) return;
+        this.tmTicks(ctx, x, y, R * 1.16, 72, 2.6 * k, 6, t * 0.35, rgb, 0.9 * k, ra * 0.75);
+        ctx.beginPath();
+        for (let i = 0; i < 3; i++) {
+          const s0 = -t * 0.9 + (i * TAU) / 3;
+          ctx.moveTo(x + Math.cos(s0) * R, y + Math.sin(s0) * R); ctx.arc(x, y, R, s0, s0 + 1.3);
+        }
+        this.tmGlow(ctx, rgb, 1.3 * k, ra * 0.7);
+        ctx.beginPath();
+        for (let i = 0; i < 4; i++) {
+          const an = i * Math.PI / 2 + Math.PI / 4, c = Math.cos(an), s = Math.sin(an);
+          ctx.moveTo(x + c * R * 0.6, y + s * R * 0.6); ctx.lineTo(x + c * R * 0.78, y + s * R * 0.78);
+        }
+        this.tmGlow(ctx, rgb, 1.3 * k, ra);
+        // trójkątny znacznik krążący po podziałce
+        const m = t * 1.25, mr = R * 1.16 + 8 * k, mx = x + Math.cos(m) * mr, my = y + Math.sin(m) * mr;
+        ctx.globalAlpha = Math.min(1, ra); ctx.fillStyle = `rgb(${rgb})`;
+        ctx.beginPath();
+        ctx.moveTo(mx - Math.cos(m) * 5 * k, my - Math.sin(m) * 5 * k);
+        ctx.lineTo(mx + Math.cos(m + 1.9) * 4 * k, my + Math.sin(m + 1.9) * 4 * k);
+        ctx.lineTo(mx + Math.cos(m - 1.9) * 4 * k, my + Math.sin(m - 1.9) * 4 * k);
+        ctx.closePath(); ctx.fill();
+      },
+      // tekst HUD (pisany znak po znaku: rev 0..1)
+      tmText(ctx, str, x, y, a, fs, rgb, align, rev) {
+        if (!str || a <= 0.01) return;
+        let s = str;
+        if (rev != null) {
+          if (rev <= 0) return;
+          s = str.slice(0, Math.ceil(str.length * clamp01(rev)));
+          if (rev < 1 && Math.floor(performance.now() / 90) % 2) s += '_';
+        }
+        ctx.save();
+        ctx.font = this.tmMono(fs); ctx.textAlign = align || 'left'; ctx.textBaseline = 'middle';
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a * 0.6);
+        ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(2, fs * 0.3); ctx.strokeStyle = 'rgb(28,10,0)'; ctx.strokeText(s, x, y);
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.min(1, a); ctx.fillStyle = `rgb(${rgb})`; ctx.fillText(s, x, y);
+        ctx.restore();
+      },
+      // linia odniesienia (ukos + poziom) z odczytami nad nią; dir = ±1 (prawo/lewo), prog 0..1
+      tmCallout(ctx, x, y, dir, len, lines, a, prog, k, rgb, accent) {
+        if (a <= 0.01 || prog <= 0) return;
+        const ex = x + dir * 16 * k, ey = y - 16 * k, hx = ex + dir * len;
+        const p1 = clamp01(prog * 2), p2 = clamp01(prog * 2 - 1);
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (ex - x) * p1, y + (ey - y) * p1);
+        if (p2 > 0) ctx.lineTo(ex + (hx - ex) * p2, ey);
+        this.tmGlow(ctx, rgb, 1.1 * k, a * 0.85);
+        dot(ctx, rgb, x, y, 5 * k, a * 0.9, true);
+        if (p2 >= 1) { ctx.globalAlpha = Math.min(1, a); ctx.fillStyle = `rgb(${rgb})`; ctx.fillRect(hx - (dir > 0 ? 3 * k : 0), ey - 1.5 * k, 3 * k, 3 * k); }
+        const fs = 11 * k, tx = ex + dir * 3 * k;
+        lines.forEach((ln, i) => {
+          const rv = clamp01((prog - 0.55 - i * 0.12) / 0.3);
+          this.tmText(ctx, ln, tx, ey - 9 * k - i * fs * 1.3, a, fs, accent && i === accent - 1 ? this.TM.cyan : rgb, dir > 0 ? 'left' : 'right', rv);
+        });
+      },
+      // wiązka skanująca: jasna linia + smuga (jeden gradient); f 0..1 = pozycja od góry, down = kierunek
+      tmScan(ctx, x, y, w, h, f, a, rgb, k, down) {
+        if (a <= 0.01) return;
+        const yy = y - h / 2 + h * f, band = h * 0.32 * (down ? -1 : 1);
+        ctx.globalCompositeOperation = 'lighter';
+        const g = ctx.createLinearGradient(0, yy + band, 0, yy);
+        g.addColorStop(0, `rgba(${rgb},0)`); g.addColorStop(1, `rgba(${rgb},0.3)`);
+        ctx.globalAlpha = Math.min(1, a); ctx.fillStyle = g;
+        ctx.fillRect(x - w / 2, Math.min(yy, yy + band), w, Math.abs(band));
+        ctx.beginPath(); ctx.moveTo(x - w / 2 - 6 * k, yy); ctx.lineTo(x + w / 2 + 6 * k, yy);
+        this.tmGlow(ctx, '255,238,196', 1.4 * k, a);
+        dot(ctx, '255,220,150', x - w / 2 - 6 * k, yy, 7 * k, a, true);
+        dot(ctx, '255,220,150', x + w / 2 + 6 * k, yy, 7 * k, a, true);
+      },
+      // „inne miejsce” widoczne przez portal: zmierzch nad obcymi górami (bufor tworzony raz, z init)
+      tmWorld() {
+        if (this._world) return this._world;
+        const c = document.createElement('canvas'); c.width = c.height = 256;
+        const g = c.getContext('2d');
+        const sky = g.createLinearGradient(0, 0, 0, 256);
+        sky.addColorStop(0, '#04050e'); sky.addColorStop(0.4, '#121632'); sky.addColorStop(0.6, '#3c2a48');
+        sky.addColorStop(0.69, '#a35a3a'); sky.addColorStop(0.71, '#2a1420'); sky.addColorStop(1, '#08060a');
+        g.fillStyle = sky; g.fillRect(0, 0, 256, 256);
+        for (const [x, y, r, col] of [[60, 60, 70, '70,40,120'], [200, 40, 60, '30,90,120'], [140, 120, 80, '110,50,80']]) {
+          const n = g.createRadialGradient(x, y, 0, x, y, r);
+          n.addColorStop(0, `rgba(${col},0.3)`); n.addColorStop(1, `rgba(${col},0)`);
+          g.fillStyle = n; g.fillRect(0, 0, 256, 256);
+        }
+        for (let i = 0; i < 110; i++) {
+          g.globalAlpha = rand(0.25, 1); g.fillStyle = Math.random() < 0.2 ? '#bfe8ff' : '#fff2dc';
+          const sz = Math.random() < 0.12 ? 2 : 1;
+          g.fillRect(rand(0, 256), rand(0, 150), sz, sz);
+        }
+        g.globalAlpha = 1;
+        // planeta z sierpem światła
+        const pg = g.createRadialGradient(172, 84, 2, 180, 92, 24);
+        pg.addColorStop(0, '#d8e6e0'); pg.addColorStop(0.6, '#6f8f98'); pg.addColorStop(1, '#1a2230');
+        g.fillStyle = pg; g.beginPath(); g.arc(180, 92, 21, 0, TAU); g.fill();
+        g.fillStyle = 'rgba(6,8,20,0.8)'; g.beginPath(); g.arc(190, 87, 20, 0, TAU); g.fill();
+        g.strokeStyle = 'rgba(200,220,230,0.35)'; g.lineWidth = 1.5;
+        g.beginPath(); g.ellipse(180, 92, 34, 6, -0.25, 0, TAU); g.stroke();
+        // poświata horyzontu
+        const hz = g.createRadialGradient(110, 178, 0, 110, 178, 120);
+        hz.addColorStop(0, 'rgba(255,150,70,0.45)'); hz.addColorStop(1, 'rgba(255,120,40,0)');
+        g.fillStyle = hz; g.fillRect(0, 100, 256, 120);
+        // dwa pasma gór
+        const ridge = (yb, amp, col, seed) => {
+          g.fillStyle = col; g.beginPath(); g.moveTo(0, 256); g.lineTo(0, yb);
+          for (let x = 0; x <= 256; x += 8) g.lineTo(x, yb - Math.abs(Math.sin(x * 0.031 + seed) * amp + Math.sin(x * 0.11 + seed * 2) * amp * 0.35));
+          g.lineTo(256, 256); g.closePath(); g.fill();
+        };
+        ridge(184, 26, '#241428', 1.3);
+        ridge(204, 18, '#0a060c', 4.1);
+        // odległe iglice z ognikami
+        g.fillStyle = '#0a060c';
+        for (const [x, h] of [[70, 34], [78, 22], [196, 28]]) { g.beginPath(); g.moveTo(x - 4, 200); g.lineTo(x, 200 - h); g.lineTo(x + 4, 200); g.closePath(); g.fill(); }
+        g.fillStyle = 'rgba(255,190,110,0.9)';
+        for (const [x, y] of [[70, 168], [78, 180], [196, 174]]) g.fillRect(x - 0.5, y, 1.5, 1.5);
+        return (this._world = c);
+      },
+      // pierścień „rozpalania” portalu: iskrząca głowica rysuje okrąg (f 0..1)
+      tmIgnite(ctx, P, x, y, R, f, a, k, pal) {
+        if (f <= 0 || a <= 0.01) return;
+        pal = pal || this.SPK.gold;
+        const a0 = -Math.PI / 2, a1 = a0 + f * TAU;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.beginPath(); ctx.arc(x, y, R, a0, a1);
+        ctx.strokeStyle = `rgb(${pal[2]})`; ctx.globalAlpha = Math.min(1, a * 0.25); ctx.lineWidth = 7 * k; ctx.stroke();
+        ctx.strokeStyle = `rgb(${pal[1]})`; ctx.globalAlpha = Math.min(1, a * 0.8); ctx.lineWidth = 2 * k; ctx.stroke();
+        const hx = x + Math.cos(a1) * R, hy = y + Math.sin(a1) * R;
+        dot(ctx, pal[1], hx, hy, 16 * k, a * 0.8);
+        dot(ctx, pal[0], hx, hy, 6 * k, a, true);
+        if (P && f < 1) {
+          for (let i = 0; i < 3; i++) {
+            const tx = -Math.sin(a1), ty = Math.cos(a1), v = rand(90, 240) * k;
+            P.sp.push({ f: 1, x: hx - x, y: hy - y, vx: tx * v + rand(-40, 40) * k, vy: ty * v + rand(-40, 40) * k, l: 0, m: rand(0.25, 0.55) });
+          }
+        }
+      },
+      // wybuch iskier z obwodu/środka portalu (wsp. lokalne względem jego środka)
+      tmBurst(P, n, r, vmin, vmax, k) {
+        for (let i = 0; i < n; i++) {
+          const an = rand(0, TAU), v = rand(vmin, vmax) * k, c = Math.cos(an), s = Math.sin(an);
+          P.sp.push({ f: 1, x: c * r, y: s * r, vx: c * v - s * v * 0.6, vy: s * v + c * v * 0.6, l: 0, m: rand(0.35, 0.9) });
+        }
+        if (P.sp.length > 600) P.sp.splice(0, P.sp.length - 600);
+      },
+      // WIRUJĄCY PORTAL Z ISKIER: iskry krążą stycznie po obwodzie, część zrywa się i spada;
+      // w środku – „inne miejsce”; op: { k, D, pal, dir, rate, drip, runes, world, worldA, inner(ctx), seed, grav, emit }
+      tmPortal(ctx, P, x, y, R, t, dt, a, open, op) {
+        op = op || {};
+        const k = op.k || 1, D = op.D || 1, pal = op.pal || this.SPK.gold, dir = op.dir || 1;
+        const r = Math.max(0, R * open);
+        // emisja
+        if (op.emit !== false && open > 0.12 && dt > 0 && a > 0.02) {
+          const n = (op.rate || 1) * 7 * R * dt * D;
+          let m = Math.floor(n); if (Math.random() < n - m) m++;
+          const wb = Math.sqrt(50 * k / Math.max(8 * k, R)), ds = Math.max(0.4, Math.min(1.3, R / (50 * k)));
+          for (let i = 0; i < m; i++) {
+            const an = rand(0, TAU), w = dir * rand(3.4, 5.2) * wb, d = rand(-3, 5) * k * ds;
+            if (Math.random() < 0.18 * (op.drip == null ? 1 : op.drip)) {
+              const rr = r + d, c = Math.cos(an), s = Math.sin(an), v = w * rr * rand(0.9, 1.35);
+              P.sp.push({ f: 1, x: c * rr, y: s * rr, vx: -s * v + c * rand(10, 50) * k, vy: c * v + s * rand(10, 50) * k, l: 0, m: rand(0.35, 0.85) });
+            } else P.sp.push({ f: 0, an, d, w, vd: rand(-5, 18) * k * ds, l: 0, m: rand(0.22, 0.6) });
+          }
+          if (P.sp.length > 600) P.sp.splice(0, P.sp.length - 600);
+        }
+        // wnętrze: inne miejsce
+        if (op.world !== false && r > 2 * k) {
+          ctx.save();
+          ctx.beginPath(); ctx.arc(x, y, r * 0.97, 0, TAU); ctx.clip();
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = Math.min(1, a * (op.worldA || 0.88) * clamp01(open * 1.6));
+          const wsz = R * 2.7;
+          ctx.drawImage(this.tmWorld(), x - wsz / 2 + Math.sin(t * 0.35 + (op.seed || 0)) * R * 0.14, y - wsz * 0.56 + Math.cos(t * 0.27) * R * 0.05, wsz, wsz);
+          if (op.inner) op.inner(ctx);
+          ctx.globalCompositeOperation = 'lighter';
+          const g = ctx.createRadialGradient(x, y, r * 0.62, x, y, r);
+          g.addColorStop(0, `rgba(${pal[1]},0)`); g.addColorStop(1, `rgba(${pal[1]},0.32)`);
+          ctx.globalAlpha = Math.min(1, a); ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+          ctx.restore();
+        }
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        // runiczny krąg wokół
+        if (op.runes && r > 6 * k) {
+          const ra = a * clamp01(open * 1.5 - 0.3) * op.runes;
+          const rr = r + 12 * k, n = Math.max(8, Math.round((TAU * rr) / (15 * k))), rot = -t * 0.45 * dir + (op.seed || 0);
+          ctx.beginPath();
+          ctx.arc(x, y, rr - 8 * k, 0, TAU);
+          ctx.moveTo(x + rr + 8 * k, y); ctx.arc(x, y, rr + 8 * k, 0, TAU);
+          this.tmGlow(ctx, pal[1], 0.9 * k, ra * 0.5);
+          this.tmTicks(ctx, x, y, rr + 8 * k, n * 2, 2.2 * k, 2, rot, pal[1], 0.8 * k, ra * 0.45);
+          const gs = 0.58 * k;
+          for (let i = 0; i < n; i++) {
+            const an = rot + (i / n) * TAU, spr = glyphSprite((i * 7 + ((op.seed || 0) * 10 | 0)) % 28, '255,196,90');
+            ctx.save(); ctx.translate(x + Math.cos(an) * rr, y + Math.sin(an) * rr); ctx.rotate(an + Math.PI / 2);
+            ctx.globalAlpha = Math.min(1, ra * (0.55 + 0.45 * Math.sin(t * 4 + i * 1.7)));
+            ctx.drawImage(spr, -10 * gs, -13 * gs, 20 * gs, 26 * gs);
+            ctx.restore();
+          }
+        }
+        // obwód
+        if (r > 0.5) {
+          const fl = 0.85 + 0.15 * Math.sin(t * 23 + (op.seed || 0));
+          ctx.beginPath(); ctx.arc(x, y, r, 0, TAU);
+          ctx.strokeStyle = `rgb(${pal[2]})`; ctx.globalAlpha = Math.min(1, a * 0.11 * fl); ctx.lineWidth = 14 * k; ctx.stroke();
+          ctx.strokeStyle = `rgb(${pal[1]})`; ctx.globalAlpha = Math.min(1, a * 0.16 * fl); ctx.lineWidth = 3 * k; ctx.stroke();
+          ctx.strokeStyle = `rgb(${pal[0]})`; ctx.globalAlpha = Math.min(1, a * 0.28); ctx.lineWidth = 1 * k; ctx.stroke();
+        }
+        // iskry
+        const B = [[], [], []], grav = (op.grav == null ? 280 : op.grav) * k;
+        for (let i = P.sp.length - 1; i >= 0; i--) {
+          const q = P.sp[i]; q.l += dt;
+          if (q.l > q.m) { P.sp.splice(i, 1); continue; }
+          if (q.f) { q.vy += grav * dt; q.vx *= 1 - 1.2 * dt; q.vy *= 1 - 0.6 * dt; q.x += q.vx * dt; q.y += q.vy * dt; }
+          else { q.an += q.w * dt; q.d += q.vd * dt; }
+          const f = q.l / q.m;
+          B[f < 0.3 ? 0 : f < 0.65 ? 1 : 2].push(q);
+        }
+        ctx.lineCap = 'round';
+        for (let j = 0; j < 3; j++) {
+          if (!B[j].length) continue;
+          ctx.strokeStyle = `rgb(${pal[j]})`; ctx.lineWidth = (1.6 - j * 0.35) * k; ctx.globalAlpha = Math.min(1, a * [0.8, 0.9, 0.7][j]);
+          ctx.beginPath();
+          for (const q of B[j]) {
+            if (q.f) { ctx.moveTo(x + q.x, y + q.y); ctx.lineTo(x + q.x - q.vx * 0.035, y + q.y - q.vy * 0.035); }
+            else {
+              const rr = Math.max(0, r + q.d), am = q.an - q.w * 0.05, a0 = q.an - q.w * 0.1;
+              ctx.moveTo(x + Math.cos(q.an) * rr, y + Math.sin(q.an) * rr);
+              ctx.lineTo(x + Math.cos(am) * rr, y + Math.sin(am) * rr);
+              ctx.lineTo(x + Math.cos(a0) * rr, y + Math.sin(a0) * rr);
+            }
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+      },
+      init(env) {
+        const L = EFFECTS.find(e => e.id === 'tm_item'); L.tmWorld();
+        return { P: { sp: [] }, Q: { sp: [] }, codes: L.tmCodes(), boomP: false, boomQ: false, lock: false };
+      },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'tm_item'), C = L.TM;
+        const I = o.item || { x: b.cx, y: b.cy, base: 32 }, img = (o.item && o.item.img) || FALLBACK_ICON;
+        const base = I.base || 32, k = Math.max(1, base / 32) * (o.itemScale || 1), D = o.density || 1;
+        const S = { x: I.x + (o.index || 0) * 36 * k, y: I.y }, Hp = { x: S.x, y: S.y - 104 * k };
+        const R = 44 * k, RP = 52 * k, RQ = 22 * k;
+        const T_UP = 0.7, T_LK = 0.95, T_SC0 = 1.0, T_SC1 = 2.3, T_IG0 = 2.3, T_IG1 = 2.72, T_IN0 = 3.3, T_IN1 = 4.05;
+        const T_PC0 = 4.05, T_PC1 = 4.5, T_Q0 = 3.95, T_OUT0 = 4.3, T_OUT1 = 4.95, T_QC0 = 5.0, T_QC1 = 5.4, T_END = 5.45;
+        ctx.save();
+        // pozycja przedmiotu (unosi się nad okno i lekko faluje)
+        const up = easeOutBack(clamp01(t / T_UP));
+        const bob = Math.sin((t - T_UP) * 2.4) * 2 * k * clamp01(t - T_UP);
+        const ix = S.x, iy = S.y + (Hp.y - S.y) * up + bob;
+        const szH = base * 1.9, sz = base + (szH - base) * clamp01(up);
+        // ---------- HUD: namierzanie i skan ----------
+        const hudA = a * (1 - clamp01((t - 2.25) / 0.45));
+        const lk = clamp01((t - 0.12) / (T_LK - 0.12));
+        if (hudA > 0.01) {
+          // lekkie przyciemnienie tła pod HUD-em
+          ctx.globalCompositeOperation = 'source-over';
+          dot(ctx, '20,8,0', ix, iy, R * 3.2, hudA * 0.35);
+          L.tmReticle(ctx, ix, iy, R, t, hudA, lk, lk >= 1 ? C.gold : C.amber, k);
+          if (t > T_LK && !s.lock) s.lock = true;
+          if (s.lock) {
+            ringFx(ctx, { x: ix, y: iy }, t - T_LK, 0.55, R * 1.9, C.amber, hudA);
+            const bl = Math.floor(t * 5) % 2 || t > T_LK + 0.6;
+            if (bl) L.tmText(ctx, 'TRG-01 > LCK', ix - R * 1.1, iy + R * 1.42, hudA, 10 * k, C.gold, 'left');
+          }
+          // linie danych
+          const c = s.codes;
+          L.tmCallout(ctx, ix + R * 0.72, iy - R * 0.72, 1, 84 * k, [c[0], c[1], c[2]], hudA, clamp01((t - T_SC0) / 0.8), k, C.gold, 2);
+          L.tmCallout(ctx, ix - R * 0.95, iy + R * 0.1, -1, 62 * k, [c[3], c[4]], hudA, clamp01((t - T_SC0 - 0.3) / 0.8), k, C.gold, 1);
+          // wiązka skanująca: w dół i z powrotem
+          if (t > T_SC0 && t < T_SC1) {
+            const ph = (t - T_SC0) / (T_SC1 - T_SC0), down = ph < 0.5;
+            const f = down ? easeInOut(ph * 2) : 1 - easeInOut(ph * 2 - 1);
+            L.tmScan(ctx, ix, iy, R * 1.9, R * 1.9, f, hudA * Math.sin(Math.min(1, ph * 6) * Math.PI / 2), C.gold, k, down);
+          }
+          // pasek postępu analizy
+          const pr = clamp01((t - T_SC0) / (T_SC1 - T_SC0 - 0.1));
+          if (t > T_SC0) {
+            const bw = R * 1.7, bx = ix - R * 1.1, by = iy + R * 1.62;
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.beginPath(); ctx.rect(bx, by, bw, 4 * k); L.tmGlow(ctx, C.gold, 0.8 * k, hudA * 0.6);
+            ctx.globalAlpha = Math.min(1, hudA * 0.85); ctx.fillStyle = `rgb(${C.amber})`;
+            const segs = 12, on = Math.floor(pr * segs);
+            for (let i = 0; i < on; i++) ctx.fillRect(bx + 1 * k + i * (bw - 2 * k) / segs, by + 1 * k, (bw - 2 * k) / segs - 1.2 * k, 2 * k);
+            L.tmText(ctx, `${Math.round(pr * 100)}%`, bx + bw + 5 * k, by + 2 * k, hudA, 10 * k, pr >= 1 ? C.cyan : C.gold, 'left');
+          }
+        }
+        // ---------- PORTAL WEJŚCIOWY (nad oknem) ----------
+        let open = 0;
+        if (t > T_IG1 - 0.1 && t < T_PC0) open = easeOutBack(clamp01((t - (T_IG1 - 0.1)) / 0.5));
+        else if (t >= T_PC0) open = 1 - easeIn(clamp01((t - T_PC0) / (T_PC1 - T_PC0)));
+        const ig = clamp01((t - T_IG0) / (T_IG1 - T_IG0));
+        // przejście technologia → magia: łuk celownika „zapala się” i zakreśla okrąg iskier
+        if (t > T_IG0 && t < T_IG1 + 0.3) L.tmIgnite(ctx, s.P, Hp.x, Hp.y, RP, ig, a * (1 - clamp01((t - T_IG1) / 0.3)), k);
+        // błysk otwarcia
+        const ot = t - (T_IG1 - 0.1);
+        if (ot > 0 && ot < 0.6) { ctx.globalCompositeOperation = 'lighter'; dot(ctx, '255,190,90', Hp.x, Hp.y, RP * 2.8, a * 0.35 * (1 - ot / 0.6)); }
+        const g = clamp01((t - T_IN0) / (T_IN1 - T_IN0)), ge = easeIn(g);
+        const inner = t > T_IN0 && t < T_IN1 ? c2 => {
+          // przedmiot odlatuje w głąb „innego miejsca”
+          drawItem(c2, img, Hp.x + Math.sin(ge * 3) * 4 * k, Hp.y - ge * RP * 0.2 + bob * (1 - ge), szH * (1 - 0.86 * ge), ge * 1.4, 1, a * (1 - ge * ge), false,
+            `brightness(${1.25 - 0.45 * ge}) sepia(${0.35 * ge})`);
+        } : null;
+        if (open > 0.001 || s.P.sp.length) L.tmPortal(ctx, s.P, Hp.x, Hp.y, RP, t, dt, a, Math.max(0, open), { k, D, runes: 1, inner, emit: t < T_PC1 - 0.1, seed: 0.7 });
+        if (t > T_PC1 && !s.boomP) { s.boomP = true; L.tmBurst(s.P, Math.round(46 * D), 4 * k, 120, 320, k); }
+        if (t > T_PC1) { ringFx(ctx, Hp, t - T_PC1, 0.5, RP * 1.4, C.amber, a); ctx.globalCompositeOperation = 'lighter'; dot(ctx, C.hot, Hp.x, Hp.y, 30 * k, a * 0.7 * clamp01(1 - (t - T_PC1) / 0.35), true); }
+        // przedmiot przed portalem (przed wejściem)
+        if (t < T_END) o.hideItem();
+        if (t <= T_IN0) {
+          const back = clamp01((t - T_IG1 + 0.2) / 0.5);
+          ctx.globalCompositeOperation = 'lighter';
+          dot(ctx, C.gold, ix, iy, sz * (0.9 + 0.5 * back), a * (0.25 + 0.3 * back));
+          drawItem(ctx, img, ix, iy, sz, 0, 1, a, true, back > 0 ? `brightness(${1 + 0.25 * back})` : null);
+        }
+        // ---------- PORTAL WYJŚCIOWY (na slocie) ----------
+        let oq = 0;
+        if (t > T_Q0 && t < T_QC0) oq = easeOutBack(clamp01((t - T_Q0) / 0.35));
+        else if (t >= T_QC0) oq = 1 - easeIn(clamp01((t - T_QC0) / (T_QC1 - T_QC0)));
+        if (oq > 0.001 || s.Q.sp.length) L.tmPortal(ctx, s.Q, S.x, S.y, RQ, t, dt, a, Math.max(0, oq), { k, D: D * 0.9, runes: 0.8, dir: -1, emit: t < T_QC1 - 0.1, seed: 2.1, rate: 1.3 });
+        if (t > T_QC1 && !s.boomQ) { s.boomQ = true; L.tmBurst(s.Q, Math.round(24 * D), 3 * k, 80, 220, k); }
+        // przedmiot wyłania się z portalu i ląduje w slocie
+        if (t > T_OUT0 && t < T_END) {
+          const e = clamp01((t - T_OUT0) / (T_OUT1 - T_OUT0)), ee = easeOutBack(e);
+          const fl = 1 - e;
+          ctx.globalCompositeOperation = 'lighter';
+          dot(ctx, C.amber, S.x, S.y, base * 1.2, a * 0.5 * (0.4 + fl));
+          drawItem(ctx, img, S.x, S.y, base * (0.15 + 0.85 * ee), (1 - ee) * -1.2, 1, a * clamp01(e * 4), true, fl > 0.02 ? `brightness(${1 + 0.6 * fl})` : null);
+        }
+        // potwierdzenie HUD na slocie
+        const ct = t - (T_QC1 - 0.1);
+        if (ct > 0) {
+          const ce = easeOutBack(clamp01(ct / 0.35)), hw = base * 0.62 * (1 + (1 - ce) * 1.4);
+          ctx.globalCompositeOperation = 'lighter';
+          L.tmBrackets(ctx, S.x, S.y, hw, hw, 6 * k, 0, C.gold, 1.6 * k, a * clamp01(ct / 0.15));
+          L.tmText(ctx, `OK ${s.codes[5]}`, S.x + hw + 3 * k, S.y - hw - 2 * k, a, 8 * k, C.cyan, 'left', clamp01((ct - 0.2) / 0.3));
+          if (ct < 0.4) dot(ctx, C.hot, S.x, S.y, 24 * k, a * 0.5 * (1 - ct / 0.4), true);
+        }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'tm_frame', group: G_FRAME, name: 'Technomagia: Obudowa HUD', dur: 8,
+      init(env) {
+        const L = EFFECTS.find(e => e.id === 'tm_item');
+        return { cs: [{ sp: [] }, { sp: [] }, { sp: [] }, { sp: [] }], sp: [], codes: L.tmCodes(), cc: -1 };
+      },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'tm_item'), C = L.TM;
+        const D = (o.density || 1) * (o.second ? 0.6 : 1);
+        const per = 2 * (b.w + b.h), k = Math.max(0.8, Math.min(1.8, (o.scale || 1) * Math.sqrt(per / 700)));
+        const big = b.w > 360;
+        const pad = 3 * k, x0 = b.x - pad, y0 = b.y - pad, x1 = b.x + b.w + pad, y1 = b.y + b.h + pad, ch = 7 * k;
+        const live = t < this.dur - 1;
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'butt';
+        // 1. obudowa: ścięte narożniki
+        ctx.beginPath();
+        ctx.moveTo(x0 + ch, y0); ctx.lineTo(x1 - ch, y0); ctx.lineTo(x1, y0 + ch); ctx.lineTo(x1, y1 - ch);
+        ctx.lineTo(x1 - ch, y1); ctx.lineTo(x0 + ch, y1); ctx.lineTo(x0, y1 - ch); ctx.lineTo(x0, y0 + ch); ctx.closePath();
+        L.tmGlow(ctx, C.gold, 1.1 * k, a * 0.6);
+        // 2. zewnętrzna przerywana szyna danych (przesuwa się)
+        const o2 = 6 * k;
+        ctx.setLineDash([22 * k, 5 * k, 3 * k, 5 * k]); ctx.lineDashOffset = -t * 24 * k;
+        ctx.beginPath(); ctx.rect(x0 - o2, y0 - o2, x1 - x0 + o2 * 2, y1 - y0 + o2 * 2);
+        L.tmGlow(ctx, C.amber, 0.8 * k, a * 0.32);
+        ctx.setLineDash([]);
+        // 3. narożniki z podziałką
+        const cl = Math.min(30 * k, b.w * 0.22, b.h * 0.3), oc = 10 * k, st = 4 * k;
+        const nt = Math.floor(Math.min(b.w * 0.28, 150 * k) / st), nv = Math.floor(Math.min(b.h * 0.22, 110 * k) / st);
+        const corners = [[x0, y0, 1, 1], [x1, y0, -1, 1], [x1, y1, -1, -1], [x0, y1, 1, -1]];
+        ctx.beginPath();
+        for (const [cx, cy, sx, sy] of corners) {
+          const X = cx - sx * oc, Y = cy - sy * oc;
+          ctx.moveTo(X + sx * (cl + oc), Y); ctx.lineTo(X, Y); ctx.lineTo(X, Y + sy * (cl + oc));
+        }
+        L.tmGlow(ctx, C.gold, 2.2 * k, a);
+        ctx.beginPath();
+        for (const [cx, cy, sx, sy] of corners) {
+          const X = cx - sx * oc, Y = cy - sy * oc;
+          for (let j = 0; j < nt; j++) { const tx = X + sx * (cl + oc + 5 * k + j * st), L2 = j % 5 === 0 ? 6 * k : 3 * k; ctx.moveTo(tx, Y); ctx.lineTo(tx, Y - sy * L2); }
+          for (let j = 0; j < nv; j++) { const ty = Y + sy * (cl + oc + 5 * k + j * st), L2 = j % 5 === 0 ? 6 * k : 3 * k; ctx.moveTo(X, ty); ctx.lineTo(X - sx * L2, ty); }
+        }
+        L.tmGlow(ctx, C.gold, 0.9 * k, a * 0.6);
+        // 4. przesuwające się znaczniki (trójkąty wskazujące do środka)
+        ctx.globalAlpha = Math.min(1, a * 0.9); ctx.fillStyle = `rgb(${C.amber})`;
+        ctx.beginPath();
+        for (let i = 0; i < 4; i++) {
+          const u = (((i % 2 ? -1 : 1) * t * (0.05 + 0.02 * i) + i * 0.25) % 1 + 1) % 1, p = perim(b, u, pad + 10 * k);
+          const tx = -p.ny, ty = p.nx, z = 4 * k;
+          ctx.moveTo(p.x - p.nx * z * 0.6, p.y - p.ny * z * 0.6);
+          ctx.lineTo(p.x + p.nx * z + tx * z, p.y + p.ny * z + ty * z);
+          ctx.lineTo(p.x + p.nx * z - tx * z, p.y + p.ny * z - ty * z);
+          ctx.closePath();
+        }
+        ctx.fill();
+        // 5. kometa radaru (technologiczny impuls po obwodzie)
+        const loopT = Math.max(2.6, per / 380), hu = (t / loopT) % 1;
+        for (let j = 0; j < 14; j++) {
+          const u1 = hu - j * 0.006, u0 = u1 - 0.006, p0 = perim(b, u0, pad), p1 = perim(b, u1, pad);
+          ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y);
+          ctx.strokeStyle = `rgb(${j < 2 ? C.hot : C.amber})`; ctx.globalAlpha = Math.min(1, a * (1 - j / 14)); ctx.lineWidth = 2.4 * k; ctx.stroke();
+        }
+        { const hp = perim(b, hu, pad); dot(ctx, C.amber, hp.x, hp.y, 12 * k, a * 0.7); }
+        // 6. magia: dwa iskrzące strumienie biegną po obwodzie w przeciwną stronę
+        if (live) {
+          const n0 = 1.3 * Math.pow(per, 0.75) * dt * D;
+          let m = Math.floor(n0); if (Math.random() < n0 - m) m++;
+          const loop2 = Math.max(3.4, per / 300);
+          for (let i = 0; i < m; i++) {
+            const hd = (((-t / loop2 + (i % 2) * 0.5) % 1) + 1) % 1, u = hd + rand(0, 0.03), v = -rand(150, 300) * k / per;
+            if (Math.random() < 0.2) {
+              const p = perim(b, u, pad + 2 * k), tx = p.ny, ty = -p.nx, sp = rand(120, 260) * k; // styczna w kierunku przeciwnym do ruchu wskazówek
+              s.sp.push({ f: 1, x: p.x, y: p.y, vx: tx * sp + p.nx * rand(20, 80) * k, vy: ty * sp + p.ny * rand(20, 80) * k, l: 0, m: rand(0.3, 0.7) });
+            } else s.sp.push({ f: 0, u, v, off: rand(-1.5, 4) * k, l: 0, m: rand(0.3, 0.75) });
+          }
+          if (s.sp.length > 500) s.sp.splice(0, s.sp.length - 500);
+        }
+        const pal = L.SPK.gold, B = [[], [], []];
+        for (let i = s.sp.length - 1; i >= 0; i--) {
+          const q = s.sp[i]; q.l += dt;
+          if (q.l > q.m) { s.sp.splice(i, 1); continue; }
+          if (q.f) { q.vy += 300 * k * dt; q.vx *= 1 - 1.2 * dt; q.x += q.vx * dt; q.y += q.vy * dt; }
+          else { q.u += q.v * dt; q.off += 6 * k * dt; }
+          const f = q.l / q.m; B[f < 0.3 ? 0 : f < 0.65 ? 1 : 2].push(q);
+        }
+        ctx.lineCap = 'round';
+        for (let j = 0; j < 3; j++) {
+          if (!B[j].length) continue;
+          ctx.strokeStyle = `rgb(${pal[j]})`; ctx.lineWidth = (1.9 - j * 0.4) * k; ctx.globalAlpha = Math.min(1, a * (1 - j * 0.2));
+          ctx.beginPath();
+          for (const q of B[j]) {
+            if (q.f) { ctx.moveTo(q.x, q.y); ctx.lineTo(q.x - q.vx * 0.035, q.y - q.vy * 0.035); }
+            else {
+              const p1 = perim(b, q.u, pad + q.off), p0 = perim(b, q.u - q.v * 0.09, pad + q.off);
+              ctx.moveTo(p1.x, p1.y); ctx.lineTo(p0.x, p0.y);
+            }
+          }
+          ctx.stroke();
+        }
+        // głowice strumieni
+        if (live) {
+          const loop2 = Math.max(3.4, per / 300);
+          for (let j = 0; j < 2; j++) {
+            const hp = perim(b, (((-t / loop2 + j * 0.5) % 1) + 1) % 1, pad + 1 * k);
+            dot(ctx, C.amber, hp.x, hp.y, 16 * k, a * 0.55);
+            dot(ctx, C.hot, hp.x, hp.y, 5 * k, a, true);
+          }
+        }
+        // 7. iskrzące kręgi runiczne w narożnikach
+        const rc = (big ? 15 : 10) * k;
+        corners.forEach(([cx, cy, sx, sy], i) => {
+          const X = cx - sx * oc, Y = cy - sy * oc;
+          L.tmTicks(ctx, X, Y, rc + 3 * k, 24, 2 * k, 3, (i % 2 ? 1 : -1) * t * 0.6, C.gold, 0.8 * k, a * 0.6);
+          L.tmPortal(ctx, s.cs[i], X, Y, rc, t, dt, a, live ? 1 : 1 - clamp01((t - this.dur + 1) / 0.6), { k, D: D * 0.7, world: false, dir: i % 2 ? 1 : -1, rate: 1.1, drip: 0.5, seed: i * 1.3 });
+          const gs = (big ? 0.75 : 0.5) * k, spr = glyphSprite((i * 5 + 3) % 28, '255,206,110');
+          ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(X, Y); ctx.rotate(Math.sin(t * 0.8 + i) * 0.4);
+          ctx.globalAlpha = Math.min(1, a * (0.7 + 0.3 * Math.sin(t * 5 + i)));
+          ctx.drawImage(spr, -10 * gs, -13 * gs, 20 * gs, 26 * gs); ctx.restore();
+        });
+        // 8. odczyty nad górną krawędzią (tylko na dużej ramce)
+        if (big && !o.second) {
+          const cyc = Math.floor(t / 3.2);
+          if (cyc !== s.cc) { s.cc = cyc; s.codes = L.tmCodes(); }
+          const rv = clamp01((t - cyc * 3.2) / 0.6), fa = a * (1 - clamp01((t - cyc * 3.2 - 2.8) / 0.4));
+          const tx = x0 + cl + 18 * k, ty = y0 - 14 * k;
+          L.tmText(ctx, s.codes[0], tx, ty, fa * 0.85, 9 * k, C.gold, 'left', rv);
+          L.tmText(ctx, s.codes[3], tx + 90 * k, ty, fa * 0.85, 9 * k, C.cyan, 'left', rv - 0.2);
+          L.tmText(ctx, s.codes[6], x1 - cl - 18 * k, y1 + 14 * k, fa * 0.85, 9 * k, C.gold, 'right', rv - 0.1);
+        }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'tm_around', group: G_AROUND, name: 'Technomagia: Projektor runiczny', dur: 6,
+      init(env) {
+        const L = EFFECTS.find(e => e.id === 'tm_item');
+        return { sp: [], mo: [], codes: L.tmCodes(), cyc: -1, P: { sp: [] } };
+      },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'tm_item'), C = L.TM, D = o.density || 1;
+        const k = Math.max(0.8, Math.min(1.5, (o.scale || 1) * Math.sqrt(b.w / 220)));
+        const ex = b.cx, ey = b.y + b.h + 26 * k, rx = b.w * 0.5 + 48 * k, ry = rx * 0.24;
+        const live = t < this.dur - 1.2;
+        const CY = 4.8, n = Math.floor(t / CY), ct = t - n * CY;
+        if (n !== s.cyc) { s.cyc = n; s.codes = L.tmCodes(); }
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        // kurtyna światła z projektora (widoczna po bokach okna)
+        const top = b.y - 34 * k;
+        const g = ctx.createLinearGradient(0, ey, 0, top);
+        g.addColorStop(0, `rgba(${C.gold},0.2)`); g.addColorStop(0.6, `rgba(${C.red},0.06)`); g.addColorStop(1, `rgba(${C.gold},0)`);
+        ctx.globalAlpha = Math.min(1, a * (0.85 + 0.15 * Math.sin(t * 7))); ctx.fillStyle = g;
+        ctx.beginPath(); ctx.moveTo(ex - rx, ey); ctx.lineTo(ex - rx * 0.86, top); ctx.lineTo(ex + rx * 0.86, top); ctx.lineTo(ex + rx, ey);
+        ctx.ellipse(ex, ey, rx, ry, 0, 0, Math.PI); ctx.closePath(); ctx.fill();
+        // mandala na „podłodze”: elipsy, podziałka, runy, heksagram
+        const rot = t * 0.3;
+        ctx.beginPath();
+        for (const f of [1, 0.84, 0.62, 0.3]) { ctx.moveTo(ex + rx * f, ey); ctx.ellipse(ex, ey, rx * f, ry * f, 0, 0, TAU); }
+        L.tmGlow(ctx, C.gold, 1.1 * k, a * 0.7);
+        ctx.beginPath();
+        for (let i = 0; i < 90; i++) {
+          const th = rot + (i / 90) * TAU, c = Math.cos(th), s2 = Math.sin(th), l = i % 5 === 0 ? 1.07 : 1.035;
+          ctx.moveTo(ex + c * rx, ey + s2 * ry); ctx.lineTo(ex + c * rx * l, ey + s2 * ry * l);
+        }
+        L.tmGlow(ctx, C.gold, 0.8 * k, a * 0.6);
+        ctx.beginPath();
+        for (let j = 0; j < 2; j++) {
+          for (let i = 0; i <= 3; i++) {
+            const th = -rot * 1.4 + j * Math.PI / 3 + (i / 3) * TAU, X = ex + Math.cos(th) * rx * 0.62, Y = ey + Math.sin(th) * ry * 0.62;
+            if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+          }
+        }
+        L.tmGlow(ctx, C.amber, 0.9 * k, a * 0.55);
+        const NR = 26;
+        for (let i = 0; i < NR; i++) {
+          const th = -t * 0.22 + (i / NR) * TAU, X = ex + Math.cos(th) * rx * 0.92, Y = ey + Math.sin(th) * ry * 0.92;
+          const front = 0.55 + 0.45 * Math.sin(th);
+          ctx.globalAlpha = Math.min(1, a * front * (0.6 + 0.4 * Math.sin(t * 3 + i)));
+          ctx.drawImage(glyphSprite((i * 11) % 28, '255,200,100'), X - 6 * k, Y - 5 * k, 12 * k, 10 * k);
+        }
+        // iskry krążące po elipsie (dwie głowice)
+        if (live) {
+          const n0 = 70 * dt * D * k;
+          let m = Math.floor(n0); if (Math.random() < n0 - m) m++;
+          for (let i = 0; i < m; i++) {
+            const th = t * 1.5 + (i % 2) * Math.PI - rand(0, 0.35);
+            if (Math.random() < 0.12) {
+              const X = ex + Math.cos(th) * rx, Y = ey + Math.sin(th) * ry, v = rand(100, 200) * k;
+              s.sp.push({ f: 1, x: X, y: Y, vx: -Math.sin(th) * v, vy: Math.cos(th) * v * 0.3 - rand(40, 140) * k, l: 0, m: rand(0.4, 0.8) });
+            } else s.sp.push({ f: 0, th, w: rand(1.6, 2.6), d: rand(0.99, 1.04), l: 0, m: rand(0.3, 0.7) });
+          }
+          // unoszące się drobinki hologramu
+          const nm = 10 * dt * D;
+          if (Math.random() < nm) { const th = rand(0, TAU), q = Math.sqrt(Math.random()); s.mo.push({ x: ex + Math.cos(th) * rx * q, y: ey + Math.sin(th) * ry * q, vy: -rand(30, 70) * k, l: 0, m: rand(1.2, 2.2) }); }
+          if (s.sp.length > 400) s.sp.splice(0, s.sp.length - 400);
+          if (s.mo.length > 60) s.mo.splice(0, s.mo.length - 60);
+        }
+        const pal = L.SPK.gold, B = [[], [], []];
+        for (let i = s.sp.length - 1; i >= 0; i--) {
+          const q = s.sp[i]; q.l += dt;
+          if (q.l > q.m) { s.sp.splice(i, 1); continue; }
+          if (q.f) { q.vy += 320 * k * dt; q.x += q.vx * dt; q.y += q.vy * dt; } else q.th += q.w * dt;
+          const f = q.l / q.m; B[f < 0.3 ? 0 : f < 0.65 ? 1 : 2].push(q);
+        }
+        ctx.lineCap = 'round';
+        for (let j = 0; j < 3; j++) {
+          if (!B[j].length) continue;
+          ctx.strokeStyle = `rgb(${pal[j]})`; ctx.lineWidth = (1.9 - j * 0.4) * k; ctx.globalAlpha = Math.min(1, a * (1 - j * 0.2));
+          ctx.beginPath();
+          for (const q of B[j]) {
+            if (q.f) { ctx.moveTo(q.x, q.y); ctx.lineTo(q.x - q.vx * 0.035, q.y - q.vy * 0.035); }
+            else {
+              const t0 = q.th - q.w * 0.09, tm = q.th - q.w * 0.045;
+              ctx.moveTo(ex + Math.cos(q.th) * rx * q.d, ey + Math.sin(q.th) * ry * q.d);
+              ctx.lineTo(ex + Math.cos(tm) * rx * q.d, ey + Math.sin(tm) * ry * q.d);
+              ctx.lineTo(ex + Math.cos(t0) * rx * q.d, ey + Math.sin(t0) * ry * q.d);
+            }
+          }
+          ctx.stroke();
+        }
+        ctx.fillStyle = `rgb(${C.amber})`;
+        for (let i = s.mo.length - 1; i >= 0; i--) {
+          const q = s.mo[i]; q.l += dt; if (q.l > q.m) { s.mo.splice(i, 1); continue; }
+          q.y += q.vy * dt; ctx.globalAlpha = Math.min(1, a * 0.8 * Math.sin((q.l / q.m) * Math.PI));
+          ctx.fillRect(q.x - 1.2 * k, q.y - 1.2 * k, 2.4 * k, 2.4 * k);
+        }
+        // łuk z podziałką nad oknem i krążący znacznik
+        const Rt = Math.hypot(b.w / 2, b.h / 2) + 18 * k, s0 = -Math.PI * 0.79, sw = Math.PI * 0.58;
+        L.tmTicks(ctx, b.cx, b.cy, Rt, 60, 3 * k, 5, s0, C.gold, 0.9 * k, a * 0.55, sw / TAU);
+        ctx.beginPath(); ctx.arc(b.cx, b.cy, Rt - 3 * k, s0, s0 + sw); L.tmGlow(ctx, C.gold, 1 * k, a * 0.5);
+        { const mk = s0 + sw * (0.5 + 0.45 * Math.sin(t * 0.9)), X = b.cx + Math.cos(mk) * (Rt - 7 * k), Y = b.cy + Math.sin(mk) * (Rt - 7 * k);
+          dot(ctx, C.amber, X, Y, 9 * k, a * 0.9, true); }
+        // cykl: impuls z mandali, skan w górę, odczyty po bokach
+        if (live || ct < 4) {
+          const pt = ct - 0.15;
+          if (pt > 0 && pt < 1.1) {
+            const f = easeOut(pt / 1.1);
+            ctx.beginPath(); ctx.ellipse(ex, ey, rx * (0.3 + 0.9 * f), ry * (0.3 + 0.9 * f), 0, 0, TAU);
+            L.tmGlow(ctx, C.amber, 2.5 * k * (1 - f) + 0.5, a * (1 - f));
+          }
+          if (pt > 0 && pt < dt * 1.5 && live) {
+            for (let i = 0; i < Math.round(24 * D); i++) {
+              const th = rand(0, TAU), v = rand(120, 260) * k;
+              s.sp.push({ f: 1, x: ex + Math.cos(th) * rx, y: ey + Math.sin(th) * ry, vx: Math.cos(th) * v * 0.4, vy: -v, l: 0, m: rand(0.5, 1) });
+            }
+          }
+          const sc = clamp01((ct - 0.3) / 1.3);
+          if (sc > 0 && sc < 1) {
+            const yy = ey - (ey - top) * easeInOut(sc), hw = rx * (1 - 0.14 * sc);
+            ctx.beginPath(); ctx.moveTo(ex - hw, yy); ctx.lineTo(ex + hw, yy);
+            L.tmGlow(ctx, C.hot, 1.3 * k, a * Math.sin(sc * Math.PI));
+            dot(ctx, C.amber, ex - hw, yy, 8 * k, a * Math.sin(sc * Math.PI), true);
+            dot(ctx, C.amber, ex + hw, yy, 8 * k, a * Math.sin(sc * Math.PI), true);
+          }
+          const ca = a * (1 - clamp01((ct - 3.9) / 0.5));
+          const pr = clamp01((ct - 0.6) / 1.2);
+          L.tmCallout(ctx, b.x - 6 * k, b.y + b.h * 0.35, -1, 54 * k, [s.codes[1], s.codes[6]], ca, pr, k, C.gold, 1);
+          L.tmCallout(ctx, b.x + b.w + 6 * k, b.y + b.h * 0.62, 1, 54 * k, [s.codes[4], s.codes[2]], ca, clamp01(pr - 0.15), k, C.gold, 2);
+        }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'tm_screen', group: G_SCREEN, name: 'Technomagia: Pole widzenia', dur: 8,
+      init(env) {
+        const L = EFFECTS.find(e => e.id === 'tm_item'); L.tmWorld();
+        const W = env.W || innerWidth, H = env.H || innerHeight;
+        const ret = [0, 1, 2].map(i => ({ x: W * (0.25 + 0.25 * i), y: H * 0.5, fx: W * 0.5, fy: H * 0.5, tx: W * (0.25 + 0.25 * i), ty: H * (0.3 + 0.2 * i), t0: -0.2 * i, mv: 0.7, hold: 1.5, codes: L.tmCodes(), por: null }));
+        return { ret, por: [], next: 1.0, cnt: 0 };
+      },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'tm_item'), C = L.TM, D = o.density || 1;
+        const k = Math.max(0.8, Math.min(1.5, Math.min(W, H) / 800));
+        const live = t < this.dur - 2.5;
+        const far = (x, y, m) => !b || Math.hypot(x - b.cx, y - b.cy) > m;
+        ctx.save();
+        // przyciemnienie krawędzi (max ~0.33)
+        ctx.globalCompositeOperation = 'source-over';
+        vignette(ctx, W, H, '14,6,0', 0.33 * a, 0.32);
+        ctx.globalCompositeOperation = 'lighter';
+        // siatka
+        const st = 72 * k;
+        ctx.beginPath();
+        for (let x = (W / 2) % st; x < W; x += st) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+        for (let y = (H / 2) % st; y < H; y += st) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+        ctx.strokeStyle = `rgb(${C.gold})`; ctx.globalAlpha = Math.min(1, a * 0.05); ctx.lineWidth = 1; ctx.stroke();
+        ctx.beginPath();
+        for (let x = (W / 2) % st; x < W; x += st) for (let y = (H / 2) % st; y < H; y += st) {
+          ctx.moveTo(x - 3 * k, y); ctx.lineTo(x + 3 * k, y); ctx.moveTo(x, y - 3 * k); ctx.lineTo(x, y + 3 * k);
+        }
+        ctx.globalAlpha = Math.min(1, a * 0.16); ctx.stroke();
+        // skan całego ekranu
+        const SP = 4.4, sf = (t % SP) / SP, sy = -60 * k + sf * (H + 120 * k);
+        {
+          const g = ctx.createLinearGradient(0, sy - 110 * k, 0, sy);
+          g.addColorStop(0, `rgba(${C.gold},0)`); g.addColorStop(1, `rgba(${C.gold},0.07)`);
+          ctx.globalAlpha = Math.min(1, a); ctx.fillStyle = g; ctx.fillRect(0, sy - 110 * k, W, 110 * k);
+          ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(W, sy); L.tmGlow(ctx, C.amber, 1 * k, a * 0.3);
+        }
+        // narożniki ekranu
+        const m = 22 * k, cl = 64 * k;
+        ctx.beginPath();
+        for (const [cx, cy, sx, sy2] of [[m, m, 1, 1], [W - m, m, -1, 1], [W - m, H - m, -1, -1], [m, H - m, 1, -1]]) {
+          ctx.moveTo(cx + sx * cl, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy + sy2 * cl);
+        }
+        L.tmGlow(ctx, C.gold, 1.6 * k, a * 0.6);
+        // taśma kursu u góry
+        {
+          const tw = Math.min(420 * k, W * 0.4), tx = W / 2, ty = 34 * k, sp = 9 * k, off = (t * 26 * k) % (sp * 10);
+          ctx.save(); ctx.beginPath(); ctx.rect(tx - tw / 2, ty - 20 * k, tw, 40 * k); ctx.clip();
+          ctx.beginPath();
+          for (let x = tx - tw / 2 - sp * 10 + off, i = 0; x < tx + tw / 2 + sp; x += sp, i++) {
+            const L2 = i % 10 === 0 ? 9 * k : i % 5 === 0 ? 6 * k : 3 * k;
+            ctx.moveTo(x, ty); ctx.lineTo(x, ty - L2);
+          }
+          ctx.moveTo(tx - tw / 2, ty); ctx.lineTo(tx + tw / 2, ty);
+          L.tmGlow(ctx, C.gold, 0.9 * k, a * 0.55);
+          const base0 = Math.floor(t * 26 * k / (sp * 10));
+          for (let x = tx - tw / 2 - sp * 10 + off, i = 0; x < tx + tw / 2 + sp; x += sp * 10, i++) {
+            const v = ((((i - base0) * 10) % 360) + 360) % 360;
+            L.tmText(ctx, String(v).padStart(3, '0'), x, ty + 9 * k, a * 0.6 * (1 - Math.abs(x - tx) / (tw / 2)), 8 * k, C.gold, 'center');
+          }
+          ctx.restore();
+          ctx.globalAlpha = Math.min(1, a * 0.9); ctx.fillStyle = `rgb(${C.amber})`;
+          ctx.beginPath(); ctx.moveTo(tx, ty + 2 * k); ctx.lineTo(tx - 5 * k, ty + 10 * k); ctx.lineTo(tx + 5 * k, ty + 10 * k); ctx.closePath(); ctx.fill();
+        }
+        // portale otwierające się z dala od okna łupów
+        if (live && t > s.next && s.por.length < 2) {
+          s.next = t + rand(4, 5.6);
+          let x = 0, y = 0, ok = false;
+          for (let g = 0; g < 24 && !ok; g++) {
+            x = rand(W * 0.14, W * 0.86); y = rand(H * 0.22, H * 0.8);
+            ok = far(x, y, 300 * k) && s.por.every(p => Math.hypot(p.x - x, p.y - y) > 220 * k);
+          }
+          if (ok) {
+            const p = { x, y, R: rand(44, 66) * k, t0: t, hold: rand(1.7, 2.3), P: { sp: [] }, boom: false, seed: rand(0, 6), dir: Math.random() < 0.5 ? 1 : -1 };
+            s.por.push(p);
+            // celownik zaczepia się o anomalię
+            const r = s.ret[s.cnt++ % s.ret.length];
+            r.fx = r.x; r.fy = r.y; r.tx = x; r.ty = y; r.t0 = t; r.mv = 0.6; r.hold = 0.45 + p.hold + 0.6; r.por = p; r.codes = L.tmCodes();
+          }
+        }
+        for (let i = s.por.length - 1; i >= 0; i--) {
+          const p = s.por[i], pt = t - p.t0, IG = 0.4, OP = 0.5, CL = 0.45, end = IG + OP + p.hold;
+          let open = 0;
+          if (pt < IG) L.tmIgnite(ctx, p.P, p.x, p.y, p.R, pt / IG, a, k);
+          else if (pt < end) open = easeOutBack(clamp01((pt - IG) / OP));
+          else open = 1 - easeIn(clamp01((pt - end) / CL));
+          if (pt > end + CL && !p.boom) { p.boom = true; L.tmBurst(p.P, Math.round(36 * D), 4 * k, 100, 260, k); }
+          const fa = pt > end + CL ? 1 - clamp01((pt - end - CL) / 0.3) : 1;
+          if (fa > 0) { ctx.globalCompositeOperation = 'lighter'; dot(ctx, '255,170,70', p.x, p.y, p.R * 2.4, a * 0.12 * Math.max(0, open) * fa); }
+          L.tmPortal(ctx, p.P, p.x, p.y, p.R, t, dt, a, Math.max(0, open), { k, D, runes: 1, dir: p.dir, seed: p.seed, emit: pt < end + CL - 0.1, worldA: 0.85 });
+          if (p.boom && pt - end - CL < 0.5) ringFx(ctx, p, pt - end - CL, 0.5, p.R * 1.5, C.amber, a);
+          if (pt > end + CL + 1 && !p.P.sp.length) s.por.splice(i, 1);
+        }
+        // celowniki wędrujące między punktami
+        for (const r of s.ret) {
+          const rt = t - r.t0;
+          if (rt > r.mv + r.hold) {
+            r.fx = r.x; r.fy = r.y; r.por = null; r.codes = L.tmCodes();
+            let x = 0, y = 0;
+            for (let g = 0; g < 16; g++) { x = rand(W * 0.1, W * 0.9); y = rand(H * 0.15, H * 0.85); if (far(x, y, 180 * k)) break; }
+            r.tx = x; r.ty = y; r.t0 = t; r.mv = rand(0.6, 0.9); r.hold = rand(1.3, 2.2);
+            continue;
+          }
+          const f = easeInOut(clamp01(rt / r.mv));
+          r.x = r.fx + (r.tx - r.fx) * f; r.y = r.fy + (r.ty - r.fy) * f;
+          const lk = clamp01((rt - r.mv) / 0.45), RR = r.por ? r.por.R * 1.25 : 22 * k;
+          const ra = a * 0.75 * (live || rt < r.mv + r.hold ? 1 : 0.5) * (1 - clamp01((rt - r.mv - r.hold + 0.35) / 0.35));
+          if (f < 1) {
+            ctx.globalCompositeOperation = 'lighter';
+            L.tmBrackets(ctx, r.x, r.y, 12 * k, 12 * k, 5 * k, t * 2, C.amber, 1.2 * k, ra * 0.7);
+          } else {
+            L.tmReticle(ctx, r.x, r.y, RR, t, ra, lk, r.por ? C.red : C.gold, k);
+            L.tmCallout(ctx, r.x + RR * 0.8, r.y - RR * 0.8, 1, 60 * k, r.por ? ['Δ ANOM', r.codes[0]] : [r.codes[2], r.codes[5]], ra, clamp01((rt - r.mv - 0.2) / 0.7), k, r.por ? C.amber : C.gold, 2);
+          }
+        }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'tm_win', group: G_WIN, name: 'Technomagia: Odrzut do portalu', dur: 4.6, minDur: 4.6,
+      init(env) {
+        const L = EFFECTS.find(e => e.id === 'tm_item'); L.tmWorld();
+        return { P: { sp: [] }, fire: [], prev: null, boom: false, codes: L.tmCodes() };
+      },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'tm_item'), C = L.TM, u = o.out, img = u.img || FALLBACK_ICON;
+        const base = u.base || 32, k = Math.max(1, base / 32), D = o.density || 1;
+        const F = u.from, T = u.to;
+        const T_IGN = 0.5, T_GO = 0.85, T_ARR = 2.3, T_PO = 1.5, T_CL = T_ARR + 0.15, T_CL1 = T_CL + 0.35;
+        const dist = Math.hypot(T.x - F.x, T.y - F.y), hArc = Math.min(200 * k, dist * 0.4);
+        const RP = 30 * k;
+        ctx.save();
+        // lot
+        const fc = t < T_GO ? 0 : easeInOut(clamp01((t - T_GO) / (T_ARR - T_GO)));
+        let p;
+        if (t < T_GO) {
+          const lf = easeOut(clamp01(t / T_GO)), sh = t > T_IGN ? (t - T_IGN) * 5 * k : 0;
+          p = { x: F.x + rand(-1, 1) * sh, y: F.y - 16 * k * lf + rand(-1, 1) * sh };
+        } else p = arcPoint({ x: F.x, y: F.y - 16 * k }, T, fc, hArc);
+        let vx = 0, vy = 1;
+        if (s.prev && t >= T_GO) { const dx = p.x - s.prev.x, dy = p.y - s.prev.y, l = Math.hypot(dx, dy); if (l > 0.01) { vx = dx / l; vy = dy / l; } }
+        else if (t >= T_GO) { vx = 0; vy = -1; }
+        if (t >= T_GO && s.prev) { s.dir = { x: vx, y: vy }; }
+        const dv = s.dir && t >= T_GO ? s.dir : { x: 0, y: -1 };
+        s.prev = p;
+        // HUD: przerywana trajektoria + celownik na torbie + odległość
+        const hudA = a * (1 - clamp01((t - T_ARR) / 0.4));
+        if (hudA > 0.01) {
+          const pr = clamp01(t / 0.6);
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.setLineDash([6 * k, 6 * k]); ctx.lineDashOffset = -t * 50 * k;
+          ctx.beginPath();
+          const N = 36, f0 = fc, f1 = Math.max(fc, pr);
+          for (let i = 0; i <= N; i++) { const q = arcPoint({ x: F.x, y: F.y - 16 * k }, T, f0 + (f1 - f0) * (i / N), hArc); if (i) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y); }
+          L.tmGlow(ctx, C.gold, 1.1 * k, hudA * 0.7);
+          ctx.setLineDash([]);
+          L.tmReticle(ctx, T.x, T.y, 24 * k, t, hudA, clamp01((t - 0.1) / 0.6), C.gold, k);
+          const dd = Math.round(dist * (1 - fc) / k);
+          L.tmText(ctx, `D ${String(dd).padStart(4, '0')}`, T.x - 32 * k, T.y - 40 * k, hudA, 9 * k, C.gold, 'right', clamp01((t - 0.4) / 0.3));
+          L.tmText(ctx, s.codes[0], T.x - 32 * k, T.y - 28 * k, hudA, 9 * k, C.cyan, 'right', clamp01((t - 0.55) / 0.3));
+          if (t < T_GO + 0.3) L.tmBrackets(ctx, p.x, p.y, base * 0.75, base * 0.75, 6 * k, 0, C.amber, 1.4 * k, hudA * (1 - clamp01((t - T_GO) / 0.3)));
+        }
+        // portal nad torbą
+        let open = 0;
+        if (t > T_PO - 0.35 && t < T_PO) L.tmIgnite(ctx, s.P, T.x, T.y, RP, (t - T_PO + 0.35) / 0.35, a, k);
+        if (t > T_PO && t < T_CL) open = easeOutBack(clamp01((t - T_PO) / 0.4));
+        else if (t >= T_CL) open = 1 - easeIn(clamp01((t - T_CL) / (T_CL1 - T_CL)));
+        if (open > 0.001 || s.P.sp.length) L.tmPortal(ctx, s.P, T.x, T.y, RP, t, dt, a, Math.max(0, open), { k, D, runes: 1, emit: t < T_CL1 - 0.1, seed: 1.7, rate: 1.2 });
+        if (t > T_CL1 && !s.boom) { s.boom = true; L.tmBurst(s.P, Math.round(50 * D), 4 * k, 120, 340, k); }
+        // dysze: ogień z tyłu przedmiotu
+        const th = clamp01((t - T_IGN) / 0.3) * (1 - clamp01((t - T_ARR + 0.15) / 0.2));
+        let sz = base * (1.35 - 0.3 * fc);
+        if (t > T_ARR - 0.25) sz *= 1 - easeIn(clamp01((t - (T_ARR - 0.25)) / 0.35));
+        const rx = p.x - dv.x * sz * 0.45, ry = p.y - dv.y * sz * 0.45;
+        if (th > 0.01 && t < T_ARR) {
+          const n = Math.round((t < T_GO ? 2 : 7) * D * th), pr = s.rear || { x: rx, y: ry };
+          for (let i = 0; i < n; i++) {
+            const v = rand(150, 320) * k, px = -dv.y, py = dv.x, sd = rand(-60, 60) * k, f = Math.random();
+            s.fire.push({ x: pr.x + (rx - pr.x) * f + rand(-3, 3) * k, y: pr.y + (ry - pr.y) * f + rand(-3, 3) * k, vx: -dv.x * v + px * sd, vy: -dv.y * v + py * sd, l: rand(0, 0.06), m: rand(0.2, 0.5), r: rand(4, 10) * k });
+          }
+          if (s.fire.length > 300) s.fire.splice(0, s.fire.length - 300);
+        }
+        s.rear = { x: rx, y: ry };
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = s.fire.length - 1; i >= 0; i--) {
+          const q = s.fire[i]; q.l += dt;
+          if (q.l > q.m) { s.fire.splice(i, 1); continue; }
+          q.vx *= 1 - 3 * dt; q.vy *= 1 - 3 * dt; q.vy -= 60 * k * dt; q.x += q.vx * dt; q.y += q.vy * dt;
+          const f = q.l / q.m, col = f < 0.18 ? '255,240,200' : f < 0.5 ? '255,168,48' : '255,80,30';
+          dot(ctx, col, q.x, q.y, q.r * (1 + f * 1.6), a * (1 - f) * 0.75, f < 0.18);
+        }
+        if (th > 0.01 && t < T_ARR) {
+          const fl = 0.8 + 0.2 * Math.sin(t * 60) + rand(-0.08, 0.08), Lf = (t < T_GO ? 14 : 26) * k * fl * th;
+          for (let i = 0; i < 5; i++) {
+            const d = (i / 4) * Lf;
+            dot(ctx, i < 2 ? C.hot : '255,180,60', rx - dv.x * d, ry - dv.y * d, (9 - i * 1.4) * k * fl, a * th * (1 - i * 0.15), i < 2);
+          }
+          dot(ctx, '255,140,40', rx, ry, 30 * k, a * 0.25 * th);
+        }
+        // przedmiot
+        if (t < T_CL1 + 0.05) o.hideItem();
+        if (t < T_ARR + 0.1 && sz > 0.5) {
+          const tilt = t >= T_GO ? Math.max(-0.45, Math.min(0.45, dv.x * 0.45)) : 0;
+          dot(ctx, C.amber, p.x, p.y, sz * 0.9, a * 0.35);
+          drawItem(ctx, img, p.x, p.y, sz, tilt, 1, a, true, null);
+        }
+        // zamknięcie portalu: błysk i potwierdzenie
+        const ht = t - T_CL1;
+        if (ht > 0) {
+          ringFx(ctx, T, ht, 0.6, 60 * k, C.amber, a);
+          ringFx(ctx, T, ht - 0.1, 0.7, 40 * k, C.hot, a * 0.8);
+          ctx.globalCompositeOperation = 'lighter';
+          if (ht < 0.4) dot(ctx, C.hot, T.x, T.y, 34 * k, a * 0.8 * (1 - ht / 0.4), true);
+          const ce = easeOutBack(clamp01(ht / 0.35)), hw = base * 0.62 * (1 + (1 - ce) * 1.5);
+          L.tmBrackets(ctx, T.x, T.y, hw, hw, 6 * k, 0, C.gold, 1.6 * k, a * clamp01(ht / 0.15));
+          L.tmText(ctx, '+1', T.x, T.y - hw - 10 * k, a, 12 * k, C.amber, 'center', clamp01((ht - 0.1) / 0.2));
+          L.tmText(ctx, `OK ${s.codes[5]}`, T.x + hw + 4 * k, T.y + hw, a, 8 * k, C.cyan, 'left', clamp01((ht - 0.25) / 0.3));
+        }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'tm_lose', group: G_LOSE, name: 'Technomagia: Zapadający się portal', dur: 5, minDur: 5,
+      init(env) {
+        const L = EFFECTS.find(e => e.id === 'tm_item'); L.tmWorld();
+        const HX = '0123456789ABCDEF', hx = n => { let r = ''; for (let i = 0; i < n; i++) r += HX[(Math.random() * 16) | 0]; return r; };
+        return { P: { sp: [] }, codes: L.tmCodes(), err: [`ERR 0x${hx(4)}`, `TRK ----.-`, `!! ${hx(2)}:${hx(2)}`], boom: false, err0: false };
+      },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'tm_item'), C = L.TM, u = o.out, img = u.img || FALLBACK_ICON;
+        const base = u.base || 32, k = Math.max(1, base / 32), D = o.density || 1;
+        const F = u.from, Pp = { x: F.x, y: F.y - 96 * k }, R = 40 * k, RP = 52 * k;
+        const T_UP = 0.6, T_ERR = 1.05, T_PO = 1.45, T_IN0 = 2.0, T_IN1 = 3.2, T_CL = 3.15, T_CL1 = 3.5;
+        ctx.save();
+        const up = easeOutBack(clamp01(t / T_UP)), sz0 = base * (1 + 0.6 * clamp01(up));
+        const err = t > T_ERR, et = t - T_ERR;
+        const shake = err && t < T_IN0 ? 2 * k : 0;
+        const ix = F.x + (Pp.x - F.x) * up + rand(-1, 1) * shake, iy = F.y + (Pp.y - F.y) * up + rand(-1, 1) * shake;
+        // HUD: namierzanie → błąd
+        const hudA = a * (1 - clamp01((t - 3.6) / 0.6));
+        if (hudA > 0.01) {
+          const lk = clamp01((t - 0.15) / 0.8);
+          const col = err ? (Math.floor(t * 8) % 2 && et < 0.8 ? C.amber : C.err) : C.gold;
+          const Rr = err ? R * (1 + 0.6 * easeIn(clamp01((t - T_CL1) / 0.5))) : R;
+          L.tmReticle(ctx, Pp.x, Pp.y, Rr, t * (err ? 2.4 : 1), hudA, lk, col, k, err ? 3 * k : 0);
+          if (err) {
+            if (!s.err0) { s.err0 = true; shakeScreen(3); }
+            ringFx(ctx, Pp, et, 0.4, R * 2.2, C.err, hudA);
+            // zakłócenia: poziome paski
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.fillStyle = `rgb(${C.err})`;
+            for (let i = 0; i < 4; i++) {
+              if (Math.random() < 0.55) continue;
+              ctx.globalAlpha = Math.min(1, hudA * rand(0.15, 0.45));
+              ctx.fillRect(Pp.x - R * rand(1, 2.2), Pp.y + rand(-R * 1.3, R * 1.3), R * rand(1.2, 3.4), rand(1, 3) * k);
+            }
+            L.tmText(ctx, s.err[0], Pp.x + R * 1.45, Pp.y - R * 0.7, hudA * (Math.floor(t * 6) % 2 ? 1 : 0.5), 12 * k, C.err, 'left', clamp01(et / 0.3));
+            L.tmText(ctx, s.err[1], Pp.x + R * 1.45, Pp.y - R * 0.7 + 15 * k, hudA, 11 * k, C.err, 'left', clamp01((et - 0.2) / 0.3));
+            L.tmText(ctx, s.err[2], Pp.x - R * 1.45, Pp.y + R * 0.4, hudA, 11 * k, C.amber, 'right', clamp01((et - 0.4) / 0.3));
+          } else {
+            L.tmCallout(ctx, Pp.x + R * 0.8, Pp.y - R * 0.55, 1, 60 * k, [s.codes[0], s.codes[3]], hudA, clamp01((t - 0.45) / 0.6), k, C.gold, 2);
+          }
+        }
+        // niestabilny portal (czerwony, migocze), wciąga przedmiot
+        let open = 0;
+        if (t > T_PO - 0.35 && t < T_PO) L.tmIgnite(ctx, s.P, Pp.x, Pp.y, RP, (t - T_PO + 0.35) / 0.35, a, k, L.SPK.red);
+        if (t > T_PO && t < T_CL) open = easeOutBack(clamp01((t - T_PO) / 0.4)) * (0.88 + 0.12 * Math.sin(t * 31) * Math.sin(t * 13));
+        else if (t >= T_CL) open = 1 - easeIn(clamp01((t - T_CL) / (T_CL1 - T_CL)));
+        const g = clamp01((t - T_IN0) / (T_IN1 - T_IN0)), ge = easeIn(g);
+        const inner = g > 0 && g < 1 ? c2 => {
+          drawItem(c2, img, Pp.x + Math.cos(t * 9) * RP * 0.25 * (1 - ge), Pp.y + Math.sin(t * 9) * RP * 0.25 * (1 - ge), sz0 * (1 - 0.9 * ge), ge * 9, 1, a * (1 - ge * ge), false,
+            `grayscale(${ge}) brightness(${1 - 0.5 * ge})`);
+        } : null;
+        if (open > 0.001 || s.P.sp.length) L.tmPortal(ctx, s.P, Pp.x, Pp.y, RP, t, dt, a, Math.max(0, open), { k, D, pal: L.SPK.red, runes: 0.8, inner, emit: t < T_CL1 - 0.1, seed: 3.3, dir: -1, rate: 1.2, drip: 1.6, worldA: 0.75 });
+        if (t > T_CL1 && !s.boom) { s.boom = true; L.tmBurst(s.P, Math.round(44 * D), 3 * k, 140, 360, k); }
+        const ht = t - T_CL1;
+        if (ht > 0 && ht < 0.8) {
+          ringFx(ctx, Pp, ht, 0.6, RP * 1.6, C.err, a);
+          ctx.globalCompositeOperation = 'lighter';
+          dot(ctx, '255,120,80', Pp.x, Pp.y, 26 * k, a * 0.7 * clamp01(1 - ht / 0.35), true);
+        }
+        // przedmiot: przed portalem do chwili wciągnięcia
+        if (t < 4.2) o.hideItem();
+        if (t <= T_IN0) {
+          const red = err ? 0.5 + 0.5 * Math.sin(t * 18) : 0;
+          ctx.globalCompositeOperation = 'lighter';
+          dot(ctx, err ? C.err : C.gold, ix, iy, sz0 * 0.9, a * 0.35);
+          drawItem(ctx, img, ix, iy, sz0, err ? rand(-0.06, 0.06) : 0, 1, a, !err, err ? `sepia(${0.6 * red}) saturate(${1 + 2 * red}) hue-rotate(-20deg)` : null);
+        }
+        // pusty celownik po zamknięciu: „brak sygnału”
+        if (ht > 0.2) {
+          const fa = a * clamp01((ht - 0.2) / 0.3) * (1 - clamp01((t - 4.4) / 0.5));
+          ctx.globalCompositeOperation = 'lighter';
+          L.tmBrackets(ctx, Pp.x, Pp.y, R * 0.7, R * 0.7, 6 * k, 0, C.err, 1.4 * k, fa * (Math.floor(t * 4) % 2 ? 1 : 0.4));
+          L.tmText(ctx, '-- . --', Pp.x, Pp.y, fa, 12 * k, C.err, 'center');
+        }
+        caption(ctx, u.reason, F.x, Pp.y - RP - 46 * k, a * clamp01((t - 0.3) / 0.5), 20);
+        ctx.restore();
+      },
+    },
+    /* ------------------------- ZESTAW „DRUGA STRONA” (ud_) – mroczny wymiar, szczelina, czerwone pioruny, popiół ------------------------- */
+    /* ud_item trzyma wspólne narzędzia zestawu (popiół/zarodniki, czerwone pioruny, organiczna szczelina, żyłki, rytm serca) */
+    {
+      id: 'ud_item', group: G_ITEM, name: 'Druga strona: Rozdarcie', dur: 6.2, occupy: 5.8,
+      UD: { red: '255,42,42', ember: '255,106,74', deep: '150,12,22', ash: '138,155,184', pale: '196,206,226', cold: '26,34,51' },
+      // rytm „serca” (lub-dub) 0..~1
+      udBeat(t, per) {
+        const p = (t % (per || 1.15)) / (per || 1.15);
+        return Math.exp(-Math.pow((p - 0.06) / 0.05, 2)) + 0.6 * Math.exp(-Math.pow((p - 0.25) / 0.06, 2));
+      },
+      // popiół / zarodniki: unoszą się powoli w górę i dryfują
+      udAshSpawn(arr, x, y, w, h, n, k, vyMin, vyMax) {
+        for (let i = 0; i < n; i++) {
+          arr.push({ x: x + rand(0, w), y: y + rand(0, h), vx: rand(-7, 7) * k, vy: rand(vyMin == null ? -26 : vyMin, vyMax == null ? -8 : vyMax) * k,
+            l: 0, m: rand(2.6, 5.5), r: rand(0.7, 2.1) * k, s: rand(0, 9), e: Math.random() < 0.16 });
+        }
+        if (arr.length > 520) arr.splice(0, arr.length - 520);
+      },
+      udAshDraw(ctx, arr, dt, a, k, grav, warm) {
+        const B = [[], [], []], E = [];
+        for (let i = arr.length - 1; i >= 0; i--) {
+          const q = arr[i]; q.l += dt;
+          if (q.l > q.m) { arr.splice(i, 1); continue; }
+          q.vx += Math.sin(q.l * 1.4 + q.s) * 12 * k * dt; q.vx *= 1 - 0.4 * dt;
+          if (grav) q.vy += grav * dt;
+          q.x += q.vx * dt; q.y += q.vy * dt;
+          const f = q.l / q.m, al = Math.sin(Math.PI * Math.min(1, f * 1.15));
+          if (q.e) E.push([q, al]); else B[al > 0.66 ? 0 : al > 0.33 ? 1 : 2].push(q);
+        }
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = warm ? 'rgb(220,205,190)' : `rgb(${this.UD.pale})`;
+        for (let j = 0; j < 3; j++) {
+          if (!B[j].length) continue;
+          ctx.globalAlpha = Math.min(1, a * (0.75 - j * 0.24));
+          ctx.beginPath();
+          for (const q of B[j]) { const r = q.r * (1 + 0.3 * Math.sin(q.l * 5 + q.s)); ctx.rect(q.x - r / 2, q.y - r / 2, r, r * 0.8); }
+          ctx.fill();
+        }
+        ctx.globalCompositeOperation = 'lighter';
+        for (const [q, al] of E) dot(ctx, warm ? '255,190,110' : this.UD.ember, q.x, q.y, q.r * 3.2, a * al * (0.55 + 0.45 * Math.sin(q.l * 9 + q.s)), true);
+      },
+      // piorun z rozgałęzieniami: lista ścieżek
+      udBoltMake(x1, y1, x2, y2, disp, forks) {
+        const main = boltPath(x1, y1, x2, y2, disp, 6), out = [main];
+        for (let i = 0; i < (forks || 0); i++) {
+          const p = main[(rand(0.2, 0.75) * main.length) | 0], dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) * rand(0.25, 0.5);
+          const an = Math.atan2(dy, dx) + rand(0.4, 0.9) * (Math.random() < 0.5 ? -1 : 1);
+          out.push(boltPath(p[0], p[1], p[0] + Math.cos(an) * L, p[1] + Math.sin(an) * L, disp * 0.5, 5));
+        }
+        return out;
+      },
+      udBolt(ctx, paths, a, k) {
+        if (a <= 0.01) return;
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 1; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        paths.forEach((pts, i) => {
+          const m = i ? 0.6 : 1;
+          strokePts(ctx, pts, 9 * k * m, `rgba(${this.UD.deep},${0.3 * a})`);
+          strokePts(ctx, pts, 3.2 * k * m, `rgba(${this.UD.red},${0.85 * a})`);
+          strokePts(ctx, pts, 1.2 * k * m, `rgba(255,205,195,${a})`);
+        });
+      },
+      // kształt organicznej szczeliny (losowe poszarpanie krawędzi, błony, żyłki)
+      udTearMake(n) {
+        n = n || 26;
+        const T = { n, p: [], strands: [], veins: [], c: rand(0, 6) };
+        for (let i = 0; i <= n; i++) T.p.push({ jl: rand(-1, 1) * (i % 2 ? 1 : 0.4), jr: rand(-1, 1) * (i % 2 ? 0.4 : 1), ph: rand(0, 9) });
+        for (let i = 0; i < 5; i++) T.strands.push({ i: 3 + ((Math.random() * (n - 6)) | 0), j: rand(-0.3, 0.3), ph: rand(0, 9) });
+        for (let i = 0; i < 16; i++) T.veins.push({ v: rand(0.1, 0.9), side: i % 2 ? 1 : -1, len: rand(0.3, 0.85), bend: rand(-1.1, 1.1), fork: Math.random() < 0.5 });
+        return T;
+      },
+      // rysuje szczelinę: środek (cx,cy), długość, szerokość, kąt, otwarcie 0..1+, puls 0..1
+      udTear(ctx, T, cx, cy, len, wid, ang, open, t, a, k, beat, gs) {
+        if (open <= 0.01 || a <= 0.01) return;
+        const n = T.n, L = len * (0.3 + 0.7 * Math.min(1, open * 1.6)), top = [], bot = [];
+        for (let i = 0; i <= n; i++) {
+          const v = i / n, P = T.p[i], x = (v - 0.5) * L, yc = Math.sin(v * TAU * 0.9 + T.c) * L * 0.045;
+          const hw = wid * 0.5 * open * Math.pow(Math.sin(Math.PI * v), 0.75);
+          const w1 = hw * (1 + P.jl * 0.5 + 0.09 * Math.sin(t * 2.3 + P.ph)), w2 = hw * (1 + P.jr * 0.5 + 0.09 * Math.sin(t * 2.7 + P.ph * 2));
+          top.push([x, yc - w1 - 0.6 * k]); bot.push([x, yc + w2 + 0.6 * k]);
+        }
+        const path = () => {
+          ctx.beginPath(); ctx.moveTo(top[0][0], top[0][1]);
+          for (let i = 1; i <= n; i++) ctx.lineTo(top[i][0], top[i][1]);
+          for (let i = n; i >= 0; i--) ctx.lineTo(bot[i][0], bot[i][1]);
+          ctx.closePath();
+        };
+        const o1 = Math.min(1, open);
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang);
+        // łuna za szczeliną
+        ctx.globalCompositeOperation = 'lighter';
+        dot(ctx, this.UD.deep, 0, 0, L * 0.75, a * 0.55 * o1 * (0.6 + 0.4 * beat));
+        // żyłki rozchodzące się od krawędzi (ciemne + czerwone światło)
+        const vp = [];
+        for (const V of T.veins) {
+          const i = Math.round(V.v * n), e = V.side < 0 ? top[i] : bot[i];
+          const ln = V.len * wid * (0.4 + 0.6 * o1) * 0.9, ex = e[0] + V.bend * ln * 0.6, ey = e[1] + V.side * ln;
+          vp.push([e[0], e[1], e[0] - V.bend * ln * 0.5, e[1] + V.side * ln * 0.7, ex, ey, V]);
+        }
+        for (let pass = 0; pass < 2; pass++) {
+          ctx.globalCompositeOperation = pass ? 'lighter' : 'source-over';
+          ctx.globalAlpha = pass ? Math.min(1, a * o1 * (0.25 + 0.6 * beat)) : Math.min(1, a * o1 * 0.85);
+          ctx.strokeStyle = pass ? `rgb(${this.UD.red})` : 'rgb(36,8,14)'; ctx.lineWidth = (pass ? 1 : 2.6) * k; ctx.lineCap = 'round';
+          ctx.beginPath();
+          for (const [x0, y0, qx, qy, ex, ey, V] of vp) {
+            ctx.moveTo(x0, y0); ctx.quadraticCurveTo(qx, qy, ex, ey);
+            if (V.fork) { ctx.moveTo((x0 + ex) / 2 + (qx - x0) * 0.3, (y0 + ey) / 2); ctx.lineTo(ex + V.side * 6 * k, (y0 + ey) / 2 + V.side * 8 * k); }
+          }
+          ctx.stroke();
+        }
+        // mięsista krawędź
+        path();
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a);
+        ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgb(42,10,18)'; ctx.lineWidth = 6 * k; ctx.stroke();
+        // wnętrze: pulsujące czerwone światło od środka
+        const g = ctx.createRadialGradient(0, 0, 0, 0, 0, L * 0.5 * (gs || 1));
+        g.addColorStop(0, 'rgb(255,170,140)'); g.addColorStop(0.08 + 0.06 * beat, 'rgb(240,36,30)');
+        g.addColorStop(0.32 + 0.08 * beat, 'rgb(110,4,14)'); g.addColorStop(0.75, 'rgb(28,2,8)'); g.addColorStop(1, 'rgb(10,1,4)');
+        ctx.fillStyle = g; ctx.fill();
+        // błony rozpięte w poprzek
+        ctx.strokeStyle = 'rgb(30,5,10)'; ctx.globalAlpha = Math.min(1, a * 0.7); ctx.lineWidth = 1.1 * k;
+        ctx.beginPath();
+        for (const S of T.strands) {
+          const tp = top[S.i], bp = bot[Math.min(n, Math.max(0, S.i + (S.j > 0 ? 1 : -1)))];
+          const sag = Math.sin(t * 1.7 + S.ph) * wid * 0.08 * open;
+          ctx.moveTo(tp[0], tp[1]); ctx.quadraticCurveTo((tp[0] + bp[0]) / 2 + sag, (tp[1] + bp[1]) / 2, bp[0], bp[1]);
+        }
+        ctx.stroke();
+        // gorące światło w środku + jasny brzeg
+        ctx.globalCompositeOperation = 'lighter';
+        dot(ctx, '255,70,50', 0, 0, L * 0.22 * (0.8 + 0.3 * beat), a * (0.18 + 0.32 * beat) * o1, true);
+        path(); ctx.globalAlpha = Math.min(1, a * (0.45 + 0.4 * beat)); ctx.strokeStyle = `rgb(${this.UD.ember})`; ctx.lineWidth = 1.3 * k; ctx.stroke();
+        ctx.restore();
+      },
+      // wici: drżąca krzywa od a do b (ciemna + czerwona żyłka)
+      udTendrils(ctx, list, t, a, k) {
+        if (!list.length || a <= 0.01) return;
+        for (let pass = 0; pass < 2; pass++) {
+          ctx.globalCompositeOperation = pass ? 'lighter' : 'source-over';
+          ctx.globalAlpha = Math.min(1, a * (pass ? 0.75 : 0.9));
+          ctx.strokeStyle = pass ? `rgb(${this.UD.red})` : 'rgb(40,8,16)'; ctx.lineWidth = (pass ? 1.1 : 3) * k; ctx.lineCap = 'round';
+          ctx.beginPath();
+          list.forEach(([x0, y0, x1, y1, w], i) => {
+            const dx = x1 - x0, dy = y1 - y0, l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l;
+            const off = (Math.sin(t * 7 + i * 2.1) * 7 + (w || 0)) * k;
+            ctx.moveTo(x0, y0);
+            ctx.bezierCurveTo(x0 + dx * 0.33 + nx * off, y0 + dy * 0.33 + ny * off, x0 + dx * 0.66 - nx * off, y0 + dy * 0.66 - ny * off, x1, y1);
+          });
+          ctx.stroke();
+        }
+      },
+      UD_ITEM_F: 'grayscale(0.5) sepia(0.9) hue-rotate(-38deg) saturate(2.6) brightness(0.85)',
+      init(env) { return { ash: [], T: null, bolts: [], nb: 0.55, sp: [], snap: false, landed: false }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const I = o.item || { x: b.cx, y: b.cy, base: 32 }, img = (o.item && o.item.img) || FALLBACK_ICON;
+        const base = I.base || 32, k = Math.max(1, base / 32) * (o.itemScale || 1), dn = o.density || 1;
+        const P0 = { x: I.x + (o.index || 0) * 36 * k, y: I.y };
+        if (!s.T) s.T = this.udTearMake(28);
+        const C = { x: P0.x, y: P0.y - 14 * k }, ang = Math.PI / 2 + 0.18, len = 170 * k, wid = 66 * k;
+        const T_OP0 = 0.45, T_OP1 = 1.5, T_EM0 = 1.55, T_EM1 = 2.7, T_SNAP = 3.05, T_CL0 = 3.2, T_CL1 = 4.05, T_DR0 = 4.55, T_DR1 = 5.3;
+        const beat = this.udBeat(t, 0.95);
+        // otwarcie szczeliny (z drgnięciami)
+        let open;
+        if (t < T_OP0) open = 0.07 * clamp01(t / 0.15) * (0.7 + 0.3 * Math.sin(t * 60));
+        else if (t < T_CL0) open = 0.07 + 0.93 * easeOut(clamp01((t - T_OP0) / (T_OP1 - T_OP0)));
+        else open = 1 - easeIn(clamp01((t - T_CL0) / (T_CL1 - T_CL0)));
+        const tw = (Math.sin(t * 13) > 0.93 || Math.sin(t * 7.3 + 1) > 0.97) && t < T_CL0 ? 1 : 0;
+        if (t < T_CL1) open *= 1 + 0.12 * tw + 0.04 * beat;
+        const jx = tw ? rand(-2, 2) * k : 0;
+        ctx.save();
+        // chłodny cień wokół (świat szarzeje lokalnie)
+        const shade = clamp01(t / 0.6) * (1 - clamp01((t - T_CL1) / 1.2));
+        ctx.globalCompositeOperation = 'source-over';
+        dot(ctx, '8,12,26', C.x, C.y, 150 * k, a * 0.55 * shade);
+        // szczelina
+        this.udTear(ctx, s.T, C.x + jx, C.y, len, wid, ang, open, t, a, k, beat);
+        // błysk zamknięcia
+        const ct = t - T_CL1;
+        if (ct > -0.05 && ct < 0.6) {
+          ctx.globalCompositeOperation = 'lighter';
+          dot(ctx, this.UD.red, C.x, C.y, 90 * k, a * 0.7 * (1 - clamp01(ct / 0.6)));
+          ctx.globalAlpha = 1; ctx.strokeStyle = `rgba(255,120,100,${a * (1 - clamp01(ct / 0.4))})`; ctx.lineWidth = 2 * k;
+          ctx.beginPath(); ctx.moveTo(C.x - Math.cos(ang) * len * 0.45, C.y - Math.sin(ang) * len * 0.45); ctx.lineTo(C.x + Math.cos(ang) * len * 0.45, C.y + Math.sin(ang) * len * 0.45); ctx.stroke();
+          if (!s.closed) { s.closed = true; this.udAshSpawn(s.ash, C.x - 40 * k, C.y - 60 * k, 80 * k, 120 * k, Math.round(40 * dn), k, -40, 10); }
+        }
+        // czerwone pioruny z krawędzi
+        if (t > s.nb && t < T_CL1 - 0.1) {
+          s.nb = t + rand(0.45, 0.9);
+          const an = ang + (Math.random() < 0.5 ? 0 : Math.PI) * 0 + Math.PI / 2 * (Math.random() < 0.5 ? 1 : -1) + rand(-0.9, 0.9);
+          const r0 = wid * 0.4 * open, r1 = rand(80, 140) * k;
+          const sx = C.x + Math.cos(an) * r0 + rand(-20, 20) * k, sy = C.y + Math.sin(an) * r0 + rand(-30, 30) * k;
+          s.bolts.push({ p: this.udBoltMake(sx, sy, C.x + Math.cos(an) * r1, C.y + Math.sin(an) * r1, 26 * k, 2), t0: t });
+        }
+        for (let i = s.bolts.length - 1; i >= 0; i--) {
+          const B = s.bolts[i], lt = t - B.t0;
+          if (lt > 0.3) { s.bolts.splice(i, 1); continue; }
+          const fl = lt < 0.06 ? 1 : lt < 0.1 ? 0.25 : lt < 0.16 ? 0.9 : 1 - (lt - 0.16) / 0.14;
+          this.udBolt(ctx, B.p, a * fl, k);
+          ctx.globalCompositeOperation = 'lighter'; dot(ctx, this.UD.red, B.p[0][0][0], B.p[0][0][1], 40 * k, a * 0.3 * fl);
+        }
+        // popiół/zarodniki z rozdarcia
+        if (t > 0.2 && t < T_CL1) this.udAshSpawn(s.ash, C.x - 30 * k, C.y - 50 * k, 60 * k, 100 * k, Math.random() < dt * 60 * dn * open ? 2 : 0, k);
+        this.udAshDraw(ctx, s.ash, dt, a, k);
+        // przedmiot
+        const HOV = { x: C.x, y: C.y - 96 * k };
+        let p = null, sz = base, rot = 0, red = 1;
+        if (t >= T_EM0 && t < T_DR1 + 0.05) {
+          if (t < T_EM1) {
+            const f = easeOut(clamp01((t - T_EM0) / (T_EM1 - T_EM0)));
+            p = { x: C.x + Math.sin(t * 30) * 1.2 * k * (1 - f), y: C.y + (HOV.y - C.y) * f * 0.75 };
+            sz = base * (0.25 + 1.45 * f); rot = (1 - f) * 0.6;
+          } else if (t < T_SNAP) {
+            const f = clamp01((t - T_EM1) / (T_SNAP - T_EM1));
+            p = { x: C.x + rand(-1, 1) * 1.5 * k, y: C.y + (HOV.y - C.y) * (0.75 + 0.1 * f) };
+            sz = base * 1.7;
+          } else if (t < T_DR0) {
+            const f = easeOutBack(clamp01((t - T_SNAP) / 0.45));
+            p = { x: C.x, y: C.y + (HOV.y - C.y) * (0.85 + 0.15 * f) + Math.sin((t - T_SNAP) * 3) * 3 * k };
+            sz = base * 1.7; red = 1 - clamp01((t - T_SNAP) / 0.8);
+          } else {
+            const f = clamp01((t - T_DR0) / (T_DR1 - T_DR0)), e = easeIn(f);
+            p = { x: HOV.x + (P0.x - HOV.x) * e, y: HOV.y + Math.sin((T_DR0 - T_SNAP) * 3) * 3 * k + (P0.y - HOV.y) * e };
+            sz = base * (1.7 - 0.7 * e); red = 0;
+          }
+          // wici trzymające przedmiot po drugiej stronie
+          if (t > T_EM0 + 0.3 && t < T_SNAP) {
+            const g = clamp01((t - T_EM0 - 0.3) / 0.4), L = [];
+            for (let i = 0; i < 4; i++) {
+              const an = ang + Math.PI / 2 * (i % 2 ? 1 : -1), r0 = wid * 0.35 * open, sx = C.x + Math.cos(an) * r0 + (i - 1.5) * 6 * k, sy = C.y + (i - 1.5) * 18 * k;
+              const tx = p.x + (i - 1.5) * sz * 0.22, ty = p.y + sz * 0.2;
+              L.push([sx, sy, sx + (tx - sx) * g, sy + (ty - sy) * g, (i - 1.5) * 5]);
+            }
+            this.udTendrils(ctx, L, t, a, k);
+          }
+          if (t >= T_SNAP && !s.snap) {
+            s.snap = true;
+            burst(s.sp, p, Math.round(26 * dn), 60 * k, 220 * k, [this.UD.red, this.UD.ember, '255,190,170']);
+          }
+          o.hideItem();
+          ctx.globalCompositeOperation = 'lighter';
+          dot(ctx, red > 0.1 ? this.UD.deep : '255,225,200', p.x, p.y, sz * 1.0, a * (0.25 + 0.2 * red));
+          if (red > 0.05) { ctx.globalCompositeOperation = 'source-over'; dot(ctx, '12,2,6', p.x, p.y, sz * 0.8, a * 0.6 * red); }
+          drawItem(ctx, img, p.x, p.y, sz, rot, 1, a, false, red > 0.02 ? `grayscale(${0.5 * red}) sepia(${0.9 * red}) hue-rotate(${-38 * red}deg) saturate(${1 + 1.6 * red}) brightness(${1 - 0.15 * red})` : null);
+        }
+        sparksDraw(ctx, s.sp, dt, a, 300 * k);
+        // lądowanie w slocie
+        const lt = t - T_DR1;
+        if (lt > 0 && lt < 0.8) {
+          if (!s.landed) { s.landed = true; this.udAshSpawn(s.ash, P0.x - 20 * k, P0.y - 4 * k, 40 * k, 8 * k, Math.round(14 * dn), k); }
+          ringFx(ctx, P0, lt, 0.7, 40 * k, '255,90,80', a * 0.8);
+          ctx.globalCompositeOperation = 'lighter'; dot(ctx, '255,200,180', P0.x, P0.y, 26 * k, a * 0.4 * (1 - lt / 0.8));
+        }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'ud_frame', group: G_FRAME, name: 'Druga strona: Żyłki na ramie', dur: 8,
+      init(env) {
+        const tn = [];
+        for (let i = 0; i < 220; i++) tn.push({ u: Math.random(), len: rand(8, 22), curl: rand(-1.4, 1.4), bulb: Math.random() < 0.35, ph: rand(0, 9), inw: Math.random() < 0.25 });
+        // rozgałęzione żyły w rogach (kierunki lokalne: x = na zewnątrz w poziomie, y = na zewnątrz w pionie)
+        const cv = [];
+        for (let c = 0; c < 4; c++) for (let j = 0; j < 3; j++) {
+          const pts = [[0, 0]]; let an = rand(0.1, 1.45), x = 0, y = 0;
+          const n = 5 + ((Math.random() * 3) | 0);
+          for (let i = 0; i < n; i++) { an += rand(-0.45, 0.45); an = Math.max(-0.1, Math.min(1.67, an)); x += Math.cos(an) * 6; y += Math.sin(an) * 6; pts.push([x, y]); }
+          cv.push({ c, pts, fork: (2 + Math.random() * (n - 2)) | 0, fa: rand(-0.9, 0.9) });
+        }
+        return { sp1: [], sp2: [], tn, cv, pul: [0, 0.17, 0.33, 0.5, 0.67, 0.83].map(u => u + rand(-0.05, 0.05)) };
+      },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'ud_item');
+        const per = 2 * (b.w + b.h), k = Math.max(0.8, Math.min(1.8, (o.scale || 1) * Math.sqrt(per / 700)));
+        // ramka okna gry jest przycinana do mapy → ozdoby kierujemy do środka
+        const isMap = !!(o.map && Math.abs(o.map.w - b.w) < 4 && Math.abs(o.map.h - b.h) < 4), inS = isMap ? -1 : 1;
+        const sp = o.second ? s.sp2 : s.sp1, dn = (o.density || 1) * (o.second ? 0.7 : 1);
+        const beat = L.udBeat(t, 1.1);
+        const live = t < this.dur - 1.2;
+        // rogi (u) – stąd wyrastają pnącza
+        const cu = [0, b.w / per, (b.w + b.h) / per, (2 * b.w + b.h) / per];
+        const grow = easeOut(clamp01(t / 1.8)) * 0.5 * 1.02;
+        const distC = u => { let m = 1; for (const c of cu) { const d = Math.abs(u - c); m = Math.min(m, d, 1 - d); } return m; };
+        // maks. odległość do rogu (w u) = połowa najdłuższego boku
+        const maxD = Math.max(b.w, b.h) / per;
+        const vis = u => distC(u) <= grow * 2 * maxD;
+        const step = Math.max(4, per / 650), N = Math.ceil(per / step);
+        const strands = [[0, 4.2, 1.6], [2.4, 3.4, 1.2], [4.4, 2.2, 0.9]];
+        const pad = 2 * k;
+        const pts = strands.map(() => []);
+        for (let i = 0; i <= N; i++) {
+          const u = i / N, d = u * per;
+          const p = perim(b, u, pad);
+          strands.forEach(([ph, am, am2], j) => {
+            if (!vis(u)) { pts[j].push(null); return; }
+            const off = (Math.sin(d / (26 * k) + ph + t * 0.25) * am + Math.sin(d / (9 * k) + ph * 3) * am2) * k;
+            pts[j].push([p.x + p.nx * off, p.y + p.ny * off]);
+          });
+        }
+        const pathAll = () => {
+          ctx.beginPath();
+          for (const P of pts) { let pen = false; for (const q of P) { if (!q) { pen = false; continue; } if (pen) ctx.lineTo(q[0], q[1]); else { ctx.moveTo(q[0], q[1]); pen = true; } } }
+        };
+        // wąsy/odrosty na zewnątrz
+        const tpaths = [];
+        const nT = Math.min(s.tn.length, Math.round(per / 16));
+        for (let ti = 0; ti < nT; ti++) {
+          const T = s.tn[ti];
+          if (!vis(T.u)) continue;
+          const g = clamp01((grow * 2 * maxD - distC(T.u)) / (0.04 * maxD + 0.001));
+          const p0 = perim(b, T.u, pad), p = (T.inw ? !isMap : isMap) ? { x: p0.x, y: p0.y, nx: -p0.nx, ny: -p0.ny } : p0;
+          const l = T.len * k * g * (T.inw ? 0.5 : 1) * (isMap ? 1.2 : 1), sw = Math.sin(t * 1.3 + T.ph) * 0.25;
+          const tx = -p.ny, ty = p.nx, c = T.curl + sw;
+          const ex = p.x + p.nx * l + tx * l * c * 0.6, ey = p.y + p.ny * l + ty * l * c * 0.6;
+          tpaths.push([p.x, p.y, p.x + p.nx * l * 0.7, p.y + p.ny * l * 0.7, ex, ey, T, g]);
+        }
+        // żyły w rogach rosną razem z pnączami
+        const cg = clamp01((t - 0.3) / 1.6), cvp = [];
+        if (cg > 0) {
+          const sx = [-1, 1, 1, -1], sy = [-1, -1, 1, 1], cxs = [b.x - pad, b.x + b.w + pad, b.x + b.w + pad, b.x - pad], cys = [b.y - pad, b.y - pad, b.y + b.h + pad, b.y + b.h + pad];
+          const kk = Math.min(1.6, k);
+          for (const V of s.cv) {
+            const m = Math.max(2, Math.ceil(V.pts.length * cg)), line = [];
+            for (let i = 0; i < m; i++) { const q = V.pts[i], wob = Math.sin(t * 1.1 + i + V.fa * 3) * 0.6; line.push([cxs[V.c] + inS * sx[V.c] * (q[0] + wob) * kk * (isMap ? 1.5 : 1), cys[V.c] + inS * sy[V.c] * (q[1] - wob) * kk * (isMap ? 1.5 : 1)]); }
+            cvp.push(line);
+            if (m > V.fork + 1) { const q = line[V.fork], an = Math.atan2(line[V.fork + 1][1] - q[1], line[V.fork + 1][0] - q[0]) + V.fa; cvp.push([q, [q[0] + Math.cos(an) * 12 * kk, q[1] + Math.sin(an) * 12 * kk]]); }
+          }
+        }
+        const cvPath = () => { ctx.beginPath(); for (const ln of cvp) ln.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]))); };
+        ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        if (cvp.length) {
+          ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a * 0.9); ctx.strokeStyle = 'rgb(34,9,16)'; ctx.lineWidth = 2.6 * k; cvPath(); ctx.stroke();
+          ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.min(1, a * (0.15 + 0.25 * beat)); ctx.strokeStyle = `rgb(${L.UD.deep})`; ctx.lineWidth = 6 * k; cvPath(); ctx.stroke();
+          ctx.globalAlpha = Math.min(1, a * (0.5 + 0.5 * beat)); ctx.strokeStyle = `rgb(${L.UD.red})`; ctx.lineWidth = 1.2 * k; cvPath(); ctx.stroke();
+        }
+        // ciemne pnącza
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a * 0.95);
+        ctx.strokeStyle = 'rgb(34,9,16)'; ctx.lineWidth = 3.4 * k; pathAll(); ctx.stroke();
+        ctx.lineWidth = 2 * k; ctx.beginPath();
+        for (const [x0, y0, qx, qy, ex, ey] of tpaths) { ctx.moveTo(x0, y0); ctx.quadraticCurveTo(qx, qy, ex, ey); }
+        ctx.stroke();
+        // czerwone światło w żyłkach (bicie serca)
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = Math.min(1, a * (0.12 + 0.3 * beat)); ctx.strokeStyle = `rgb(${L.UD.deep})`; ctx.lineWidth = 7 * k; pathAll(); ctx.stroke();
+        ctx.globalAlpha = Math.min(1, a * (0.35 + 0.55 * beat)); ctx.strokeStyle = `rgb(${L.UD.red})`; ctx.lineWidth = 1.2 * k; pathAll(); ctx.stroke();
+        ctx.globalAlpha = Math.min(1, a * (0.45 + 0.5 * beat)); ctx.lineWidth = 1.1 * k; ctx.beginPath();
+        for (const [x0, y0, qx, qy, ex, ey] of tpaths) { ctx.moveTo(x0, y0); ctx.quadraticCurveTo(qx, qy, ex, ey); }
+        ctx.stroke();
+        // impulsy płynące żyłkami
+        ctx.globalAlpha = Math.min(1, a * 0.9); ctx.strokeStyle = `rgb(${L.UD.ember})`; ctx.lineWidth = 2.2 * k; ctx.beginPath();
+        const span = Math.max(8, Math.round(40 * k / step));
+        const hot = [];
+        s.pul.forEach((u0, pi) => {
+          const u = (u0 + t * 70 * k / per * (pi % 2 ? -1 : 1) + 1) % 1, i0 = Math.round(u * N), P = pts[pi % 3];
+          let pen = false;
+          for (let j = -span; j <= 0; j++) { const q = P[(i0 + j + N) % N]; if (!q) { pen = false; continue; } if (pen) ctx.lineTo(q[0], q[1]); else { ctx.moveTo(q[0], q[1]); pen = true; } }
+          const h = P[i0 % N]; if (h) hot.push(h);
+        });
+        ctx.stroke();
+        for (const h of hot) dot(ctx, L.UD.red, h[0], h[1], 10 * k, a * 0.55, true);
+        // węzły w rogach + pąki na odrostach
+        for (let c = 0; c < 4; c++) {
+          const p = perim(b, cu[c] + 0.0001, pad);
+          dot(ctx, L.UD.deep, p.x, p.y, 24 * k, a * (0.35 + 0.4 * beat));
+          dot(ctx, L.UD.red, p.x, p.y, 7 * k * (1 + 0.3 * beat), a * (0.6 + 0.4 * beat), true);
+        }
+        for (const [, , , , ex, ey, T, g] of tpaths) if (T.bulb && g > 0.9) dot(ctx, L.UD.ember, ex, ey, 4.5 * k * (1 + 0.4 * beat), a * (0.5 + 0.5 * Math.sin(t * 2 + T.ph) * 0.5 + 0.3 * beat), true);
+        // zarodniki z pnączy
+        if (live && grow > 0.3) {
+          const n = Math.random() < dt * (per / 50) * dn ? 1 : 0;
+          for (let i = 0; i < n; i++) { const u = Math.random(); if (!vis(u)) continue; const p = perim(b, u, pad - (isMap ? 8 * k : 0)); L.udAshSpawn(sp, p.x, p.y, 1, 1, 1, k, -22, -6); }
+        }
+        L.udAshDraw(ctx, sp, dt, a, k);
+        ctx.restore();
+      },
+    },
+    {
+      id: 'ud_around', group: G_AROUND, name: 'Druga strona: Wyrwa za oknem', dur: 6,
+      init(env) { return { ash: [], T: null, bolts: [], cyc: -1, sp: [] }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'ud_item');
+        const k = Math.max(0.8, Math.min(1.5, (o.scale || 1) * Math.sqrt(b.w / 220))), dn = o.density || 1;
+        if (!s.T) s.T = L.udTearMake(30);
+        const live = t < this.dur - 1.2;
+        const CY = 4.2, n = Math.floor(t / CY), ct = t - n * CY;
+        const beat = L.udBeat(t, 1.05);
+        // otwarcie, cykliczny „skurcz” i zamknięcie na końcu
+        let open = easeOut(clamp01(t / 1.3)) * (1 - easeIn(clamp01((t - (this.dur - 1.1)) / 0.9)));
+        const spasm = ct > 1.4 && ct < 2.1 ? Math.sin((ct - 1.4) / 0.7 * Math.PI) : 0;
+        const tw = Math.sin(t * 11) > 0.95 ? 1 : 0;
+        open *= 1 + 0.18 * spasm + 0.06 * tw + 0.04 * beat;
+        if (n !== s.cyc && live) {
+          s.cyc = n;
+          s.spT = t + 1.4;
+        }
+        const C = { x: b.cx, y: b.cy }, ang = -0.42, len = (b.w + b.h) * 1.35, wid = b.h * 1.25 + 30 * k;
+        ctx.save();
+        // wszystko „za oknem”: wycinamy prostokąt okna
+        ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.rect(b.x - 2, b.y - 2, b.w + 4, b.h + 4); ctx.clip('evenodd');
+        L.udTear(ctx, s.T, C.x + (tw ? rand(-2, 2) * k : 0), C.y, len, wid, ang, open, t, a, k * 1.3, Math.max(beat, spasm), 1.7);
+        // wyładowania z krawędzi przy „skurczu”
+        if (live && s.spT && t > s.spT) {
+          s.spT = 0;
+          for (let i = 0; i < 3; i++) {
+            const an = ang + (i === 1 ? -1 : 1) * Math.PI / 2 + rand(-0.8, 0.8), r0 = wid * 0.35, r1 = r0 + rand(70, 130) * k;
+            const ox = rand(-0.35, 0.35) * len;
+            const sx = C.x + Math.cos(ang) * ox + Math.cos(an) * r0, sy = C.y + Math.sin(ang) * ox + Math.sin(an) * r0;
+            s.bolts.push({ p: L.udBoltMake(sx, sy, sx + Math.cos(an) * (r1 - r0), sy + Math.sin(an) * (r1 - r0), 28 * k, 2), t0: t + i * 0.09 });
+          }
+          L.udAshSpawn(s.ash, C.x - len * 0.3, C.y - wid * 0.3, len * 0.6, wid * 0.6, Math.round(30 * dn), k, -60, -10);
+        }
+        if (live && Math.random() < dt * 1.2) {
+          const ox = rand(-0.4, 0.4) * len, side = Math.random() < 0.5 ? 1 : -1, an = ang + side * Math.PI / 2 + rand(-0.5, 0.5);
+          const sx = C.x + Math.cos(ang) * ox + Math.cos(ang + side * Math.PI / 2) * wid * 0.3, sy = C.y + Math.sin(ang) * ox + Math.sin(ang + side * Math.PI / 2) * wid * 0.3;
+          s.bolts.push({ p: L.udBoltMake(sx, sy, sx + Math.cos(an) * 60 * k, sy + Math.sin(an) * 60 * k, 16 * k, 1), t0: t, sm: 1 });
+        }
+        for (let i = s.bolts.length - 1; i >= 0; i--) {
+          const B = s.bolts[i], lt = t - B.t0;
+          if (lt < 0) continue;
+          if (lt > 0.32) { s.bolts.splice(i, 1); continue; }
+          const fl = lt < 0.06 ? 1 : lt < 0.1 ? 0.2 : lt < 0.17 ? 0.95 : 1 - (lt - 0.17) / 0.15;
+          L.udBolt(ctx, B.p, a * fl * (B.sm ? 0.7 : 1), k * (B.sm ? 0.7 : 1));
+          if (!B.sm) { ctx.globalCompositeOperation = 'lighter'; dot(ctx, L.UD.red, B.p[0][0][0], B.p[0][0][1], 60 * k, a * 0.3 * fl); }
+        }
+        // zarodniki unoszące się z wyrwy
+        if (live && open > 0.3) {
+          const m = Math.random() < dt * 60 * dn ? 2 : 0;
+          if (m) { const ox = rand(-0.42, 0.42) * len; L.udAshSpawn(s.ash, C.x + Math.cos(ang) * ox - 10 * k, C.y + Math.sin(ang) * ox - 10 * k, 20 * k, 20 * k, 1, k); }
+        }
+        L.udAshDraw(ctx, s.ash, dt, a, k);
+        ctx.restore();
+        // czerwona poświata krawędzi okna od strony wyrwy
+        glowFrame(ctx, b, L.UD.red, a * open * (0.2 + 0.35 * Math.max(beat, spasm)), 1.2, 2, 10);
+      },
+    },
+    {
+      id: 'ud_screen', group: G_SCREEN, name: 'Druga strona: Inny wymiar', dur: 8,
+      init(env) { return { ash: [], bolts: [], nb: 1.1, fl: rand(1.2, 2.5), vhs: rand(2.5, 4), vt: -9, flash: -9, fx: 0 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'ud_item');
+        const k = Math.max(0.8, Math.min(1.5, Math.min(W, H) / 800)), dn = o.density || 1;
+        const live = t < this.dur - 1.5;
+        const env = clamp01(t / 1.2);
+        // świat szarzeje i chłodnieje
+        greyScreen(0.45 * a * env);
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = Math.min(0.5, a * env * 0.26); ctx.fillStyle = `rgb(${L.UD.cold})`; ctx.fillRect(0, 0, W, H);
+        // ciężkie chmury u góry
+        const cg = ctx.createLinearGradient(0, 0, 0, H * 0.4);
+        cg.addColorStop(0, `rgba(10,13,24,${0.55 * a * env})`); cg.addColorStop(1, 'rgba(10,13,24,0)');
+        ctx.globalAlpha = 1; ctx.fillStyle = cg; ctx.fillRect(0, 0, W, H * 0.4);
+        vignette(ctx, W, H, '6,8,16', 0.45 * a * env, 0.35);
+        // czerwone pioruny w chmurach
+        if (live && t > s.nb) {
+          s.nb = t + rand(2.2, 4.2);
+          const x1 = rand(W * 0.15, W * 0.85), y1 = rand(-10, H * 0.03), x2 = Math.max(W * 0.05, Math.min(W * 0.95, x1 + rand(-0.18, 0.18) * W)), y2 = rand(H * 0.22, H * 0.38);
+          s.bolts.push({ p: L.udBoltMake(x1, y1, x2, y2, 70 * k, 3), t0: t, x: x1, y: y1 });
+          if (Math.random() < 0.5) { const x3 = x1 + rand(-260, 260) * k; s.bolts.push({ p: L.udBoltMake(x3, y1, x3 + rand(-120, 120) * k, rand(H * 0.1, H * 0.22), 50 * k, 2), t0: t + 0.12, x: x3, y: y1 }); }
+          s.flash = t; s.fx = x1;
+        }
+        const ft = t - s.flash;
+        if (ft >= 0 && ft < 0.6) {
+          const fl = ft < 0.07 ? 1 : ft < 0.12 ? 0.3 : ft < 0.2 ? 0.85 : 1 - (ft - 0.2) / 0.4;
+          const sg = ctx.createLinearGradient(0, 0, 0, H * 0.5);
+          sg.addColorStop(0, `rgba(255,42,42,${0.38 * a * fl})`); sg.addColorStop(0.5, `rgba(140,10,20,${0.16 * a * fl})`); sg.addColorStop(1, 'rgba(120,10,20,0)');
+          ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 1; ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H * 0.5);
+          dot(ctx, '255,70,50', s.fx, 0, 420 * k, a * 0.55 * fl);
+        }
+        for (let i = s.bolts.length - 1; i >= 0; i--) {
+          const B = s.bolts[i], lt = t - B.t0;
+          if (lt < 0) continue;
+          if (lt > 0.45) { s.bolts.splice(i, 1); continue; }
+          const fl = lt < 0.07 ? 1 : lt < 0.12 ? 0.2 : lt < 0.22 ? 0.95 : 1 - (lt - 0.22) / 0.23;
+          L.udBolt(ctx, B.p, a * fl, k * 1.7);
+        }
+        // popiół na całym ekranie
+        if (live) {
+          const n = Math.random() < dt * 60 * dn ? 2 : 0;
+          if (n) L.udAshSpawn(s.ash, 0, H * 0.25, W, H * 0.8, n, k * 1.5, -34, -10);
+          if (t < 0.1 && s.ash.length < 5) L.udAshSpawn(s.ash, 0, 0, W, H, Math.round(70 * dn), k * 1.5, -34, -10);
+        }
+        L.udAshDraw(ctx, s.ash, dt, a, k * 1.5);
+        // migotanie jak w starej żarówce
+        if (live && t > s.fl + 0.7) s.fl = t + rand(2, 4.5);
+        const lt = t - s.fl;
+        if (lt > 0 && lt < 0.7) {
+          const q = Math.sin(lt * 70) * Math.sin(lt * 23 + 1);
+          const off = q > 0.25 ? 1 : q > -0.2 ? 0.4 : 0;
+          ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(0.5, a * 0.16 * off); ctx.fillStyle = 'rgb(4,6,12)'; ctx.fillRect(0, 0, W, H);
+        }
+        // zakłócenia jak z kasety: delikatne linie + co jakiś czas pas „śledzenia”
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a * env * 0.05); ctx.fillStyle = 'rgb(0,0,0)';
+        ctx.beginPath(); for (let y = (t * 20) % 4; y < H; y += 4) ctx.rect(0, y, W, 1.2); ctx.fill();
+        if (live && t > s.vhs) { s.vhs = t + rand(3.5, 6.5); s.vt = t; s.vy = rand(H * 0.1, H * 0.6); }
+        const vt = t - s.vt;
+        if (vt >= 0 && vt < 0.55) {
+          const y0 = s.vy + vt * H * 0.5, bh = 26 * k, va = a * Math.sin(Math.PI * vt / 0.55);
+          ctx.globalAlpha = Math.min(1, va * 0.1); ctx.fillStyle = 'rgb(200,210,235)'; ctx.fillRect(0, y0, W, bh);
+          ctx.globalAlpha = Math.min(1, va * 0.35); ctx.beginPath();
+          for (let i = 0; i < 26; i++) { const y = y0 + rand(0, bh), x = rand(0, W); ctx.rect(x, y, rand(20, 160) * k, rand(0.8, 1.8)); }
+          ctx.fill();
+          ctx.globalAlpha = Math.min(1, va * 0.18); ctx.fillStyle = 'rgb(255,60,60)'; ctx.fillRect(0, y0 + bh, W, 1.5);
+        }
+        ctx.restore();
+      },
+    },
+    {
+      id: 'ud_win', group: G_WIN, name: 'Druga strona: Wyrwany z mroku', dur: 4.6, minDur: 4.6,
+      init(env) { return { T: null, ash: [], sp: [], tr: [], snap: false, hit: false }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'ud_item'), u = o.out, img = u.img || FALLBACK_ICON;
+        const k = Math.max(1, (u.base || 32) / 32), base = u.base || 32, dn = o.density || 1;
+        const from = u.from, to = u.to;
+        if (!s.T) s.T = L.udTearMake(22);
+        const T_PULL = 0.45, T_SNAP = 1.05, T_HIT = 2.45;
+        const beat = L.udBeat(t, 0.8);
+        // świat wraca do koloru
+        const grey = 1 - clamp01((t - T_SNAP) / 1.3);
+        greyScreen(0.4 * a * clamp01(t / 0.25) * grey);
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        dot(ctx, '8,12,26', from.x, from.y, 110 * k, a * 0.5 * grey);
+        // szczelina za przedmiotem
+        let open = easeOut(clamp01(t / 0.4));
+        if (t > T_SNAP) open *= 1 - easeIn(clamp01((t - T_SNAP) / 0.4));
+        const C = { x: from.x, y: from.y + 6 * k };
+        L.udTear(ctx, s.T, C.x, C.y, 120 * k, 50 * k, Math.PI / 2 + 0.2, open * (1 + 0.08 * beat), t, a, k, beat);
+        if (t < T_SNAP) L.udAshSpawn(s.ash, C.x - 15 * k, C.y - 30 * k, 30 * k, 60 * k, Math.random() < dt * 25 * dn ? 1 : 0, k);
+        // przedmiot
+        let p, sz, red;
+        if (t < T_SNAP) {
+          const f = clamp01((t - T_PULL) / (T_SNAP - T_PULL));
+          p = { x: from.x + rand(-1, 1) * (1 + 2 * f) * k, y: from.y - easeOut(f) * 34 * k };
+          sz = base * (1 + 0.35 * f); red = 1;
+          // wici próbują go zatrzymać
+          const g = clamp01(t / 0.35), Lst = [];
+          for (let i = 0; i < 4; i++) {
+            const sx = C.x + (i - 1.5) * 8 * k, sy = C.y + (i % 2 ? 22 : -16) * k * open;
+            Lst.push([sx, sy, sx + (p.x + (i - 1.5) * sz * 0.2 - sx) * g, sy + (p.y + sz * 0.15 - sy) * g, (i - 1.5) * 6 * (1 - f)]);
+          }
+          L.udTendrils(ctx, Lst, t, a, k);
+        } else {
+          if (!s.snap) {
+            s.snap = true;
+            burst(s.sp, { x: from.x, y: from.y - 34 * k }, Math.round(30 * dn), 70 * k, 260 * k, [L.UD.red, L.UD.ember, '255,200,180']);
+          }
+          const f = easeInOut(clamp01((t - T_SNAP) / (T_HIT - T_SNAP)));
+          const st = { x: from.x, y: from.y - 34 * k };
+          p = arcPoint(st, to, f, Math.min(170, Math.hypot(to.x - st.x, to.y - st.y) * 0.4));
+          sz = base * (1.35 - 0.35 * f); red = 1 - clamp01((t - T_SNAP) / 0.9);
+          if (t < T_HIT) s.tr.push({ x: p.x, y: p.y, l: 0, c: red });
+        }
+        // smuga: z czerwieni w ciepłe złoto
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = s.tr.length - 1; i >= 0; i--) {
+          const q = s.tr[i]; q.l += dt; if (q.l > 0.5) { s.tr.splice(i, 1); continue; }
+          const ff = 1 - q.l / 0.5;
+          dot(ctx, q.c > 0.5 ? L.UD.red : q.c > 0.15 ? '255,150,90' : '255,215,140', q.x, q.y, 10 * k * ff, a * ff * 0.8, true);
+        }
+        if (t < T_HIT) {
+          o.hideItem();
+          if (t > T_SNAP && t < T_SNAP + 0.3) dot(ctx, '255,220,200', p.x, p.y, 70 * k * (1 - (t - T_SNAP) / 0.3), a * 0.6);
+          dot(ctx, red > 0.4 ? L.UD.red : '255,210,140', p.x, p.y, sz * 1.1, a * 0.4);
+          if (red > 0.05) { ctx.globalCompositeOperation = 'source-over'; dot(ctx, '12,2,6', p.x, p.y, sz * 0.85, a * 0.7 * red); }
+          drawItem(ctx, img, p.x, p.y, sz, 0, 1, a, red < 0.3, red > 0.02 ? `grayscale(${0.5 * red}) sepia(${0.9 * red}) hue-rotate(${-38 * red}deg) saturate(${1 + 1.6 * red}) brightness(${1 - 0.15 * red})` : `brightness(${1.15})`);
+        } else {
+          if (!s.hit) {
+            s.hit = true;
+            const cols = [];
+            for (let i = 0; i < 6; i++) cols.push(hsl(i / 6, 0.85, 0.65));
+            burst(s.sp, to, Math.round(36 * dn), 60 * k, 240 * k, cols);
+          }
+          const ht = t - T_HIT;
+          ringFx(ctx, to, ht, 0.7, 60 * k, '255,230,170', a * 0.9);
+          ringFx(ctx, to, ht - 0.12, 0.8, 42 * k, '140,200,255', a * 0.7);
+          ctx.globalCompositeOperation = 'lighter';
+          dot(ctx, '255,225,160', to.x, to.y, 40 * k, a * 0.6 * (1 - clamp01(ht / 0.9)));
+        }
+        L.udAshDraw(ctx, s.ash, dt, a * (0.3 + 0.7 * grey), k, 0, grey < 0.5);
+        sparksDraw(ctx, s.sp, dt, a, 300 * k);
+        ctx.restore();
+      },
+    },
+    {
+      id: 'ud_lose', group: G_LOSE, name: 'Druga strona: Wciągnięty w mrok', dur: 5.2, minDur: 5.2,
+      init(env) { return { T: null, ash: [], sp: [], bolts: [], closed: false }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'ud_item'), u = o.out, img = u.img || FALLBACK_ICON;
+        const k = Math.max(1, (u.base || 32) / 32), base = u.base || 32, dn = o.density || 1;
+        if (!s.T) s.T = L.udTearMake(26);
+        const C = { x: u.from.x, y: u.from.y - 30 * k }, ang = Math.PI / 2 + 0.15;
+        const T_GRAB = 0.6, T_PULL = 1.4, T_IN = 2.5, T_CL = 2.95;
+        const beat = L.udBeat(t, 0.75);
+        let open = easeOut(clamp01(t / 0.7));
+        if (t > T_IN) open *= 1 - easeIn(clamp01((t - T_IN) / (T_CL - T_IN)));
+        const tw = Math.sin(t * 12) > 0.94 && t < T_IN ? 1 : 0;
+        open *= 1 + 0.1 * tw + 0.06 * beat;
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        const shade = clamp01(t / 0.5) * (1 - clamp01((t - 3.6) / 1.2));
+        dot(ctx, '8,12,26', C.x, C.y, 130 * k, a * 0.55 * shade);
+        if (t > T_CL) greyScreen(0.3 * a * (1 - clamp01((t - 3.8) / 1.2)));
+        L.udTear(ctx, s.T, C.x + (tw ? rand(-2, 2) * k : 0), C.y, 140 * k, 56 * k, ang, open, t, a, k, beat);
+        if (t < T_IN) L.udAshSpawn(s.ash, C.x - 20 * k, C.y - 40 * k, 40 * k, 80 * k, Math.random() < dt * 28 * dn ? 1 : 0, k);
+        // przedmiot: drży, wici go chwytają i wciągają
+        if (t < T_IN) {
+          o.hideItem();
+          let p, sz, rot = 0, dark = 0;
+          const P1 = { x: C.x, y: C.y - 6 * k };
+          if (t < T_PULL) {
+            const f = clamp01(t / 0.5);
+            p = { x: u.from.x + (P1.x - u.from.x) * easeOut(f) + rand(-1, 1) * k * (t > T_GRAB ? 1.5 : 0.5), y: u.from.y + (P1.y - u.from.y) * easeOut(f) };
+            sz = base * (1 + 0.3 * easeOut(f));
+          } else {
+            const f = easeIn(clamp01((t - T_PULL) / (T_IN - T_PULL)));
+            p = { x: P1.x + rand(-1, 1) * k * (1 - f), y: P1.y };
+            sz = base * 1.3 * (1 - f * 0.92); rot = f * 2.4; dark = f;
+          }
+          if (t > T_GRAB) {
+            const g = clamp01((t - T_GRAB) / 0.5), Lst = [];
+            for (let i = 0; i < 5; i++) {
+              const an = ang + (i % 2 ? 1 : -1) * Math.PI / 2, sx = C.x + Math.cos(an) * 16 * k * open + (i - 2) * 4 * k, sy = C.y + (i - 2) * 20 * k;
+              const tx = p.x + Math.cos(i * 1.3) * sz * 0.3, ty = p.y + Math.sin(i * 1.3) * sz * 0.3;
+              Lst.push([sx, sy, sx + (tx - sx) * g, sy + (ty - sy) * g, (i - 2) * 8]);
+            }
+            L.udTendrils(ctx, Lst, t, a, k);
+          }
+          const red = clamp01((t - T_GRAB) / 0.6);
+          ctx.globalCompositeOperation = 'lighter'; dot(ctx, L.UD.red, p.x, p.y, sz * 1.1, a * 0.35 * red);
+          ctx.globalCompositeOperation = 'source-over'; dot(ctx, '12,2,6', p.x, p.y, sz * 0.8, a * 0.6);
+          drawItem(ctx, img, p.x, p.y, sz, rot, 1, a * (1 - dark * 0.5), false,
+            `grayscale(${0.5 * red}) sepia(${0.9 * red}) hue-rotate(${-38 * red}deg) saturate(${1 + 1.6 * red}) brightness(${1 - 0.15 * red - 0.5 * dark})`);
+        }
+        // zamknięcie z czerwonym błyskiem
+        const ct = t - T_CL;
+        if (ct >= 0) {
+          if (!s.closed) {
+            s.closed = true;
+            shakeScreen(3);
+            burst(s.sp, C, Math.round(30 * dn), 80 * k, 280 * k, [L.UD.red, L.UD.ember]);
+            for (let i = 0; i < 3; i++) { const an = rand(0, TAU), r = rand(80, 140) * k; s.bolts.push(L.udBoltMake(C.x, C.y, C.x + Math.cos(an) * r, C.y + Math.sin(an) * r, 22 * k, 1)); }
+            // popiół opada
+            L.udAshSpawn(s.ash, C.x - 60 * k, C.y - 70 * k, 120 * k, 110 * k, Math.round(70 * dn), k, -30, 5);
+          }
+          if (ct < 0.7) {
+            ctx.globalCompositeOperation = 'lighter';
+            dot(ctx, L.UD.red, C.x, C.y, 140 * k, a * 0.65 * (1 - ct / 0.7));
+            dot(ctx, '255,210,200', C.x, C.y, 30 * k, a * (1 - clamp01(ct / 0.3)), true);
+            ringFx(ctx, C, ct, 0.7, 90 * k, L.UD.red, a);
+          }
+          if (ct < 0.32) {
+            const fl = ct < 0.06 ? 1 : ct < 0.1 ? 0.25 : ct < 0.17 ? 0.9 : 1 - (ct - 0.17) / 0.15;
+            for (const B of s.bolts) L.udBolt(ctx, B, a * fl, k);
+          }
+          // blizna po szczelinie
+          const sc = a * (1 - clamp01((ct - 0.3) / 1.6));
+          if (sc > 0.01) {
+            ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, sc * 0.9); ctx.strokeStyle = 'rgb(40,8,14)'; ctx.lineWidth = 2.4 * k;
+            const dx = Math.cos(ang) * 34 * k, dy = Math.sin(ang) * 34 * k;
+            ctx.beginPath(); ctx.moveTo(C.x - dx, C.y - dy); ctx.lineTo(C.x + 3 * k, C.y); ctx.lineTo(C.x + dx, C.y + dy); ctx.stroke();
+            ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.min(1, sc * 0.7); ctx.strokeStyle = `rgb(${L.UD.red})`; ctx.lineWidth = 0.9 * k; ctx.stroke();
+          }
+        }
+        L.udAshDraw(ctx, s.ash, dt, a, k, t > T_CL ? 22 * k : 0);
+        sparksDraw(ctx, s.sp, dt, a, 360 * k);
+        caption(ctx, u.reason, u.from.x, u.from.y - 120 * k, a * clamp01((t - 0.4) / 0.5) * (1 - clamp01((t - 4.7) / 0.5)), 20);
+        ctx.restore();
+      },
+    },
+    {
+      id: 'px_item', group: G_ITEM, name: 'Pikselowy rozpad: Wczytywanie legendy', dur: 6, occupy: 5.6,
+      // paleta: złoto legendy, biel, ciemny „atrament” obrysu; cyjan/magenta wyłącznie do glitchy
+      PXC: { gold: '#ffd23f', amber: '#f0a500', white: '#ffffff', lite: '#fff3b0', cyan: '#36f4ff', mag: '#ff3fd6', ink: '#1a0f22', empty: '#3a2a48', deep: '#b87400' },
+      // czcionka 3×5 (tylko cyfry i %)
+      PXF: { 0: '111101101101111', 1: '010110010010111', 2: '111001111100111', 3: '111001111001111', 4: '101101111001001', 5: '111100111001111',
+        6: '111100111101111', 7: '111001010010010', 8: '111101111101111', 9: '111101111001111', '%': '101001010100101' },
+      // siatka pikseli przedmiotu N×N (jednorazowy odczyt małego obrazka; canvas „tainted” → złoty romb)
+      pxGrid(img, N) {
+        N = N || 16;
+        if (!this._pxc) this._pxc = document.createElement('canvas');
+        const c = this._pxc;
+        if (c.width !== N) { c.width = N; c.height = N; }
+        let cells = null, ok = false;
+        try {
+          const g = c.getContext('2d', { willReadFrequently: true });
+          g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+          g.clearRect(0, 0, N, N); g.imageSmoothingEnabled = true;
+          g.drawImage(img, 0, 0, N, N);
+          const d = g.getImageData(0, 0, N, N).data;
+          cells = [];
+          for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+            const p = (j * N + i) * 4;
+            if (d[p + 3] > 100) cells.push({ i, j, r: d[p], g: d[p + 1], b: d[p + 2] });
+          }
+          ok = cells.length >= 4;
+        } catch (e) { ok = false; }
+        if (!ok) {
+          cells = [];
+          const m = (N - 1) / 2;
+          for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+            const q = (Math.abs(i - m) + Math.abs(j - m)) / (m + 0.5);
+            if (q > 1) continue;
+            const col = q > 0.8 ? [240, 165, 0] : q > 0.5 ? [255, 210, 63] : q > 0.22 ? [255, 234, 150] : [255, 255, 255];
+            cells.push({ i, j, r: col[0], g: col[1], b: col[2] });
+          }
+        }
+        for (const q of cells) { q.c = `rgb(${q.r},${q.g},${q.b})`; q.y = (q.r * 0.3 + q.g * 0.59 + q.b * 0.11) | 0; }
+        return { N, cells, ok };
+      },
+      // obrót monetą: kolor, a „rewers” piksela w złocie
+      pxFace(F, w) { return w > 0 ? Math.ceil(F / TAU) * TAU : Math.floor(F / TAU) * TAU; },
+      pxTile(ctx, x, y, sz, flip, col, al, back) {
+        if (al <= 0.01 || sz < 0.5) return;
+        const cs = Math.cos(flip), w = Math.max(1, Math.round(sz * Math.abs(cs))), h = Math.max(1, Math.round(sz));
+        ctx.globalAlpha = Math.min(1, al);
+        ctx.fillStyle = cs >= 0 ? col : back || (Math.sin(flip) > 0 ? this.PXC.amber : this.PXC.gold);
+        ctx.fillRect(Math.round(x - w / 2), Math.round(y - h / 2), w, h);
+      },
+      // statyczny obraz z bloków: cells = [{i,j,c}], opt: shift[j] (px), split (rozjechanie RGB), outline (px), olCol, mono, hi(c)→0..1, grey 0..1
+      pxCells(ctx, cells, N, x, y, B, al, opt) {
+        if (al <= 0.01 || !cells.length) return;
+        opt = opt || {};
+        const C = this.PXC, x0 = x - N * B / 2, y0 = y - N * B / 2, sh = opt.shift;
+        const R = q => { const dx = sh ? sh[q.j] || 0 : 0, xa = Math.round(x0 + q.i * B + dx), ya = Math.round(y0 + q.j * B); return [xa, ya, Math.round(x0 + (q.i + 1) * B + dx) - xa, Math.round(y0 + (q.j + 1) * B) - ya]; };
+        ctx.globalCompositeOperation = 'source-over';
+        if (opt.outline) {
+          const ol = opt.outline;
+          ctx.globalAlpha = Math.min(1, al * (opt.olA || 0.92)); ctx.fillStyle = opt.olCol || C.ink;
+          ctx.beginPath();
+          for (const q of cells) { const r = R(q); ctx.rect(r[0] - ol, r[1] - ol, r[2] + ol * 2, r[3] + ol * 2); }
+          ctx.fill();
+        }
+        if (opt.split) {
+          ctx.globalCompositeOperation = 'lighter';
+          for (const [col, off] of [[C.cyan, -opt.split], [C.mag, opt.split]]) {
+            ctx.globalAlpha = Math.min(1, al * 0.8); ctx.fillStyle = col;
+            ctx.beginPath();
+            for (const q of cells) { const r = R(q); ctx.rect(r[0] + off, r[1], r[2], r[3]); }
+            ctx.fill();
+          }
+          ctx.globalCompositeOperation = 'source-over';
+        }
+        ctx.globalAlpha = Math.min(1, al);
+        const gr = opt.grey || 0;
+        // jeden path na kolor (bez szwów między sąsiednimi blokami)
+        const grp = new Map();
+        for (const q of cells) {
+          let col = opt.mono || q.c;
+          if (!opt.mono && gr > 0.02) { const v = q.y * 0.8 + 20, m = c0 => Math.round((c0 + (v - c0) * gr) / 8) * 8; col = `rgb(${m(q.r)},${m(q.g)},${m(q.b)})`; }
+          let g = grp.get(col); if (!g) grp.set(col, g = []);
+          g.push(R(q));
+        }
+        for (const [col, rs] of grp) {
+          ctx.fillStyle = col; ctx.beginPath();
+          for (const r of rs) ctx.rect(r[0], r[1], r[2], r[3]);
+          ctx.fill();
+        }
+        if (opt.hi) {
+          ctx.fillStyle = C.white;
+          for (const q of cells) {
+            const h = opt.hi(q); if (h <= 0.02) continue;
+            const r = R(q); ctx.globalAlpha = Math.min(1, al * h); ctx.fillRect(r[0], r[1], r[2], r[3]);
+          }
+        }
+      },
+      // losowe przesunięcia pasów (glitch): tablica przesunięć dla wierszy
+      pxShift(N, B, amt) {
+        const sh = new Array(N).fill(0);
+        let j = 0;
+        while (j < N) {
+          const len = 1 + ((Math.random() * 4) | 0), v = Math.random() < 0.55 ? Math.round(rand(-amt, amt)) * B : 0;
+          for (let q = 0; q < len && j < N; q++, j++) sh[j] = v;
+        }
+        return sh;
+      },
+      // pikselowe iskry: kwadraty z grawitacją, malejące skokowo i migające przed zgaśnięciem
+      pxSpark(arr, x, y, n, dir, spread, vmin, vmax, sz, cols, life) {
+        for (let i = 0; i < n; i++) {
+          const an = dir + rand(-spread, spread), v = rand(vmin, vmax);
+          arr.push({ x, y, vx: Math.cos(an) * v, vy: Math.sin(an) * v, l: 0, m: rand(0.5, 1) * (life || 1), s: sz * rand(0.7, 1.25), c: pick(cols) });
+        }
+        if (arr.length > 500) arr.splice(0, arr.length - 500);
+      },
+      pxSparks(ctx, arr, dt, a, grav) {
+        ctx.globalCompositeOperation = 'source-over';
+        for (let i = arr.length - 1; i >= 0; i--) {
+          const q = arr[i]; q.l += dt;
+          if (q.l > q.m) { arr.splice(i, 1); continue; }
+          q.vy += grav * dt; q.vx *= 1 - 0.8 * dt;
+          q.x += q.vx * dt; q.y += q.vy * dt;
+          const f = q.l / q.m;
+          if (f > 0.75 && ((q.l * 22) | 0) % 2) continue;
+          const sz = Math.max(1, Math.round(q.s * (f < 0.45 ? 1 : f < 0.75 ? 0.67 : 0.4)));
+          ctx.globalAlpha = Math.min(1, a); ctx.fillStyle = q.c;
+          ctx.fillRect(Math.round(q.x - sz / 2), Math.round(q.y - sz / 2), sz, sz);
+        }
+      },
+      // gwiazdka 8-bit: krzyżyk z bloków (big = dłuższe ramiona)
+      pxStar(ctx, x, y, u, col, al, big) {
+        if (al <= 0.01 || u < 0.5) return;
+        u = Math.max(1, Math.round(u)); x = Math.round(x - u / 2); y = Math.round(y - u / 2);
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, al);
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.rect(x, y, u, u);
+        const n = big ? 2 : 1;
+        for (let q = 1; q <= n; q++) { ctx.rect(x + q * u, y, u, u); ctx.rect(x - q * u, y, u, u); ctx.rect(x, y + q * u, u, u); ctx.rect(x, y - q * u, u, u); }
+        ctx.fill();
+        if (big) { ctx.fillStyle = this.PXC.white; ctx.fillRect(x, y, u, u); }
+      },
+      // kwadratowy pierścień z bloków
+      pxSqRing(ctx, cx, cy, hw, hh, bs, step, col, al) {
+        if (al <= 0.01) return;
+        bs = Math.max(1, Math.round(bs));
+        ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, al); ctx.fillStyle = col;
+        ctx.beginPath();
+        const nx = Math.max(1, Math.round(hw * 2 / step)), ny = Math.max(1, Math.round(hh * 2 / step));
+        for (let q = 0; q <= nx; q++) {
+          const x = Math.round(cx - hw + (q / nx) * hw * 2 - bs / 2);
+          ctx.rect(x, Math.round(cy - hh - bs / 2), bs, bs); ctx.rect(x, Math.round(cy + hh - bs / 2), bs, bs);
+        }
+        for (let q = 1; q < ny; q++) {
+          const y = Math.round(cy - hh + (q / ny) * hh * 2 - bs / 2);
+          ctx.rect(Math.round(cx - hw - bs / 2), y, bs, bs); ctx.rect(Math.round(cx + hw - bs / 2), y, bs, bs);
+        }
+        ctx.fill();
+      },
+      // pasek postępu z bloków
+      pxBar(ctx, x, y, n, bs, prog, al, t) {
+        if (al <= 0.01) return;
+        const C = this.PXC;
+        bs = Math.max(3, Math.round(bs));
+        const gp = Math.max(1, Math.round(bs / 4)), w = n * (bs + gp) + gp, h = bs + gp * 2, x0 = Math.round(x - w / 2), y0 = Math.round(y - h / 2);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = Math.min(1, al * 0.88); ctx.fillStyle = C.ink; ctx.fillRect(x0 - gp, y0 - gp, w + gp * 2, h + gp * 2);
+        ctx.globalAlpha = Math.min(1, al); ctx.fillStyle = C.lite;
+        ctx.fillRect(x0 - gp, y0 - gp, w + gp * 2, gp); ctx.fillRect(x0 - gp, y0 + h, w + gp * 2, gp);
+        ctx.fillRect(x0 - gp, y0, gp, h); ctx.fillRect(x0 + w, y0, gp, h);
+        const f = clamp01(prog) * n, blink = ((t * 10) | 0) % 2 === 0;
+        for (let i = 0; i < n; i++) {
+          const xx = x0 + gp + i * (bs + gp), yy = y0 + gp;
+          const full = i < Math.floor(f + 1e-6), part = !full && i < f;
+          ctx.fillStyle = full ? C.gold : part && blink ? C.amber : C.empty;
+          ctx.fillRect(xx, yy, bs, bs);
+          if (full) { ctx.fillStyle = C.white; ctx.fillRect(xx, yy, bs, Math.max(1, Math.round(bs / 4))); ctx.fillStyle = C.deep; ctx.fillRect(xx, yy + bs - Math.max(1, Math.round(bs / 5)), bs, Math.max(1, Math.round(bs / 5))); }
+        }
+      },
+      // tekst pikselowy (cyfry i %), wyśrodkowany, z cieniem
+      pxText(ctx, str, x, y, ps, col, al) {
+        if (al <= 0.01) return;
+        ps = Math.max(1, Math.round(ps));
+        const w = str.length * 4 * ps - ps, x0 = Math.round(x - w / 2), y0 = Math.round(y - 2.5 * ps);
+        ctx.globalCompositeOperation = 'source-over';
+        for (const [c, off] of [[this.PXC.ink, ps], [col, 0]]) {
+          ctx.globalAlpha = Math.min(1, al); ctx.fillStyle = c;
+          ctx.beginPath();
+          for (let n = 0; n < str.length; n++) {
+            const g = this.PXF[str[n]]; if (!g) continue;
+            for (let q = 0; q < 15; q++) if (g[q] === '1') ctx.rect(x0 + n * 4 * ps + (q % 3) * ps + off, y0 + ((q / 3) | 0) * ps + off, ps, ps);
+          }
+          ctx.fill();
+        }
+      },
+      init(env) { return { G: null, ps: null, sp: [], row: -1, land: false, end: false, stars: null }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const C = this.PXC, I = o.item || { x: b.cx, y: b.cy, base: 32 }, img = (o.item && o.item.img) || FALLBACK_ICON;
+        const base = I.base || 32, k = Math.max(1, base / 32) * (o.itemScale || 1), N = 16, den = o.density || 1;
+        const P0 = { x: I.x + (o.index || 0) * 36 * k, y: I.y };
+        const B = Math.max(4, Math.round(8 * k)), half = N * B / 2, b0 = base / N;
+        const P1 = { x: Math.round(P0.x), y: Math.round(Math.max(half + 16, Math.min(P0.y - 66 * k, b.y - 30 * k) - half)) };
+        const T_X = 0.45, T_A = 1.15, RS = 0.055, FA = 0.42, T_D = 3.95, T_END = 5.75;
+        const T_L = T_A + (N - 1) * RS + 0.05 + FA; // ostatni rząd na miejscu
+        if (!s.G || (!s.ps && t >= T_X)) s.G = this.pxGrid(img, N);
+        const G = s.G;
+        ctx.save();
+        if (t < T_END) o.hideItem();
+        // 1) przedmiot w slocie „zacina się”
+        if (t < T_X) {
+          const gl = (t > 0.1 && t < 0.18) || (t > 0.28);
+          if (gl) this.pxCells(ctx, G.cells, N, P0.x, P0.y, b0, a, { shift: this.pxShift(N, b0, 2), split: Math.max(1, Math.round(1.5 * k)) });
+          else drawItem(ctx, img, P0.x, P0.y, base, 0, 1, a, false);
+        }
+        // 2) rozpad na piksele
+        if (!s.ps && t >= T_X) {
+          const mid = { x: P0.x, y: P1.y + half * 0.35 };
+          s.ps = G.cells.map(c => {
+            const ox = c.i - N / 2 + 0.5, oy = c.j - N / 2 + 0.5, an = Math.atan2(oy, ox) + rand(-0.7, 0.7), r = rand(30, 95) * k;
+            const p = { c: c.c, i: c.i, j: c.j, r: c.r, g: c.g, b: c.b, y: c.y,
+              sx: P0.x + ox * b0, sy: P0.y + oy * b0,
+              cx: mid.x + ox * B * 0.9 + Math.cos(an) * r, cy: mid.y + oy * B * 0.6 + Math.sin(an) * r * 0.6,
+              gx: P1.x + ox * B, gy: P1.y + oy * B,
+              dx: P1.x + ox * B * 1.35 + rand(-40, 40) * k, dy: P1.y + oy * B * 1.1 + rand(20, 80) * k,
+              w: rand(7, 14) * (Math.random() < 0.5 ? -1 : 1), ph: rand(0, TAU),
+              tx: rand(0, 0.12), ta: T_A + c.j * RS + rand(0, 0.05), td: T_D + (N - 1 - c.j) * 0.022 + rand(0, 0.1) };
+            p.tc = p.td + 0.4 + rand(0, 0.35);
+            return p;
+          });
+          this.pxSpark(s.sp, P0.x, P0.y, Math.round(16 * den), -Math.PI / 2, Math.PI, 90 * k, 260 * k, 3 * k, [C.gold, C.white, C.amber], 0.8);
+        }
+        if (s.ps && t < T_END + 0.05) {
+          // chmura pikseli wirująca wokół punktu między slotem a miejscem prezentacji
+          const MX = P0.x, MY = P1.y + half * 0.35;
+          const cloud = (p, tt) => {
+            const f = easeOut(clamp01((tt - T_X - p.tx) / 0.7)), an = (tt - T_X) * 1.9 * f;
+            const ox = p.cx - MX, oy = (p.cy - MY) / 0.6, ca = Math.cos(an), sa = Math.sin(an);
+            const ex = MX + ox * ca - oy * sa, ey = MY + (ox * sa + oy * ca) * 0.6;
+            return [p.sx + (ex - p.sx) * f, p.sy + (ey - p.sy) * f + Math.sin(tt * 3 + p.ph) * 4 * k * f, f];
+          };
+          const stat = [], slot = [];
+          let landed = 0;
+          const fly = [];
+          for (const p of s.ps) {
+            let x, y, sz, fl;
+            if (t < p.ta) {
+              const q = cloud(p, t);
+              x = q[0]; y = q[1]; sz = b0 + (B * 0.8 - b0) * q[2]; fl = p.w * Math.max(0, t - T_X - p.tx);
+            } else if (t < p.td) {
+              const f = clamp01((t - p.ta) / FA);
+              if (f >= 1) { stat.push(p); landed++; continue; }
+              const e = easeInOut(f), F0 = p.w * (p.ta - T_X - p.tx), q = cloud(p, p.ta);
+              x = q[0] + (p.gx - q[0]) * e; y = q[1] + (p.gy - q[1]) * e;
+              sz = B * 0.8 + B * 0.2 * e; fl = F0 + (this.pxFace(F0, p.w) - F0) * e;
+            } else if (t < p.tc) {
+              const f = easeOut(clamp01((t - p.td) / 0.4));
+              x = p.gx + (p.dx - p.gx) * f; y = p.gy + (p.dy - p.gy) * f;
+              sz = B - B * 0.45 * f; fl = p.w * (t - p.td);
+            } else {
+              const f = clamp01((t - p.tc) / 0.55);
+              if (f >= 1) { slot.push(p); continue; }
+              const e = easeInOut(f), F1 = p.w * (p.tc - p.td);
+              x = p.dx + (p.sx - p.dx) * e; y = p.dy + (p.sy - p.dy) * e;
+              sz = B * 0.55 + (b0 - B * 0.55) * e; fl = F1 + (this.pxFace(F1, p.w) - F1) * e;
+            }
+            fly.push([Math.round(x / 2) * 2, Math.round(y / 2) * 2, sz, fl, p.c]);
+          }
+          // wielki przedmiot z bloków (rzędy już złożone)
+          const allIn = landed === s.ps.length;
+          let opt = { outline: Math.max(2, Math.round(B / 4)) };
+          if (allIn) {
+            const lt = t - T_L;
+            if (!s.land) { s.land = true; this.pxSpark(s.sp, P1.x, P1.y + half, Math.round(18 * den), -Math.PI / 2, 1.3, 120 * k, 300 * k, B * 0.5, [C.gold, C.white, C.lite], 0.9); }
+            if (lt < 0.5 && ((lt * 16) | 0) % 2 === 0) opt.olCol = C.gold;
+            if (lt > 0.12 && lt < 0.72) { const u = (lt - 0.12) / 0.6 * 1.4 - 0.2; opt.hi = q => { const d = Math.abs((q.i + q.j) / (2 * N - 2) - u); return d < 0.09 ? 0.9 * (1 - d / 0.09) : 0; }; }
+            const gl = (t > T_L + 0.02 && t < T_L + 0.08) || (t > 3.1 && t < 3.24) || (t > 3.55 && t < 3.64);
+            if (gl) { opt.shift = this.pxShift(N, B, 2); opt.split = Math.round(B * 0.5); }
+          }
+          this.pxCells(ctx, stat, N, P1.x, P1.y, B, a, opt);
+          // iskry z końców właśnie złożonego rzędu
+          const rowDone = Math.min(N - 1, Math.floor((t - T_A - FA - 0.05) / RS));
+          while (s.row < rowDone && t < T_D) {
+            s.row++;
+            if (!s.ps.some(p => p.j === s.row)) continue;
+            const yy = P1.y - half + (s.row + 0.5) * B;
+            this.pxSpark(s.sp, P1.x - half - B, yy, Math.round(2 * den), Math.PI, 0.5, 60 * k, 150 * k, B * 0.45, [C.gold, C.white], 0.6);
+            this.pxSpark(s.sp, P1.x + half + B, yy, Math.round(2 * den), 0, 0.5, 60 * k, 150 * k, B * 0.45, [C.gold, C.white], 0.6);
+          }
+          // gwiazdki wokół w czasie prezentacji
+          if (t > T_L && t < T_D + 0.2) {
+            if (!s.stars) s.stars = Array.from({ length: 7 }, (_, i) => ({ u: (i + rand(0.2, 0.8)) / 7, ph: rand(0, 1), d: rand(10, 26) * k }));
+            for (const st of s.stars) {
+              const pp = perim({ x: P1.x - half, y: P1.y - half, w: half * 2, h: half * 2 }, st.u, st.d);
+              const ph = (t * 1.6 + st.ph) % 1;
+              if (ph < 0.55) this.pxStar(ctx, pp.x, pp.y, Math.max(2, Math.round(B * 0.4)), ph < 0.2 || ph > 0.4 ? C.gold : C.white, a, ph > 0.15 && ph < 0.4);
+            }
+          }
+          // pasek wczytywania pod przedmiotem
+          if (t > T_A - 0.15 && t < T_L + 0.75) {
+            const pr = landed / Math.max(1, s.ps.length), ba = a * clamp01((t - T_A + 0.15) / 0.15) * (t > T_L + 0.45 ? (((t * 12) | 0) % 2 ? 0 : 1) : 1);
+            this.pxBar(ctx, P1.x, P1.y + half + 14 * k, 12, 6 * k, allIn ? 1 : pr, ba, t);
+          }
+          // przedmiot złożony z powrotem w slocie (małe bloki), potem prawdziwa ikona
+          if (slot.length && t < T_END) this.pxCells(ctx, slot, N, P0.x, P0.y, b0, a);
+          // lecące piksele
+          ctx.globalCompositeOperation = 'source-over';
+          for (const f of fly) this.pxTile(ctx, f[0], f[1], f[2], f[3], f[4], a);
+        }
+        // lądowanie w slocie: pierścień z bloków
+        const lt = t - T_END + 0.08;
+        if (lt > 0 && lt < 0.5) {
+          if (!s.end) { s.end = true; this.pxSpark(s.sp, P0.x, P0.y, Math.round(14 * den), -Math.PI / 2, Math.PI, 70 * k, 200 * k, 3 * k, [C.gold, C.white], 0.6); }
+          const q = lt / 0.5, r = (18 + 22 * easeOut(q)) * k;
+          this.pxSqRing(ctx, P0.x, P0.y, Math.round(r / 3) * 3, Math.round(r / 3) * 3, 4 * k * (1 - q) + 1, 7 * k, q < 0.3 ? C.white : C.gold, a * (1 - q));
+        }
+        this.pxSparks(ctx, s.sp, dt, a, 520 * k);
+        ctx.restore();
+      },
+    },
+    {
+      id: 'px_frame', group: G_FRAME, name: 'Pikselowy rozpad: Rama z klocków', dur: 6,
+      init(env) { return { key: '', pcs: null, sp: [], nb: 0, lc: 0, lcT: -9, lcS: 0 }; },
+      // klocki ramy: pierścień grubości 2 bloków, cięty na kawałki 2×2, 2×3 i pary „L”
+      pxPieces(cols, rows, BUILD) {
+        const pcs = [], tot = 2 * cols + 2 * (rows - 4);
+        const COLS = ['#ffd23f', '#f0a500', '#ffe27a', '#e39a00'];
+        const sides = [
+          { len: cols, map: (q, l) => [q, l], nx: 0, ny: -1 },
+          { len: rows - 4, map: (q, l) => [cols - 1 - l, 2 + q], nx: 1, ny: 0 },
+          { len: cols, map: (q, l) => [cols - 1 - q, rows - 1 - l], nx: 0, ny: 1 },
+          { len: rows - 4, map: (q, l) => [l, rows - 3 - q], nx: -1, ny: 0 },
+        ];
+        let off = 0;
+        sides.forEach((sd, si) => {
+          let i = 0;
+          while (i < sd.len) {
+            let Ln = pick([2, 3, 4, 4]);
+            if (sd.len - i < Ln) Ln = sd.len - i;
+            const groups = [];
+            if (Ln === 4) {
+              groups.push([[i, 0], [i + 1, 0], [i + 2, 0], [i, 1]]);
+              groups.push([[i + 3, 0], [i + 1, 1], [i + 2, 1], [i + 3, 1]]);
+            } else { const g = []; for (let q = i; q < i + Ln; q++) { g.push([q, 0]); g.push([q, 1]); } groups.push(g); }
+            for (const g of groups) {
+              const u = (off + i + Ln / 2) / tot;
+              pcs.push({ cells: g.map(([q, l]) => sd.map(q, l)), nx: sd.nx, ny: sd.ny, side: si, u, col: pick(COLS), t0: u * BUILD + rand(0, 0.14), bt: -9 });
+            }
+            i += Ln;
+          }
+          off += sd.len;
+        });
+        return pcs;
+      },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'px_item'), C = L.PXC, den = o.density || 1;
+        const bs = Math.max(5, Math.min(14, Math.round(Math.sqrt(b.w * b.h) / 28)));
+        const cols = Math.ceil((b.w + 2) / bs) + 4, rows = Math.ceil((b.h + 2) / bs) + 4;
+        const big = b.w > 500, BUILD = big ? 2.1 : 1.35, FALL = 0.34, D = Math.min(48, bs * 6);
+        const key = cols + 'x' + rows + ':' + bs;
+        if (s.key !== key) { s.key = key; s.pcs = this.pxPieces(cols, rows, BUILD); s.nb = BUILD + FALL + 0.9; s.lc = BUILD + 2.2; }
+        const x0 = Math.round(b.cx - cols * bs / 2), y0 = Math.round(b.cy - rows * bs / 2);
+        const live = t < this.dur - 1.5, built = t > BUILD + FALL + 0.2;
+        // wypadające klocki
+        if (live && built && t > s.nb) {
+          s.nb = t + rand(0.8, 1.7) * (big ? 0.7 : 1);
+          const ok = s.pcs.filter(p => t > p.t0 + FALL + 0.2 && p.bt < p.t0);
+          for (let n = 0; n < (big ? 2 : 1) && ok.length; n++) {
+            const p = ok.splice((Math.random() * ok.length) | 0, 1)[0];
+            p.bt = t; p.t0 = t + rand(0.9, 1.3);
+            for (const [c, r] of p.cells) {
+              L.pxSpark(s.sp, x0 + (c + 0.5) * bs, y0 + (r + 0.5) * bs, Math.max(1, Math.round(1.5 * den)), Math.atan2(p.ny, p.nx) - (p.ny ? 0 : Math.PI / 4 * Math.sign(p.nx)), 0.8, 50, 150 * Math.sqrt(bs / 6), bs * 0.55, [p.col, C.white, C.lite], 0.9);
+            }
+          }
+        }
+        // „pełna linia”: jedna strona miga na biało
+        if (live && built && t > s.lc) { s.lc = t + rand(3.6, 5.2); s.lcT = t; s.lcS = (Math.random() * 4) | 0; }
+        const lcOn = t - s.lcT < 0.42 && (((t - s.lcT) * 14) | 0) % 2 === 0;
+        const head = (t * 0.33) % 1;
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        const R = [], ghost = [];
+        for (const p of s.pcs) {
+          if (p.bt > -9 && t >= p.bt && t < p.t0) { ghost.push(p); continue; }
+          if (t < p.t0) continue;
+          const f = clamp01((t - p.t0) / FALL), off = f < 1 ? Math.ceil((1 - easeIn(f)) * D / bs) * bs : 0;
+          const lt = t - p.t0 - FALL;
+          let col = p.col;
+          if ((lt >= 0 && lt < 0.09) || (lcOn && p.side === s.lcS)) col = C.white;
+          let du = Math.abs(p.u - head); du = Math.min(du, 1 - du);
+          R.push([p, p.nx * off, p.ny * off, col, f < 1 ? 0.55 + 0.45 * f : 1, built && du < 0.035 ? 1 - du / 0.035 : 0]);
+          if (lt >= 0 && lt < dt * 1.5 && Math.random() < 0.6) {
+            const [c, r] = p.cells[0];
+            L.pxSpark(s.sp, x0 + (c + 0.5) * bs, y0 + (r + 0.5) * bs, Math.max(1, Math.round(1.5 * den)), Math.atan2(p.ny, p.nx), 1.2, 30, 110, bs * 0.4, [C.white, C.gold], 0.5);
+          }
+        }
+        // glitch: rozjechanie RGB na chwilę
+        const gph = (t + 1.3) % 3.4;
+        if (built && gph < 0.1) {
+          ctx.globalCompositeOperation = 'lighter';
+          for (const [cc, sx] of [[C.cyan, -Math.round(bs * 0.6)], [C.mag, Math.round(bs * 0.6)]]) {
+            ctx.globalAlpha = Math.min(1, a * 0.7); ctx.fillStyle = cc; ctx.beginPath();
+            for (const [p, ox, oy] of R) for (const [c, r] of p.cells) ctx.rect(x0 + c * bs + ox + sx, y0 + r * bs + oy, bs, bs);
+            ctx.fill();
+          }
+          ctx.globalCompositeOperation = 'source-over';
+        }
+        const gsh = built && gph < 0.1 ? Math.round(bs * (Math.random() < 0.5 ? -1 : 1)) : 0;
+        // bloki
+        for (const [p, ox, oy, col, al] of R) {
+          ctx.globalAlpha = Math.min(1, a * al); ctx.fillStyle = col; ctx.beginPath();
+          const sx = gsh && (p.side === 0 || p.side === 2) && ((p.u * 37) | 0) % 2 ? gsh : 0;
+          for (const [c, r] of p.cells) ctx.rect(x0 + c * bs + ox + sx, y0 + r * bs + oy, bs, bs);
+          ctx.fill();
+        }
+        // faza 8-bit: jasna krawędź u góry/z lewej, ciemna u dołu/z prawej
+        const e = Math.max(1, Math.round(bs / 6));
+        for (const [cc, al0, hi] of [[C.white, 0.55, true], ['#5a3000', 0.5, false]]) {
+          ctx.globalAlpha = Math.min(1, a * al0); ctx.fillStyle = cc; ctx.beginPath();
+          for (const [p, ox, oy] of R) for (const [c, r] of p.cells) {
+            const x = x0 + c * bs + ox, y = y0 + r * bs + oy;
+            if (hi) { ctx.rect(x, y, bs, e); ctx.rect(x, y + e, e, bs - e); } else { ctx.rect(x, y + bs - e, bs, e); ctx.rect(x + bs - e, y, e, bs - e); }
+          }
+          ctx.fill();
+        }
+        // przebiegający połysk
+        ctx.fillStyle = C.white;
+        for (const [p, ox, oy, , , sh] of R) {
+          if (sh <= 0) continue;
+          ctx.globalAlpha = Math.min(1, a * 0.65 * sh); ctx.beginPath();
+          for (const [c, r] of p.cells) ctx.rect(x0 + c * bs + ox, y0 + r * bs + oy, bs, bs);
+          ctx.fill();
+        }
+        // dziury po wypadniętych klockach: migający obrys
+        if (ghost.length) {
+          ctx.lineWidth = 1; ctx.strokeStyle = ((t * 8) | 0) % 2 ? C.lite : C.amber; ctx.globalAlpha = Math.min(1, a * 0.6);
+          ctx.beginPath();
+          for (const p of ghost) for (const [c, r] of p.cells) ctx.rect(x0 + c * bs + 1.5, y0 + r * bs + 1.5, bs - 3, bs - 3);
+          ctx.stroke();
+        }
+        // gwiazdki w narożnikach
+        if (built) {
+          const cs = [[x0 - bs, y0 - bs], [x0 + cols * bs + bs, y0 - bs], [x0 + cols * bs + bs, y0 + rows * bs + bs], [x0 - bs, y0 + rows * bs + bs]];
+          cs.forEach(([x, y], i) => {
+            const ph = (t * 1.2 + i * 0.25) % 1;
+            if (ph < 0.5) L.pxStar(ctx, x, y, Math.max(2, Math.round(bs * 0.45)), ph < 0.12 || ph > 0.38 ? C.amber : C.gold, a, ph > 0.12 && ph < 0.38);
+          });
+        }
+        L.pxSparks(ctx, s.sp, dt, a, 420 * Math.sqrt(bs / 6));
+        ctx.restore();
+      },
+    },
+    {
+      id: 'px_around', group: G_AROUND, name: 'Pikselowy rozpad: Kwadratowe fale', dur: 6,
+      init(env) { return { sp: [], wv: [], nw: 0.05, cnt: 0, st: [], ns: 0 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'px_item'), C = L.PXC, den = o.density || 1;
+        const k = Math.max(0.8, Math.min(1.4, (o.scale || 1) * Math.sqrt(b.w / 220)));
+        const bs = Math.max(4, Math.round(7 * k)), D = 120 * k, STEP = 0.065, live = t < this.dur - 1.4;
+        const hash = (i, sd) => { const v = Math.sin(i * 12.9898 + sd * 78.233) * 43758.5453; return v - Math.floor(v); };
+        if (live && t >= s.nw) {
+          const nt = Math.max(3, Math.round((b.w + 10) / (bs + 2))), ns = Math.max(2, Math.round((b.h + 10) / (bs + 2)));
+          s.wv.push({ t0: t, sd: rand(0, 99), n: s.cnt++, nt, ns, gone: new Uint8Array(2 * (nt + ns) + 8) });
+          s.nw = t + 1.15;
+          // iskry z narożników okna
+          for (const [cx, cy] of [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]]) {
+            L.pxSpark(s.sp, cx, cy, Math.round(3 * den), Math.atan2(cy - b.cy, cx - b.cx), 0.35, 120 * k, 260 * k, bs * 0.7, [C.white, C.gold, C.lite], 0.7);
+          }
+        }
+        ctx.save();
+        // obrys okna z bloków miga przy starcie fali
+        const lastW = s.wv[s.wv.length - 1];
+        if (lastW && t - lastW.t0 < 0.12) L.pxSqRing(ctx, b.cx, b.cy, b.w / 2 + 3, b.h / 2 + 3, Math.max(2, bs * 0.5), bs, C.white, a * 0.8);
+        for (let wi = s.wv.length - 1; wi >= 0; wi--) {
+          const w = s.wv[wi], lt = t - w.t0, st = Math.floor(lt / STEP), d = st * bs * 0.75, p = d / D;
+          if (p > 1.05) { s.wv.splice(wi, 1); continue; }
+          // fala główna i cieńsze „echo” dwa kroki za nią
+          for (const echo of [0, 1]) {
+            const dd = d - echo * bs, pp = dd / D;
+            if (dd < 0) continue;
+            const hw = b.w / 2 + 5 + dd, hh = b.h / 2 + 5 + dd, sz = echo ? Math.max(2, Math.round(bs * 0.7)) : bs;
+            const fade = (1 - pp * 0.5) * (echo ? 0.7 : 1);
+            const main = w.n % 3 === 2 ? C.white : C.gold;
+            const P = [[], []];
+            let idx = 0;
+            const put = (x, y, corner) => {
+              const i = idx++, th = corner ? 0.95 : 0.1 + 0.85 * hash(i, w.sd);
+              if (pp > th) {
+                if (!echo && !w.gone[i]) { w.gone[i] = 1; if (Math.random() < 0.6) L.pxSpark(s.sp, x, y, Math.max(1, Math.round(rand(0.6, 1.6) * den)), Math.atan2(y - b.cy, x - b.cx), 0.6, 30 * k, 110 * k, bs * 0.6, [main, C.amber, C.lite], 0.7); }
+                return;
+              }
+              if (pp > th - 0.1 && st % 2) return; // kruszejący blok miga
+              const z = corner && !echo ? Math.round(sz * 1.5) : sz;
+              P[(i % 3 === 0 || corner) ? 1 : 0].push([Math.round(x - z / 2), Math.round(y - z / 2), z]);
+            };
+            for (let q = 0; q <= w.nt; q++) { const x = b.cx - hw + (q / w.nt) * hw * 2; put(x, b.cy - hh, q === 0 || q === w.nt); put(x, b.cy + hh, q === 0 || q === w.nt); }
+            for (let q = 1; q < w.ns; q++) { const y = b.cy - hh + (q / w.ns) * hh * 2; put(b.cx - hw, y, false); put(b.cx + hw, y, false); }
+            ctx.globalCompositeOperation = 'source-over';
+            [[main, P[0]], [echo ? C.amber : (w.n % 3 === 2 ? C.gold : C.amber), P[1]]].forEach(([col, arr]) => {
+              if (!arr.length) return;
+              ctx.globalAlpha = Math.min(1, a * fade); ctx.fillStyle = echo ? C.amber : col; ctx.beginPath();
+              for (const r of arr) ctx.rect(r[0], r[1], r[2], r[2]);
+              ctx.fill();
+            });
+          }
+        }
+        // migające gwiazdki 8-bit przy oknie
+        if (live && t > s.ns) {
+          s.ns = t + 0.16 / den;
+          const pp = perim(b, rand(0, 1), rand(8, 50) * k);
+          s.st.push({ x: pp.x, y: pp.y, t0: t, m: rand(0.45, 0.8), big: Math.random() < 0.35 });
+        }
+        for (let i = s.st.length - 1; i >= 0; i--) {
+          const q = s.st[i], f = (t - q.t0) / q.m;
+          if (f > 1) { s.st.splice(i, 1); continue; }
+          L.pxStar(ctx, q.x, q.y, Math.max(2, Math.round(bs * 0.45)), f < 0.25 || f > 0.75 ? C.amber : C.gold, a, q.big && f > 0.25 && f < 0.75);
+        }
+        L.pxSparks(ctx, s.sp, dt, a, 380 * k);
+        ctx.restore();
+      },
+    },
+    {
+      id: 'px_win', group: G_WIN, name: 'Pikselowy rozpad: Transfer do torby', dur: 4.5, minDur: 4.5,
+      init(env) { return { G: null, ps: null, sp: [], done: false, arr: 0 }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'px_item'), C = L.PXC, u = o.out, img = u.img || FALLBACK_ICON, den = o.density || 1;
+        const base = u.base || 32, k = Math.max(1, base / 32), N = 16, b0 = base / N, bT = Math.max(2, Math.round(b0 * 2));
+        const from = u.from, to = u.to;
+        const T_BR = 0.45, T_S = 0.6, SPAN = 0.85, FL = 0.85, T_DONE = T_S + SPAN + 0.08 + FL + 0.02;
+        if (!s.G) s.G = L.pxGrid(img, N);
+        const G = s.G;
+        ctx.save();
+        if (t < T_DONE) o.hideItem();
+        if (!s.ps) {
+          const dist = Math.hypot(to.x - from.x, to.y - from.y), hA = Math.min(170, dist * 0.32);
+          s.ps = G.cells.map((c, n) => {
+            const ox = c.i - N / 2 + 0.5, oy = c.j - N / 2 + 0.5;
+            return { c: c.c, i: c.i, j: c.j, ex: from.x + ox * b0 * 1.6 + rand(-2, 2) * k, ey: from.y + oy * b0 * 1.6 + rand(-2, 2) * k,
+              sx: from.x + ox * b0, sy: from.y + oy * b0, tx: to.x + ox * bT, ty: to.y + oy * bT,
+              ts: T_S + (n / G.cells.length) * SPAN + rand(0, 0.08), h: hA + rand(-22, 22) * k, wb: rand(-1, 1), w: rand(1, 2) | 0 };
+          });
+        }
+        // 1) zacięcie i rozsypanie w miejscu
+        if (t < T_BR) {
+          const gl = t > 0.12 && (((t * 20) | 0) % 3 !== 0);
+          if (gl) L.pxCells(ctx, G.cells, N, from.x, from.y, b0, a, { shift: L.pxShift(N, b0, 2), split: Math.max(1, Math.round(1.5 * k)) });
+          else drawItem(ctx, img, from.x, from.y, base, 0, 1, a, false);
+        }
+        let arrived = 0;
+        const fly = [], landed = [];
+        if (t >= T_BR) {
+          for (const p of s.ps) {
+            if (t < p.ts) {
+              const f = easeOut(clamp01((t - T_BR) / 0.18));
+              fly.push([p.sx + (p.ex - p.sx) * f, p.sy + (p.ey - p.sy) * f, b0 * (1 + 0.3 * f), 0, p.c]);
+              continue;
+            }
+            const f = clamp01((t - p.ts) / FL);
+            if (f >= 1) { landed.push(p); arrived++; continue; }
+            const e = easeInOut(f), A = { x: p.ex, y: p.ey }, Bp = { x: p.tx, y: p.ty };
+            const q = arcPoint(A, Bp, e, p.h);
+            const sw = Math.sin(f * Math.PI) * p.wb * 14 * k;
+            const sz = b0 * 1.5 + (bT - b0 * 1.5) * e + Math.sin(f * Math.PI) * b0 * 1.6;
+            const fl = e * TAU * (p.w + 1);
+            // smuga za pikselem
+            for (let g = 2; g >= 1; g--) {
+              const fe = easeInOut(Math.max(0, f - g * 0.045)), qq = arcPoint(A, Bp, fe, p.h);
+              fly.push([qq.x + sw, qq.y, sz * (1 - g * 0.28), 0, g === 2 ? C.amber : C.gold, 0.45 - g * 0.12]);
+            }
+            fly.push([q.x + sw, q.y, sz, fl, p.c]);
+          }
+          // nowy przyjazd → iskierka
+          if (arrived > s.arr) { if ((arrived >> 2) > (s.arr >> 2)) L.pxSpark(s.sp, to.x + rand(-1, 1) * bT * 6, to.y - N * bT / 2, 1, -Math.PI / 2, 0.8, 60 * k, 140 * k, 2.5 * k, [C.gold, C.white], 0.5); s.arr = arrived; }
+        }
+        // składanie w torbie
+        const done = t >= T_DONE && arrived === s.ps.length;
+        if (t < T_DONE + 0.5) {
+          const dt2 = t - T_DONE, flash = dt2 > 0 && dt2 < 0.36 && ((dt2 * 14) | 0) % 2 === 0;
+          L.pxCells(ctx, landed, N, to.x, to.y, bT, a * (dt2 > 0.3 ? 1 - (dt2 - 0.3) / 0.2 : 1), { outline: Math.max(1, Math.round(bT / 2)), olCol: flash ? C.white : C.ink, mono: flash ? C.white : null });
+        }
+        if (done && !s.done) {
+          s.done = true;
+          L.pxSpark(s.sp, to.x, to.y, Math.round(26 * den), -Math.PI / 2, Math.PI * 0.9, 110 * k, 300 * k, 3.5 * k, [C.gold, C.white, C.lite, C.amber], 0.9);
+        }
+        if (t > T_DONE + 0.3) {
+          const q = clamp01((t - T_DONE - 0.3) / 0.6);
+          drawItem(ctx, img, to.x, to.y, (N * bT) - (N * bT - base) * easeOut(q), 0, 1, a * (1 - clamp01((t - T_DONE - 1.3) / 0.5)), false);
+        }
+        // kwadratowe fale z bloków przy złożeniu
+        for (const [d0, col] of [[0, C.white], [0.14, C.gold]]) {
+          const rt = t - T_DONE - d0;
+          if (rt > 0 && rt < 0.6) { const q = rt / 0.6, r = Math.round((14 + 46 * easeOut(q)) * k / 3) * 3; L.pxSqRing(ctx, to.x, to.y, r, r, (4 - 2 * q) * k, 8 * k, col, a * (1 - q)); }
+        }
+        // pasek postępu „100%”
+        if (t > T_S - 0.1) {
+          const prog = arrived / Math.max(1, s.ps.length), fa = a * clamp01((t - T_S + 0.1) / 0.15) * (1 - clamp01((t - this.dur + 0.5) / 0.4));
+          const by = Math.min(H - 34 * k, to.y + N * bT / 2 + 14 * k);
+          L.pxBar(ctx, to.x, by, 10, 5 * k, prog, fa, t);
+          const pct = Math.round(prog * 100) + '%', blink = prog >= 1 && t - T_DONE < 0.8 && ((t * 8) | 0) % 2;
+          if (!blink) L.pxText(ctx, pct, to.x, by + 16 * k, 2 * k, prog >= 1 ? C.gold : C.lite, fa);
+        }
+        // lecące piksele i smugi
+        ctx.globalCompositeOperation = 'source-over';
+        for (const f of fly) L.pxTile(ctx, Math.round(f[0]), Math.round(f[1]), f[2], f[3], f[4], a * (f[5] || 1));
+        L.pxSparks(ctx, s.sp, dt, a, 520 * k);
+        ctx.restore();
+      },
+    },
+    {
+      id: 'px_lose', group: G_LOSE, name: 'Pikselowy rozpad: Błąd odczytu', dur: 5, minDur: 5,
+      init(env) { return { G: null, ps: null, sp: [], sh: null, shT: 0, cor: null, off: false }; },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        const L = EFFECTS.find(e => e.id === 'px_item'), C = L.PXC, u = o.out, img = u.img || FALLBACK_ICON, den = o.density || 1;
+        const base = u.base || 32, k = Math.max(1, base / 32), N = 16, b0 = base / N, B = Math.max(2, Math.round(3 * k)), half = N * B / 2;
+        const P = { x: Math.round(u.from.x), y: Math.round(Math.max(half + 60 * k, u.from.y - 58 * k)) };
+        if (!s.G) s.G = L.pxGrid(img, N);
+        const G = s.G;
+        if (!s.ps) {
+          s.ps = G.cells.map(c => ({ i: c.i, j: c.j, r: c.r, g: c.g, b: c.b, y: c.y, c: c.c,
+            tf: 1.25 + rand(0, 1.2) + 0.8 * (1 - c.j / (N - 1)) * Math.random(), vx: rand(-40, 40) * k, vy: rand(-60, 10) * k, w: rand(5, 12) * (Math.random() < 0.5 ? -1 : 1) }));
+        }
+        ctx.save();
+        if (t < 4.6) o.hideItem();
+        const grow = easeOut(clamp01(t / 0.3)), Bc = b0 + (B - b0) * grow;
+        const cx = u.from.x + (P.x - u.from.x) * grow, cy = u.from.y + (P.y - u.from.y) * grow;
+        const gI = clamp01((t - 0.2) / 1.2), grey = clamp01((t - 1.1) / 1.6);
+        // glitch narasta: przesunięte pasy co kilka klatek, rozjechane kanały, zepsute piksele
+        if (t - s.shT > 0.07) { s.shT = t; s.sh = Math.random() < 0.25 + gI * 0.6 ? L.pxShift(N, Bc, 1 + gI * 2.5) : null; s.cor = Math.random() < gI * 0.8 ? Math.round(rand(2, 10) * gI) : 0; }
+        const alive = [], fall = [];
+        for (const p of s.ps) (t < p.tf ? alive : fall).push(p);
+        const split = Math.round((0.15 + gI) * Bc * (0.6 + 0.4 * Math.sin(t * 40)));
+        L.pxCells(ctx, alive, N, cx, cy, Bc, a, { outline: Math.max(1, Math.round(Bc / 2)), shift: s.sh, split: gI > 0.05 ? split : 0, grey });
+        // zepsute piksele: cyjan/magenta/czerń w losowych miejscach
+        if (s.cor && alive.length) {
+          ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a);
+          const bc = Math.round(Bc);
+          for (let n = 0; n < s.cor; n++) {
+            const p = pick(alive), dx = s.sh ? s.sh[p.j] || 0 : 0, w = Math.random() < 0.3 ? 3 : 1;
+            ctx.fillStyle = pick([C.cyan, C.mag, C.ink, C.white]);
+            ctx.fillRect(Math.round(cx - N * Bc / 2 + p.i * Bc + dx), Math.round(cy - N * Bc / 2 + p.j * Bc), bc * w, bc);
+          }
+        }
+        // martwe piksele w miejscu odpadniętych
+        ctx.fillStyle = C.ink;
+        for (const p of fall) {
+          const ft = t - p.tf;
+          if (ft < 0.14) { ctx.globalAlpha = Math.min(1, a * 0.9); ctx.fillRect(Math.round(cx - N * Bc / 2 + p.i * Bc), Math.round(cy - N * Bc / 2 + p.j * Bc), Math.round(Bc), Math.round(Bc)); }
+        }
+        // odpadające piksele: spadają, szarzeją, gasną
+        for (const p of fall) {
+          const ft = t - p.tf, x = cx - N * Bc / 2 + (p.i + 0.5) * Bc + p.vx * ft, y = cy - N * Bc / 2 + (p.j + 0.5) * Bc + p.vy * ft + 0.5 * 700 * k * ft * ft;
+          if (y > H + 20) continue;
+          const al = a * (1 - clamp01((ft - 0.45) / 0.5));
+          if (al <= 0.01) continue;
+          const gv = clamp01(grey + ft * 0.8), v = p.y * 0.8 + 45, m = c0 => Math.round(c0 + (v - c0) * gv);
+          L.pxTile(ctx, Math.round(x), Math.round(y), Bc * (1.35 - 0.4 * clamp01(ft / 0.9)), p.w * ft, `rgb(${m(p.r)},${m(p.g)},${m(p.b)})`, al, `rgb(${m(p.r) * 0.6 | 0},${m(p.g) * 0.6 | 0},${m(p.b) * 0.6 | 0})`);
+        }
+        // wyłączenie „ekranu”: biała kreska zwija się do kropki
+        const alast = Math.max(...s.ps.map(p => p.tf));
+        const ot = t - alast - 0.15;
+        if (ot > 0 && ot < 0.6) {
+          const w = ot < 0.3 ? half * 2 * (1 - easeIn(ot / 0.3)) + 3 * k : 3 * k, hh = ot < 0.3 ? Math.max(2, Math.round(2 * k)) : Math.round(3 * k);
+          ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, a * (ot < 0.3 ? 1 : 1 - (ot - 0.3) / 0.3));
+          ctx.fillStyle = C.white; ctx.fillRect(Math.round(P.x - w / 2), Math.round(P.y - hh / 2), Math.round(w), hh);
+          if (!s.off) { s.off = true; L.pxSpark(s.sp, P.x, P.y, Math.round(8 * den), -Math.PI / 2, Math.PI, 40 * k, 120 * k, 2.5 * k, [C.white, C.lite], 0.6); }
+        }
+        // pasek opróżnia się do 0%
+        const prog = alive.length / Math.max(1, s.ps.length), fa = a * clamp01((t - 0.3) / 0.3) * (1 - clamp01((t - this.dur + 0.6) / 0.5));
+        const by = P.y + half + 14 * k;
+        L.pxBar(ctx, P.x, by, 10, 5 * k, prog, fa, t);
+        if (!(prog <= 0 && ((t * 6) | 0) % 2)) L.pxText(ctx, Math.round(prog * 100) + '%', P.x, by + 16 * k, 2 * k, prog > 0 ? C.lite : C.white, fa);
+        L.pxSparks(ctx, s.sp, dt, a, 400 * k);
+        caption(ctx, u.reason, u.from.x, Math.max(22, P.y - half - 26 * k), a * clamp01((t - 0.3) / 0.5) * (1 - clamp01((t - this.dur + 0.5) / 0.5)), 20);
+        ctx.restore();
+      },
+    },
+    {
+      // cały interfejs gry rozsypuje się na piksele (prawdziwa maska CSS na oknie gry) i odbudowuje rząd po rzędzie;
+      // okno łupów z legendą zostaje nietknięte
+      id: 'px_screen', group: G_SCREEN, name: 'Pikselowy rozpad: Rozsypany interfejs', dur: 9,
+      PXS: { cell: 14, T0: 0.25, SPREAD: 1.5, HOLD: 0.9, BUILD: 1.9, UI: ['46,38,32', '61,52,44', '90,74,58', '120,100,72', '32,30,36', '180,150,90'] },
+      init(env) { return { ready: false }; },
+      pxsSetup(s, W, H) {
+        const P = this.PXS, gw = document.querySelector('.game-window-positioner');
+        const R = gw ? gw.getBoundingClientRect() : { left: 0, top: 0, width: W, height: H };
+        const cs = P.cell, cols = Math.max(8, Math.ceil(R.width / cs)), rows = Math.max(6, Math.ceil(R.height / cs));
+        s.R = R; s.cols = cols; s.rows = rows; s.cw = R.width / cols; s.ch = R.height / rows;
+        // maska w rozdzielczości 2 px na komórkę (ostre bloki po przeskalowaniu)
+        s.m = document.createElement('canvas'); s.m.width = cols * 2; s.m.height = rows * 2;
+        s.mc = s.m.getContext('2d');
+        // kolory komórek: z mapy (jednorazowy odczyt pomniejszonej kopii) albo z palety interfejsu
+        s.col = new Array(cols * rows);
+        let px = null;
+        try {
+          const mc = mapCanvas(), mr = mc && mc.getBoundingClientRect();
+          if (mc && mr.width > 0) {
+            const tmp = document.createElement('canvas'); tmp.width = cols; tmp.height = rows;
+            const tc = tmp.getContext('2d');
+            tc.drawImage(mc, (mr.left - R.left) / s.cw, (mr.top - R.top) / s.ch, mr.width / s.cw, mr.height / s.ch);
+            px = tc.getImageData(0, 0, cols, rows).data;
+          }
+        } catch (e) { px = null; }
+        for (let i = 0; i < cols * rows; i++) {
+          if (px && px[i * 4 + 3] > 200) s.col[i] = `${px[i * 4]},${px[i * 4 + 1]},${px[i * 4 + 2]}`;
+          else s.col[i] = P.UI[(i * 7 + ((i / cols) | 0) * 3) % P.UI.length];
+        }
+        // okno łupów (i jego otoczenie) zostaje – komórki „chronione”
+        const lb = lootBox();
+        s.keep = new Uint8Array(cols * rows);
+        if (lb) {
+          const c0 = Math.floor((lb.x - 8 - R.left) / s.cw), c1 = Math.ceil((lb.x + lb.w + 8 - R.left) / s.cw);
+          const r0 = Math.floor((lb.y - 30 - R.top) / s.ch), r1 = Math.ceil((lb.y + lb.h + 8 - R.top) / s.ch);
+          for (let r = Math.max(0, r0); r < Math.min(rows, r1); r++) for (let c = Math.max(0, c0); c < Math.min(cols, c1); c++) s.keep[r * cols + c] = 1;
+        }
+        // czas rozpadu: fala od okna łupów z szumem; czas odbudowy: rząd po rzędzie od góry (jak wczytywany obraz)
+        const ox = lb ? (lb.cx - R.left) / s.cw : cols / 2, oy = lb ? (lb.cy - R.top) / s.ch : rows / 2;
+        const maxD = Math.hypot(Math.max(ox, cols - ox), Math.max(oy, rows - oy));
+        s.td = new Float32Array(cols * rows); s.tb = new Float32Array(cols * rows);
+        const endD = P.T0 + P.SPREAD + 0.35, b0 = endD + P.HOLD;
+        for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+          const i = r * cols + c, n = Math.random();
+          s.td[i] = P.T0 + (Math.hypot(c - ox, r - oy) / maxD) * P.SPREAD + n * 0.35;
+          s.tb[i] = b0 + (r / rows) * P.BUILD + ((c * 13 + r * 7) % 11) / 11 * 0.25 + Math.random() * 0.12;
+        }
+        s.end = b0 + P.BUILD + 0.45;
+        s.state = new Uint8Array(cols * rows); // 0 widoczna, 1 zniszczona, 2 odbudowana
+        s.parts = []; s.fly = []; s.ver = 0; s.ready = true;
+        s.mc.fillStyle = '#fff'; s.mc.fillRect(0, 0, s.m.width, s.m.height);
+      },
+      frame(ctx, s, t, dt, a, W, H, b, o) {
+        if (!s.ready) this.pxsSetup(s, W, H);
+        const P = this.PXS, cols = s.cols, rows = s.rows, cw = s.cw, ch = s.ch, R = s.R, dens = o.density || 1;
+        ctx.save();
+        if (t < s.end) {
+          let changed = false;
+          for (let i = 0; i < cols * rows; i++) {
+            if (s.keep[i]) continue;
+            const st = s.state[i];
+            if (st === 0 && t >= s.td[i]) {
+              s.state[i] = 1; changed = true;
+              const c = i % cols, r = (i / cols) | 0;
+              s.mc.clearRect(c * 2, r * 2, 2, 2);
+              if (s.parts.length < 1800 && Math.random() < 0.55 * Math.min(1.5, dens)) {
+                s.parts.push({ x: R.left + c * cw, y: R.top + r * ch, vx: rand(-60, 60), vy: rand(-140, 10), g: rand(700, 1100), rot: 0, vr: rand(-6, 6), c: s.col[i], l: 0 });
+              }
+            } else if (st === 1 && t >= s.tb[i] - 0.35 && !s.fl) {
+              // piksel w drodze na swoje miejsce
+            }
+            if (st === 1 && t >= s.tb[i]) {
+              s.state[i] = 2; changed = true;
+              const c = i % cols, r = (i / cols) | 0;
+              s.mc.fillStyle = '#fff'; s.mc.fillRect(c * 2, r * 2, 2, 2);
+            }
+          }
+          if (changed) s.ver++;
+          pixMask(s.m, s.ver);
+          // „pustka” w miejscach zniszczonych: ciemne tło z siatką (rysowana pod cząsteczkami)
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = Math.min(1, a);
+          ctx.fillStyle = 'rgb(8,10,16)';
+          ctx.beginPath();
+          for (let r = 0; r < rows; r++) {
+            let run = -1;
+            for (let c = 0; c <= cols; c++) {
+              const on = c < cols && s.state[r * cols + c] === 1;
+              if (on && run < 0) run = c;
+              if (!on && run >= 0) { ctx.rect(R.left + run * cw, R.top + r * ch, (c - run) * cw + 0.5, ch + 0.5); run = -1; }
+            }
+          }
+          ctx.fill();
+          // siatka pustki (delikatny cyjan) – tylko podczas rozpadu
+          const ga = a * 0.22 * clamp01((t - P.T0) / 0.6) * (1 - clamp01((t - (s.end - 1.2)) / 1.0));
+          if (ga > 0.01) {
+            ctx.strokeStyle = 'rgb(60,200,220)'; ctx.globalAlpha = ga; ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let r = 0; r < rows; r += 2) for (let c = 0; c < cols; c++) if (s.state[r * cols + c] === 1) { const x = R.left + c * cw, y = R.top + r * ch; ctx.moveTo(x, y + 0.5); ctx.lineTo(x + cw, y + 0.5); }
+            ctx.stroke();
+          }
+          // piksele nadlatujące z dołu na swoje miejsce tuż przed odbudową
+          ctx.globalAlpha = Math.min(1, a);
+          for (let i = 0; i < cols * rows; i++) {
+            if (s.state[i] !== 1) continue;
+            const lt = s.tb[i] - t;
+            if (lt > 0.35 || lt < 0 || ((i * 2654435761) >>> 0) % 3 !== 0) continue;
+            const c = i % cols, r = (i / cols) | 0, f = easeOut(1 - lt / 0.35);
+            const x = R.left + c * cw, y = R.top + r * ch + (1 - f) * 120;
+            ctx.fillStyle = `rgb(${s.col[i]})`;
+            ctx.fillRect(Math.round(x), Math.round(y), Math.ceil(cw), Math.ceil(ch));
+          }
+          // błysk na czole odbudowy (biała linia skanująca)
+          const by = clamp01((t - (s.end - P.BUILD - 0.45)) / P.BUILD);
+          if (by > 0 && by < 1) {
+            const y = R.top + by * R.height;
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.fillStyle = 'rgb(140,240,255)'; ctx.globalAlpha = a * 0.35; ctx.fillRect(R.left, y - 2, R.width, 3);
+          }
+          // glitch: przesunięte pasy RGB na starcie
+          if (t < P.T0 + 0.45) {
+            const g = clamp01(1 - Math.abs(t - P.T0) / 0.45);
+            ctx.globalCompositeOperation = 'lighter';
+            for (let k = 0; k < 6; k++) {
+              const y = rand(0, H), h = rand(4, 22);
+              ctx.globalAlpha = a * 0.18 * g;
+              ctx.fillStyle = k & 1 ? 'rgb(255,40,160)' : 'rgb(40,220,255)';
+              ctx.fillRect(rand(-30, 30), y, W, h);
+            }
+          }
+        }
+        // spadające piksele interfejsu
+        ctx.globalCompositeOperation = 'source-over';
+        for (let i = s.parts.length - 1; i >= 0; i--) {
+          const q = s.parts[i]; q.l += dt; q.vy += q.g * dt; q.x += q.vx * dt; q.y += q.vy * dt;
+          if (q.y > H + 40) { s.parts.splice(i, 1); continue; }
+          ctx.globalAlpha = Math.min(1, a * (1 - clamp01((q.l - 1.6) / 0.6)));
+          ctx.fillStyle = `rgb(${q.c})`;
+          const sz = Math.ceil(cw * (1 - 0.3 * clamp01(q.l / 1.5)));
+          ctx.fillRect(Math.round(q.x), Math.round(q.y), sz, sz);
+        }
+        ctx.restore();
+      },
+    },
     /* @@NEW_EFFECTS@@ */
   ];
 
@@ -29732,6 +34411,7 @@
   function stopFx() {
     resetShake();
     resetGrey();
+    resetPix();
     setItemHidden(null, false);
     if (FX.raf) cancelAnimationFrame(FX.raf);
     FX.raf = 0;
@@ -30095,7 +34775,7 @@
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, cv.width, cv.height);
       const sharedItem = isOut ? null : shared(box);
-      SHAKE.active = false; GREY.active = false;
+      SHAKE.active = false; GREY.active = false; PIX.active = false;
       for (const l of layers) {
         const tl = t - l.delay;
         if (tl < 0 || tl > l.dur) continue;
@@ -30157,6 +34837,7 @@
       setItemsHidden(hide);
       if (!SHAKE.active) resetShake();
       if (!GREY.active) resetGrey();
+      if (!PIX.active && PIX.el) resetPix();
       if (t < total) FX.raf = requestAnimationFrame(frame); else stopFx();
     };
     FX.raf = requestAnimationFrame(frame);
@@ -30280,6 +34961,8 @@
   const lootLog = []; // do diagnostyki: lnfx.lootLog
   let lastOutcomeAt = 0;
   const heroId = () => { try { return Engine.hero.d.id; } catch (e) { return null; } };
+  let lootEndAt = 0; // ostatni znany czas zakończenia łupu (ms, zegar lokalny)
+  const heroNick = () => { try { return Engine.hero.d.nick || null; } catch (e) { return null; } };
   const isLegend = it => !!(it && /rarity=legendary/.test(it.stat || ''));
   function copyCanvas(src) {
     try {
@@ -30337,7 +35020,7 @@
         }
       }
       if (it.loc === 'l' && isLegend(it)) {
-        if (!pending.has(id)) pending.set(id, { name: it.name, hid: it.hid, tpl: it.tpl, who: null, state: 0, snap: null, from: null, goneAt: 0, reason: null, t: Date.now() });
+        if (!pending.has(id)) pending.set(id, { name: it.name, hid: it.hid, tpl: it.tpl, who: null, state: 0, snap: null, from: null, goneAt: 0, reason: null, t: Date.now(), endAt: lootEndAt > Date.now() ? lootEndAt : 0 });
       } else if (it.loc === 'g' && pending.has(id) && (it.own == null || it.own === heroId())) {
         const p = pending.get(id);
         pending.delete(id);
@@ -30363,6 +35046,16 @@
   }
   function onLoot(loot, full) {
     if (loot && loot.states) for (const [id, st] of Object.entries(loot.states)) if (pending.has(id)) pending.get(id).state = st;
+    // czas zakończenia łupu (podziału) – endTs w czasie serwera
+    if (loot && loot.endTs != null) {
+      let ev = full && full.ev != null ? +full.ev : null;
+      if (ev == null) { try { ev = +Engine.getEv(); } catch (e) { /* ignore */ } }
+      if (ev != null && !isNaN(ev)) {
+        const endAt = Date.now() + Math.max(0, +loot.endTs - ev) * 1000;
+        lootEndAt = endAt;
+        for (const p of pending.values()) if (!p.endAt || endAt > p.endAt) p.endAt = endAt;
+      }
+    }
     let chat = '';
     try { chat = full && full.chat ? JSON.stringify(full.chat) : ''; } catch (e) { /* ignore */ }
     if (/brak wolnego miejsca/i.test(chat)) for (const p of pending.values()) p.reason = 'full';
@@ -30516,9 +35209,22 @@
         const r = c.getBoundingClientRect();
         if (r.width > 0) p.from = { x: r.left + r.width / 2, y: r.top + r.height / 2, base: r.width };
         p.goneAt = 0;
+        // decyzja gracza (chcę / nie chcę / muszę) i czy to łup grupowy – zapamiętane przed zamknięciem okna
+        try { const d = Engine.loots.itemsDecision; if (d && d[id]) p.dec = d[id]; } catch (e) { /* ignore */ }
+        try { p.grp = !!Engine.loots.getGroupped(); } catch (e) { /* ignore */ }
       } else if (!win) {
         if (!p.goneAt) p.goneAt = now;
-        else if (now - p.goneAt > 1500) { pending.delete(id); resolveOutcome('lose', id, p); }
+        // Okno łupów zamyka się zaraz po potwierdzeniu decyzji, ale w grupie podział następuje dopiero
+        // po upływie czasu łupu (albo gdy wszyscy zdecydują). Dlatego „utracony” odpalamy dopiero,
+        // gdy wiadomo, że łup przepadł – inaczej czekamy na podział (wygrana przychodzi jako przedmiot w torbie).
+        const gone = now - p.goneAt, me = heroNick();
+        let lose = false;
+        if (p.dec === 'not' || p.reason === 'full') lose = gone > 1500;                 // odrzucony / brak miejsca
+        else if (p.who && (!me || p.who !== me)) lose = gone > 600;                      // podział: zgarnął ktoś inny
+        else if (p.who && p.who === me) lose = gone > 12000;                             // podział: nasz – czekamy na przedmiot
+        else if (p.grp === false) lose = gone > 3000;                                    // łup osobisty – przedmiot przyszedłby od razu
+        else lose = p.endAt ? now > p.endAt + 5000 : gone > 60000;                       // grupa: dopiero po czasie podziału
+        if (lose) { pending.delete(id); resolveOutcome('lose', id, p); }
       }
     }
   }
@@ -31014,11 +35720,19 @@
     { id: 'mine', name: '⛏ Kopalnia i krasnoludy', layers: { item: 'mn_strike', loot: 'mn_timber', map: 'mn_timber', around: 'mn_cart', screen: 'mn_cave', win: 'mn_win', lose: 'mn_lose' } },
     { id: 'pirates', name: '🏴‍☠️ Piraci i morze', layers: { item: 'pr_map', loot: 'pr_rope', map: 'pr_rope', around: 'pr_salvage', screen: 'pr_armada', win: 'pr_cannon', lose: 'pr_parrot' } },
     { id: 'vikings', name: '🪓 Wikingowie / Północ', layers: { item: 'vk_ice', loot: 'vk_frame', map: 'vk_frame', around: 'vk_horn', screen: 'vk_sea', win: 'vk_win', lose: 'vk_lose' } },
-    { id: 'mietel', name: '🍾 Mietel Żul', layers: { item: 'mz_item', loot: 'mz_frame', map: 'mz_frame', around: 'mz_around', screen: 'mz_screen', win: 'mz_win', lose: 'mz_lose' } },
+    { id: 'mietel', name: '🍾 Mietek Żul', layers: { item: 'mz_item', loot: 'mz_frame', map: 'mz_frame', around: 'mz_around', screen: 'mz_screen', win: 'mz_win', lose: 'mz_lose' } },
     { id: 'kitchen', name: '🍳 Kuchnia', layers: { item: 'kt_item', loot: 'kt_frame', map: 'kt_frame', around: 'kt_around', screen: 'kt_screen', win: 'kt_win', lose: 'kt_lose' } },
     { id: 'violet', name: '💜 Fioletowy neon', layers: { item: 'vi_item', loot: 'vi_frame', map: 'vi_frame', around: 'vi_around', screen: 'vi_screen', win: 'vi_win', lose: 'vi_lose' } },
     { id: 'disco', name: '🪩 Dyskoteka', layers: { item: 'dc_item', loot: 'dc_frame', map: 'dc_frame', around: 'dc_around', screen: 'dc_screen', win: 'dc_win', lose: 'dc_lose' } },
     { id: 'alchemy', name: '⚗️ Alchemia i eliksiry', layers: { item: 'al_item', loot: 'al_frame', map: 'al_frame', around: 'al_around', screen: 'al_screen', win: 'al_win', lose: 'al_lose' } },
+    { id: 'dusk', name: '🖤 Zmierzch (fiolet i czerń)', layers: { item: 'dk_item', loot: 'dk_frame', map: 'dk_frame', around: 'dk_around', screen: 'dk_screen', win: 'dk_win', lose: 'dk_lose' } },
+    { id: 'crimson', name: '❤️ Szkarłat', layers: { item: 'cr_item', loot: 'cr_frame', map: 'cr_frame', around: 'cr_around', screen: 'cr_screen', win: 'cr_win', lose: 'cr_lose' } },
+    { id: 'rose', name: '🌸 Ciemny róż', layers: { item: 'ro_item', loot: 'ro_frame', map: 'ro_frame', around: 'ro_around', screen: 'ro_screen', win: 'ro_win', lose: 'ro_lose' } },
+    { id: 'bluegold', name: '💙💛 Błękit i złoto', layers: { item: 'bg_item', loot: 'bg_frame', map: 'bg_frame', around: 'bg_around', screen: 'bg_screen', win: 'bg_win', lose: 'bg_lose' } },
+    { id: 'welding', name: '🔥 Spawalnia', layers: { item: 'wd_item', loot: 'wd_frame', map: 'wd_frame', around: 'wd_around', screen: 'wd_screen', win: 'wd_win', lose: 'wd_lose' } },
+    { id: 'technomagic', name: '⚡ Technomagia', layers: { item: 'tm_item', loot: 'tm_frame', map: 'tm_frame', around: 'tm_around', screen: 'tm_screen', win: 'tm_win', lose: 'tm_lose' } },
+    { id: 'otherside', name: '🩸 Druga strona', layers: { item: 'ud_item', loot: 'ud_frame', map: 'ud_frame', around: 'ud_around', screen: 'ud_screen', win: 'ud_win', lose: 'ud_lose' } },
+    { id: 'pixel', name: '👾 Pikselowy rozpad', layers: { item: 'px_item', loot: 'px_frame', map: 'px_frame', around: 'px_around', screen: 'px_screen', win: 'px_win', lose: 'px_lose' } },
     { id: 'heroes', name: 'Bohaterowie i magia', layers: { item: 'hr_scroll', loot: 'hr_frame', map: 'hr_frame', around: 'hr_treasure', screen: 'hr_advmap', win: 'hr_ride', lose: 'hr_defeat' } },
   ];
   const SET_OPTS = [['', '— wybierz —']].concat(SETS.filter(s => !s.hidden).map(s => [s.id, s.name])); // ukryte (testowe) zestawy zostają w kodzie
@@ -31109,6 +35823,11 @@
     }
 
     body.append(K.stack('Jakość animacji', null, K.select(QUALITY_OPTS, cfg.quality || 'auto', v => { const c = getCfg(); c.quality = v; saveCfg(c); })));
+    body.append(K.checkbox('Trzęsienie ekranu', SHAKE_ON, v => {
+      SHAKE_ON = !!v;
+      try { localStorage.setItem('lnfx_shake', v ? '1' : '0'); } catch (e) { /* ignore */ }
+      if (!v) resetShake();
+    }));
     lnc.append(K.line());
     const btns = el('div', 'ln-buttons-container lnfx-gbtns');
     btns.append(
